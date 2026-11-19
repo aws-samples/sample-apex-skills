@@ -289,14 +289,23 @@ def parse_events(events: list[dict]) -> Trajectory:
 #   "agent_message_chunk" {content}). Kiro's docs do not show how an update
 #   is wrapped on a line, so an update is read where it is found: the line
 #   itself, its "update", its "data", "data.update" or "params.update". A
-#   tool's name is its "name", else its "title", else its "kind". Token
-#   counts are read only from a "usage_update" or result carrying
-#   input_tokens/inputTokens and output_tokens/outputTokens; Kiro's docs
-#   name no token fields, so a Kiro run's tokens read None until a recorded
-#   stream shows them. A Kiro stream with no ACP update found is invalid
+#   tool's name is its "name", else its "title", else its "kind"; a call
+#   with no toolCallId is keyed by its line's position, so two such calls
+#   stay two. Token counts are read only from the runFinished record's
+#   "usage" or "data.usage" (input_tokens/inputTokens,
+#   output_tokens/outputTokens); Kiro's docs name no token fields, so a
+#   Kiro run's tokens read None until a recorded stream shows them. A Kiro
+#   stream with no runStarted, no runFinished or no ACP update is invalid
 #   (stream_invalid_reason), never scored as an empty trajectory.
+#
+# run_triggering.py reads kiro and codex streams line by line with the same
+# helpers (START_EVENTS, END_EVENTS, acp_update, kiro_usage, codex_usage),
+# so both runners apply one set of rules.
 
 HARNESSES = ("claude", "kiro", "codex")
+# Each harness's start and end event. A kiro or codex run needs both.
+START_EVENTS = {"claude": "system/init", "kiro": "runStarted", "codex": "thread.started"}
+END_EVENTS = {"claude": "result", "kiro": "runFinished", "codex": "turn.completed"}
 
 
 def _text_of(content: Any) -> str:
@@ -330,8 +339,17 @@ def _assistant_text(text: str) -> dict:
     return {"type": "assistant", "message": {"content": [{"type": "text", "text": text}]}}
 
 
-def _int_or_zero(value: Any) -> int:
-    return token_count(value)
+def codex_usage(evt: dict) -> dict | None:
+    """A codex turn.completed's token counts in USAGE_TOKEN_KEYS names
+    (cached_input_tokens as cache_read_input_tokens, cache_write_input_tokens
+    as cache_creation_input_tokens), or None when it has no usage object."""
+    u = evt.get("usage")
+    if not isinstance(u, dict):
+        return None
+    return {"input_tokens": token_count(u.get("input_tokens")),
+            "output_tokens": token_count(u.get("output_tokens")),
+            "cache_read_input_tokens": token_count(u.get("cached_input_tokens")),
+            "cache_creation_input_tokens": token_count(u.get("cache_write_input_tokens"))}
 
 
 def _normalize_codex(events: list) -> list[dict]:
@@ -348,11 +366,8 @@ def _normalize_codex(events: list) -> list[dict]:
                         "session_id": evt.get("thread_id")})
         elif etype == "turn.completed":
             turns += 1
-            u = evt.get("usage") if isinstance(evt.get("usage"), dict) else {}
-            usage["input_tokens"] += _int_or_zero(u.get("input_tokens"))
-            usage["output_tokens"] += _int_or_zero(u.get("output_tokens"))
-            usage["cache_read_input_tokens"] += _int_or_zero(u.get("cached_input_tokens"))
-            usage["cache_creation_input_tokens"] += _int_or_zero(u.get("cache_write_input_tokens"))
+            for key, value in (codex_usage(evt) or {}).items():
+                usage[key] += value
         elif etype == "turn.failed":
             turns += 1
             err = evt.get("error") if isinstance(evt.get("error"), dict) else {}
@@ -397,7 +412,7 @@ def _normalize_codex(events: list) -> list[dict]:
     return out
 
 
-def _acp_update(evt: dict) -> dict | None:
+def acp_update(evt: dict) -> dict | None:
     """The ACP session update an event line carries, wherever it sits."""
     candidates = [evt, evt.get("update"), evt.get("data")]
     data = evt.get("data")
@@ -412,17 +427,23 @@ def _acp_update(evt: dict) -> dict | None:
     return None
 
 
-def _kiro_usage(obj: dict) -> dict | None:
+def kiro_usage(evt: dict) -> dict | None:
+    """A kiro runFinished record's token counts in USAGE_TOKEN_KEYS names,
+    from its "usage" or "data.usage", or None when neither carries
+    input_tokens/inputTokens or output_tokens/outputTokens."""
     pairs = {"input_tokens": ("input_tokens", "inputTokens"),
              "output_tokens": ("output_tokens", "outputTokens")}
-    if not any(k in obj for names in pairs.values() for k in names):
-        return None
-    out = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
-    for key, names in pairs.items():
-        for n in names:
-            if n in obj:
-                out[key] = _int_or_zero(obj.get(n))
-    return out
+    data = evt.get("data") if isinstance(evt.get("data"), dict) else {}
+    for obj in (evt.get("usage"), data.get("usage")):
+        if not isinstance(obj, dict) or not any(n in obj for ns in pairs.values() for n in ns):
+            continue
+        out = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+        for key, names in pairs.items():
+            for n in names:
+                if n in obj:
+                    out[key] = token_count(obj.get(n))
+        return out
+    return None
 
 
 def _normalize_kiro(events: list) -> list[dict]:
@@ -434,6 +455,7 @@ def _normalize_kiro(events: list) -> list[dict]:
     error: str | None = None
     finished = False
     started = False
+    updates = 0
 
     def flush_text() -> None:
         if text:
@@ -450,7 +472,7 @@ def _normalize_kiro(events: list) -> list[dict]:
         flush_text()
         out.extend(_tool_pair(call["name"], call["input"], call["result"], call["error"]))
 
-    for evt in events:
+    for pos, evt in enumerate(events):
         if not isinstance(evt, dict):
             continue
         etype = evt.get("type")
@@ -458,19 +480,25 @@ def _normalize_kiro(events: list) -> list[dict]:
             data = evt.get("data") if isinstance(evt.get("data"), dict) else {}
             error = str(data.get("message") or "runError")
             continue
+        if etype == "runStarted":
+            if not started:
+                started = True
+                out.append({"type": "system", "subtype": "init", "harness": "kiro"})
+            continue
         if etype == "runFinished":
             finished = True
-        upd = _acp_update(evt)
+            usage = kiro_usage(evt) or usage
+            continue
+        upd = acp_update(evt)
         if upd is None:
             continue
-        if not started:
-            started = True
-            out.append({"type": "system", "subtype": "init", "harness": "kiro"})
+        updates += 1
         kind = upd.get("sessionUpdate")
         if kind == "agent_message_chunk":
             text.append(_text_of(upd.get("content")))
         elif kind in ("tool_call", "tool_call_update"):
-            call_id = str(upd.get("toolCallId"))
+            raw_id = upd.get("toolCallId")
+            call_id = f"id:{raw_id}" if raw_id is not None else f"pos:{pos}"
             call = calls.get(call_id)
             if call is None:
                 call = {"name": upd.get("name") or upd.get("title") or upd.get("kind") or "",
@@ -487,16 +515,14 @@ def _normalize_kiro(events: list) -> list[dict]:
                 call["error"] = True
             if status in ("completed", "failed"):
                 emit(call_id)
-        elif kind == "usage_update":
-            usage = _kiro_usage(upd) or usage
     for call_id in list(order):
         emit(call_id)
     flush_text()
-    if started or error:
+    if started or error or updates:
         result_evt = {"type": "result", "harness": "kiro",
                       "subtype": "error" if error else "success",
                       "is_error": error is not None, "error": error,
-                      "finished": finished}
+                      "finished": finished, "acp_updates": updates}
         if usage is not None:
             result_evt["usage"] = usage
         out.append(result_evt)
@@ -517,24 +543,27 @@ def normalize_events(events: list, harness: str) -> list[dict]:
 def stream_invalid_reason(events: list, harness: str) -> str | None:
     """Why a run's raw event stream cannot be scored, or None.
 
-    No events, no start event (claude's system/init, codex's thread.started,
-    kiro's first ACP update) or an error the harness reported (codex
-    turn.failed or error, kiro runError) makes the run invalid. A codex run
-    with no turn.completed did not finish. These shapes would otherwise
-    score as an empty trajectory, on which some assertions pass."""
+    No events, no start event (START_EVENTS) or an error the harness
+    reported (codex turn.failed or error, kiro runError) makes the run
+    invalid. A codex run with no turn.completed or a kiro run with no
+    runFinished did not finish, and a kiro run with no ACP update shows no
+    tool view. These shapes would otherwise score as an empty trajectory,
+    on which some assertions pass."""
     objs = [e for e in events if isinstance(e, dict)]
     if not objs:
         return "no events"
     norm = normalize_events(objs, harness)
     if not any(e.get("type") == "system" and e.get("subtype") == "init" for e in norm):
-        if harness == "kiro":
-            return "kiro stream: no ACP session update found, so tool calls cannot be read"
-        return "no init event"
+        return "no runStarted event" if harness == "kiro" else "no init event"
     result = next((e for e in reversed(norm) if e.get("type") == "result"), None)
     if harness in ("codex", "kiro") and result is not None and result.get("is_error"):
         return f"{harness} reported an error: {result.get('error')}"
     if harness == "codex" and result is None:
         return "codex stream ended with no turn.completed"
+    if harness == "kiro" and not result.get("finished"):
+        return "kiro stream ended with no runFinished"
+    if harness == "kiro" and not result.get("acp_updates"):
+        return "kiro stream: no ACP session update found, so tool calls cannot be read"
     return None
 
 

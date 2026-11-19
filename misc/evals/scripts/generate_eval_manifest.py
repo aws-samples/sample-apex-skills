@@ -5,7 +5,9 @@ Each entry's tokens_per_run is the with_skill arm's mean tokens per run
 (skill_summary.arms.with_skill.tokens_per_run_mean) in the latest kind
 "task" row of misc/evals/history/<skill>.jsonl, the only place the task
 runner records tokens (baseline.json carries none); null when that row has
-no per-skill summary (older rows) or there is no task row.
+no per-skill summary (older rows), its mean is null (no run recorded a
+token count) or there is no task row. A history line that is not JSON is
+skipped with a warning.
 
 --check builds the same content and compares it with the committed file:
 exit 0 when they match, 1 when they differ or the file is missing. It
@@ -43,7 +45,11 @@ def tokens_per_run(skill: str) -> int | None:
     for line in reversed(path.read_text().splitlines()):
         if not line.strip():
             continue
-        row = json.loads(line)
+        try:
+            row = json.loads(line)
+        except ValueError:
+            print(f"warning: {path}: skipping a line that is not JSON", file=sys.stderr)
+            continue
         if row.get("kind") != "task":
             continue
         arms = (row.get("skill_summary") or {}).get("arms") or {}

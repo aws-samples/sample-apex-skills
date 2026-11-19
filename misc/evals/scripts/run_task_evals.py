@@ -2,14 +2,18 @@
 """Task-axis runner for misc/evals/ (PLAN §2).
 
 For each case in <skill>/evals.json and in the shared evals of the run key's
-classes (CLASS_TARGETS; skipping "live_only": true entries unless
---include-live-only), for each arm in {with_skill, base arm}, for k in
-1..--runs (default regression.pass_k). The base arm is base_skill, the
-skill as it was at --base-ref (default v1.3.0), or without_skill when the
-skill is absent there or --base-ref is none. Step 2's subject is the
---harness (claude, kiro or codex; one adapter function each), and every
-run's valid, pass, tokens and wall time go to run-result.json, cases.json
-and the history row:
+classes (CLASS_TARGETS; no class has a shared task case on a target yet;
+skipping "live_only": true entries unless --include-live-only), for each
+arm in {with_skill, base arm}, for k in 1..--runs (default
+regression.pass_k). The base arm is base_skill, the skill as it was at
+--base-ref (default DEFAULT_BASE_REF), or without_skill when the skill is
+absent there or --base-ref is none. Step 2's subject is the --harness
+(claude, kiro or codex; one adapter function each) on --subject-model
+(run_triggering.subject_model), and every run's valid, pass, tokens and
+wall time go to run-result.json, cases.json and the history row. An
+invalid run scores grader pass rate 0 and counts in the pooled grader pass
+rate (the history row's means and delta); a run with no token count
+records tokens None, and token means cover only the runs that have one:
 
   1. Stage a sandbox (stage_skill_sandbox or stage_empty_sandbox) with a
      clean HOME, plus an optional KUBECONFIG. The only AWS credentials the
@@ -65,14 +69,20 @@ from pathlib import Path
 from typing import Any
 
 from run_triggering import (
+    CLASS_TARGETS as CLASS_TARGET_PATHS,
     EvalCredentialError,
+    HARNESS_SUBJECT_MODELS,
     build_subprocess_env,
+    check_cli_versions,
     eval_aws_env,
+    harness_env,
     mint_eval_role_credentials,
+    run_key_for,
     set_eval_credentials,
     stage_empty_sandbox,
     stage_skill_sandbox,
     read_skill_meta,
+    subject_model,
 )
 from parse_trajectory import (
     HARNESSES,
@@ -125,37 +135,17 @@ HARNESS_SKILL_DIRS = {
 # Top-level sandbox folders the runner stages; never copied into outputs/.
 STAGED_TOP_DIRS = frozenset({".claude", ".kiro", ".agents"})
 
-# Shared class cases. Each class's shared evals run against each member
-# skill; a skill becomes a member through its own `metadata.apex-classes`
-# (added by later skill rebuilds), and none declares it yet. Until then the
-# targets are this explicit list. "blocking": the 3 repo-owned devops-agent
-# copies block; every other target is report-only until the maintainers
-# decide which targets block.
-# dotnet-aws-ecs is left out: it is de-vendored in its own later rebuild.
-# A shared case lives in classes/<class>/evals/<suite>/evals.json and its
-# fixtures in <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases
-# with a "prompt" run here (a "mode": "manual" case is run by hand).
-SHARED_CASE_IDS = range(9001, 10000)
-_PLANNED_MEMBERS = (
-    "apex", "apex-new-skill", "ecs-architect", "ecs-build", "ecs-devops",
-    "ecs-genai", "ecs-modernize", "ecs-observability", "ecs-operation-review",
-    "ecs-recon", "ecs-security", "eks-best-practices", "eks-build",
-    "eks-cost-intelligence", "eks-design", "eks-genai", "eks-mcp-server",
-    "eks-platform-engineering", "eks-recon", "eks-security",
-    "graviton-migration", "update-docs",
-)
-_OWNER_HELD = (
-    "eks-upgrade-check", "eks-operation-review", "eks-well-architected-review",
-    "eks-ingress-migration",
-)
-_COPIES_BLOCKING = ("eks-cost-intelligence", "eks-recon", "eks-security")
-_COPIES_REPORT = ("eks-ingress-migration", "eks-operation-review", "eks-upgrade-check")
+# Shared class cases run against each target of their class. The targets
+# and which of them block are run_triggering.CLASS_TARGETS, the one list
+# both runners read (its comment gives the reasons); today no class has a
+# shared task case on a target. A shared case lives in
+# classes/<class>/evals/<suite>/evals.json and its fixtures in
+# <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases with a
+# "prompt" run here (a "mode": "manual" case is run by hand).
 CLASS_TARGETS: tuple[dict, ...] = tuple(
-    [{"run_key": s, "skill_dir": f"skills/{s}", "classes": ["apex-base"], "blocking": False}
-     for s in _PLANNED_MEMBERS + _OWNER_HELD]
-    + [{"run_key": f"devops-agent-{s}", "skill_dir": f"devops-agent/{s}",
-        "classes": ["apex-base"], "blocking": s in _COPIES_BLOCKING}
-       for s in _COPIES_BLOCKING + _COPIES_REPORT]
+    {"run_key": run_key_for(REPO_ROOT / path), "skill_dir": path, "classes": [cls],
+     "blocking": blocking}
+    for cls, listed in CLASS_TARGET_PATHS.items() for path, blocking in listed.items()
 )
 
 
@@ -493,21 +483,26 @@ def stage_fixture_files(
     for source in sources:
         if not source.is_dir():
             continue
-        for path in source.rglob("*"):
-            if path.is_file():
-                rel = path.relative_to(source).as_posix()
+        # Walk linked folders too: copytree copied what they hold.
+        for dirpath, _dirs, filenames in os.walk(source, followlinks=True):
+            for name in filenames:
+                rel = Path(dirpath, name).relative_to(source).as_posix()
                 staged[rel] = _sha256(sandbox / rel)
     return staged
 
 
 class FixtureLinkError(RuntimeError):
-    """A fixture folder holds a link that leaves the repo or leads nowhere."""
+    """A fixture folder holds a link that leaves the repo, leads nowhere or
+    to the repo root or .git, or holds a file that is not a regular file."""
 
 
 def check_fixture_links(source: Path, repo_root: Path | None = None) -> None:
     """Raise FixtureLinkError for a link under `source` (followed links
-    included) that does not resolve to an existing path inside the repo."""
+    included) that does not resolve to an existing path inside the repo, or
+    that resolves to the repo root or into its .git, and for an entry that is
+    neither a folder nor a regular file (a FIFO would hang the copy)."""
     root = os.path.realpath(repo_root or REPO_ROOT)
+    git_dir = os.path.join(root, ".git")
     seen: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(source, followlinks=True):
         real_dir = os.path.realpath(dirpath)
@@ -515,12 +510,19 @@ def check_fixture_links(source: Path, repo_root: Path | None = None) -> None:
             dirnames[:] = []
             continue
         seen.add(real_dir)
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            if os.path.exists(path) and not os.path.isfile(path):
+                raise FixtureLinkError(f"fixture {path} is not a regular file")
         for name in dirnames + filenames:
             path = os.path.join(dirpath, name)
             if not os.path.islink(path):
                 continue
             target = os.path.realpath(path)
-            inside = target == root or target.startswith(root + os.sep)
+            inside = target.startswith(root + os.sep)
+            if target == root or target == git_dir or target.startswith(git_dir + os.sep):
+                raise FixtureLinkError(
+                    f"fixture link {path} -> {os.readlink(path)} reaches the repo root or .git")
             if not inside or not os.path.exists(target):
                 raise FixtureLinkError(
                     f"fixture link {path} -> {os.readlink(path)} "
@@ -532,8 +534,14 @@ def _sha256(path: Path) -> str:
 
 
 def _ignore_links(directory: str, names: list[str]) -> list[str]:
-    """copytree ignore callable: leave out every link."""
-    return [n for n in names if os.path.islink(os.path.join(directory, n))]
+    """copytree ignore callable: leave out every link and every entry that
+    is neither a folder nor a regular file (a FIFO the subject made)."""
+    out = []
+    for n in names:
+        path = os.path.join(directory, n)
+        if os.path.islink(path) or not (os.path.isdir(path) or os.path.isfile(path)):
+            out.append(n)
+    return out
 
 
 # ---------- sandbox snapshot --------------------------------------------------
@@ -553,7 +561,8 @@ def snapshot_sandbox_outputs(
 
     Links are never copied, at the top level or below it: a dangling one
     would crash copytree, and a live one would copy what lies outside the
-    sandbox. The staged skill folders (STAGED_TOP_DIRS) are left out.
+    sandbox. Nor is an entry that is neither a folder nor a regular file
+    (a FIFO). The staged skill folders (STAGED_TOP_DIRS) are left out.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     for item in sandbox.iterdir():
@@ -657,8 +666,9 @@ def run_subject(
             run_extra["KUBECONFIG"] = str(kube_copy)
 
         def subject_env() -> dict[str, str]:
-            return build_subprocess_env(home, extra=run_extra or None,
-                                        aws_env=eval_aws_env(timeout))
+            return harness_env(build_subprocess_env(home, extra=run_extra or None,
+                                                    aws_env=eval_aws_env(timeout)),
+                               home, harness)
 
         if refused:
             pass
@@ -753,8 +763,9 @@ def run_subject(
 #
 # One function per harness, each returning the subject command for one
 # non-interactive run whose stdout is JSON Lines. Every adapter runs under
-# the same env: build_subprocess_env with the eval-role session
-# (eval_aws_env), a clean HOME and no host AWS_* variables.
+# the triggering runner's env: build_subprocess_env with the eval-role
+# session (eval_aws_env), a clean HOME and no host AWS_* variables, then
+# harness_env (codex: no CODEX_DROPPED_VARS, CODEX_HOME in the clean HOME).
 
 
 def _claude_cmd_base(model: str) -> list[str]:
@@ -778,9 +789,10 @@ def adapter_kiro(*, prompt: str, model: str, sandbox: Path, env: dict[str, str])
     """`kiro-cli chat` (kiro-cli 3.4.0 `chat --help`): --output-format
     stream-json gives "The run's ACP events as JSON Lines on stdout" and
     "implies --no-interactive"; --trust-all-tools lets it run tools without
-    asking, the counterpart of claude's bypassPermissions."""
-    return ["kiro-cli", "chat", "--no-interactive", "--output-format", "stream-json",
-            "--trust-all-tools", "--model", model, prompt]
+    asking, the counterpart of claude's bypassPermissions; --agent-engine
+    v3 pins the engine the stream is read for."""
+    return ["kiro-cli", "chat", "--agent-engine", "v3", "--no-interactive",
+            "--output-format", "stream-json", "--trust-all-tools", "--model", model, prompt]
 
 
 def adapter_codex(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
@@ -1040,7 +1052,8 @@ def _merge_assertion_results(results: list[AssertionResult]) -> ProcessAssertion
 
 def invalid_run_assertions(assertions: list[dict], reason: str) -> ProcessAssertionResults:
     """Every assertion failed for an invalid run, so the process layer
-    counts the run instead of dropping it."""
+    counts the run instead of dropping it (as the grader layer does: an
+    invalid run's grader pass rate is 0 in the pooled rate)."""
     return _merge_assertion_results([
         AssertionResult(assertion=a, passed=False, evidence=f"invalid run: {reason}",
                         failure_class="invalid_run", matching_calls=None)
@@ -1146,21 +1159,32 @@ def load_shared_cases(classes: list[str]) -> list[dict]:
 
 def merge_cases(own: list[dict], shared: list[dict]) -> list[dict]:
     """A member's own cases followed by the shared ones. Shared ids must be
-    integers in SHARED_CASE_IDS and differ from the member's ids and from
-    each other: run folders, the benchmark and the assertion runners key on
-    the id, so a repeat would overwrite a run."""
+    integers and differ from the member's ids and from each other: run
+    folders, the benchmark and the assertion runners key on the id, so a
+    repeat would overwrite a run."""
     seen: dict[Any, str] = {}
     for case in own:
         seen[case["id"]] = "own"
     for case in shared:
         cid = case.get("id")
-        if not isinstance(cid, int) or isinstance(cid, bool) or cid not in SHARED_CASE_IDS:
-            raise ValueError(f"{case['_source']}: shared case id {cid!r} is not an integer "
-                             f"from {SHARED_CASE_IDS.start} to {SHARED_CASE_IDS.stop - 1}")
+        if not isinstance(cid, int) or isinstance(cid, bool):
+            raise ValueError(f"{case['_source']}: shared case id {cid!r} is not an integer")
         if cid in seen:
             raise ValueError(f"{case['_source']}: case id {cid} repeats an id from {seen[cid]}")
         seen[cid] = case["_source"]
     return list(own) + list(shared)
+
+
+def target_cases(target: dict, include_live_only: bool) -> list[dict]:
+    """The cases a run of `target` (resolve_target) runs: its own and its
+    classes' shared ones (merge_cases; raises ValueError), without
+    live_only cases unless `include_live_only`."""
+    own: list[dict] = []
+    if target["own_eval_dir"] is not None:
+        for case in json.loads((target["own_eval_dir"] / "evals.json").read_text()).get("evals") or []:
+            own.append(dict(case, _source="own", _fixture_root=target["own_eval_dir"]))
+    cases = merge_cases(own, load_shared_cases(target["classes"]))
+    return cases if include_live_only else [c for c in cases if not c.get("live_only")]
 
 
 # ---------- per-run and per-case results --------------------------------------
@@ -1191,6 +1215,7 @@ def run_record(run_dir: Path, *, arm: str, k: int, subj: dict, harness: str) -> 
         s = av.get("summary") or {}
         artifact_ok = (s.get("structural_failed", 0) + s.get("validators_failed", 0)) == 0
     valid = bool(subj.get("ok"))
+    recorded = timing.get("token_source") is not None
     record = {
         "arm": arm,
         "run": k,
@@ -1204,8 +1229,11 @@ def run_record(run_dir: Path, *, arm: str, k: int, subj: dict, harness: str) -> 
         "process_passed": process_ok,
         "artifact_passed": artifact_ok,
         "pass": valid and grader_ok and process_ok is not False and artifact_ok is not False,
-        "tokens": token_count(timing.get("total_tokens")),
-        "token_usage": {key: token_count(timing.get(key)) for key in USAGE_TOKEN_KEYS},
+        # None when the run recorded no token count (timing.json token_source
+        # None), never 0.
+        "tokens": token_count(timing.get("total_tokens")) if recorded else None,
+        "token_usage": {key: token_count(timing.get(key)) if recorded else None
+                        for key in USAGE_TOKEN_KEYS},
         "token_source": timing.get("token_source"),
         "wall_seconds": timing.get("total_duration_seconds", 0.0),
     }
@@ -1215,6 +1243,12 @@ def run_record(run_dir: Path, *, arm: str, k: int, subj: dict, harness: str) -> 
 
 def _mean(values: list[float]) -> float:
     return round(sum(values) / len(values), 4) if values else 0.0
+
+
+def _mean_recorded(values: list) -> float | None:
+    """Mean of the values that are not None; None when every one is."""
+    got = [v for v in values if v is not None]
+    return _mean(got) if got else None
 
 
 def summarize_arm(records: list[dict], k: int) -> dict:
@@ -1231,8 +1265,8 @@ def summarize_arm(records: list[dict], k: int) -> dict:
         "pass_all_k": len(records) == k and passes == k,
         "pass_rate_mean": _mean([r["grader_pass_rate"] for r in records]),
         "tokens_per_run": [r["tokens"] for r in records],
-        "tokens_mean": _mean([r["tokens"] for r in records]),
-        "token_usage_mean": {key: _mean([r["token_usage"][key] for r in records])
+        "tokens_mean": _mean_recorded([r["tokens"] for r in records]),
+        "token_usage_mean": {key: _mean_recorded([r["token_usage"][key] for r in records])
                              for key in USAGE_TOKEN_KEYS},
         "wall_seconds_per_run": [r["wall_seconds"] for r in records],
         "wall_seconds_mean": _mean([r["wall_seconds"] for r in records]),
@@ -1271,7 +1305,7 @@ def summarize_skill(cases: list[dict], base_arm: str) -> dict:
             "cases_pass_all_k": sum(1 for a in arm_cases if a["pass_all_k"]),
             "runs": sum(a["runs"] for a in arm_cases),
             "invalid_runs": sum(a["runs"] - a["valid_runs"] for a in arm_cases),
-            "tokens_per_run_mean": _mean(tokens),
+            "tokens_per_run_mean": _mean_recorded(tokens),
             "wall_seconds_per_run_mean": _mean(walls),
         }
     return out
@@ -1355,13 +1389,15 @@ def run_skill(
     harness: str = "claude",
     base_ref: str | None = None,
     base_sha: str | None = None,
+    subject_model_id: str | None = None,
 ) -> dict:
     """Run one run key's cases: its own misc/evals/<key>/evals.json cases
     and the shared cases of its classes, on two arms: with_skill (the
     skill as it is now) against the base arm, which is the skill as it was
     at `base_sha` (base_skill), or without_skill when `base_sha` is None or
     the skill does not exist there. Each case runs `runs` times per
-    arm, default regression.pass_k from .skilleval.yaml."""
+    arm, default regression.pass_k from .skilleval.yaml. The subject runs
+    on `subject_model_id` (default `model`), the grader on `model`."""
     target = resolve_target(skill)
     skill_repo_dir = target["skill_repo_dir"]
     skill_eval_dir = target["own_eval_dir"]
@@ -1376,16 +1412,10 @@ def run_skill(
         effective_timeout = skill_config.timeout
     runs = runs if runs is not None else skill_config.pass_k
 
-    own: list[dict] = []
-    if skill_eval_dir is not None:
-        for case in json.loads((skill_eval_dir / "evals.json").read_text()).get("evals") or []:
-            own.append(dict(case, _source="own", _fixture_root=skill_eval_dir))
     try:
-        prompts = merge_cases(own, load_shared_cases(target["classes"]))
+        prompts = target_cases(target, include_live_only)
     except ValueError as e:
         return {"skill": skill, "error": str(e)}
-    if not include_live_only:
-        prompts = [p for p in prompts if not p.get("live_only")]
     if not prompts:
         return {"skill": skill, "skipped": "no fixture-free prompts (all are live_only)"}
 
@@ -1401,7 +1431,7 @@ def run_skill(
             skill, target, prompts, skill_name=skill_name, base_arm=base_arm,
             base_dir=base_dir, base_name=base_name, base_ref=base_ref, base_sha=base_sha,
             model=model, runs=runs, timeout=effective_timeout, grader_timeout=grader_timeout,
-            extra_env=extra_env, harness=harness,
+            extra_env=extra_env, harness=harness, subject_model_id=subject_model_id or model,
         )
     finally:
         shutil.rmtree(base_tmp, ignore_errors=True)
@@ -1424,6 +1454,7 @@ def _run_cases(
     grader_timeout: int,
     extra_env: dict[str, str] | None,
     harness: str,
+    subject_model_id: str | None = None,
 ) -> dict:
     skill_repo_dir = target["skill_repo_dir"]
     effective_timeout = timeout
@@ -1467,7 +1498,7 @@ def _run_cases(
                     skill_name=(base_name if config == BASE_ARM else skill_name),
                     repo_skill_dir=(base_dir if config == BASE_ARM else skill_repo_dir),
                     with_skill=(config != WITHOUT_ARM),
-                    model=model,
+                    model=subject_model_id or model,
                     timeout=effective_timeout,
                     run_dir=run_dir,
                     extra_env=extra_env,
@@ -1611,6 +1642,7 @@ def _run_cases(
 
     benchmark = json.loads((runs_dir / "benchmark.json").read_text())
     rs = benchmark.get("run_summary") or {}
+    # Pooled grader pass rate per arm; an invalid run counts in it as 0.
     with_pr = (rs.get(NEW_ARM) or {}).get("pass_rate") or {}
     base_pr = (rs.get(base_arm) or {}).get("pass_rate") or {}
     delta = with_pr.get("mean", 0) - base_pr.get("mean", 0)
@@ -1678,12 +1710,19 @@ def main() -> int:
                              "A skill absent there runs against without_skill; "
                              "'none' runs with_skill against without_skill.")
     parser.add_argument("--list-targets", action="store_true",
-                        help="Print every run key (misc/evals skills and class targets) as "
-                             "JSON lines and exit; runs nothing.")
+                        help="Print each run key (misc/evals skills and class targets) that has "
+                             "a case to run (live_only cases count only with "
+                             "--include-live-only) as JSON lines and exit; the others are named "
+                             "on stderr. Runs nothing.")
     parser.add_argument("--include-live-only", action="store_true",
                         help="Include prompts marked live_only=true")
     parser.add_argument("--model", default=None,
-                        help="Model ID. Default comes from the Makefile.")
+                        help="The grader's model, and the claude subject's (a Bedrock id). "
+                             "Default comes from the Makefile.")
+    parser.add_argument("--subject-model", default=None,
+                        help="The subject's model on any harness; default --model on claude, "
+                             f"else codex {HARNESS_SUBJECT_MODELS['codex']}, "
+                             f"kiro {HARNESS_SUBJECT_MODELS['kiro']}.")
     parser.add_argument("--subject-timeout", type=int, default=None,
                         help="Subject timeout in seconds. Overrides per-skill .skilleval.yaml timeout. "
                              "If not set, uses .skilleval.yaml timeout (default 600).")
@@ -1691,11 +1730,20 @@ def main() -> int:
     parser.add_argument("--kubeconfig", default=None,
                         help="KUBECONFIG path exported into the subject subprocess")
     args = parser.parse_args()
+    if args.runs is not None and args.runs < 1:
+        parser.error("--runs must be 1 or more")
 
     skills = discover_skills()
     if args.list_targets:
         for key in sorted(set(skills) | {t["run_key"] for t in CLASS_TARGETS}):
             t = resolve_target(key)
+            try:
+                runnable = bool(target_cases(t, args.include_live_only))
+            except ValueError:
+                runnable = True  # listed, so a run reports the error
+            if not runnable:
+                print(f"[task] {key}: no runnable case", file=sys.stderr)
+                continue
             print(json.dumps({"run_key": key, "skill_dir": t["skill_rel"],
                               "own_cases": t["own_eval_dir"] is not None,
                               "classes": t["classes"], "blocking": t["blocking"]}))
@@ -1707,6 +1755,7 @@ def main() -> int:
         skills = [args.skill]
 
     model = args.model or _resolve_makefile_default("MODEL") or "global.anthropic.claude-opus-4-6-v1"
+    subject = subject_model(args.harness, model, args.subject_model)
 
     extra_env: dict[str, str] = {}
     if args.kubeconfig:
@@ -1720,6 +1769,10 @@ def main() -> int:
         else [(load_skilleval_config(s).timeout, f"{s}/.skilleval.yaml") for s in skills]
     )
     longest, source = max(timeouts, key=lambda t: t[0])
+    version_error = check_cli_versions(["claude", args.harness])  # the grader is claude -p
+    if version_error:
+        print(f"error: {version_error}", file=sys.stderr)
+        return 2
     try:
         set_eval_credentials(mint_eval_role_credentials(timeout=longest, source=source))
     except EvalCredentialError as e:
@@ -1751,6 +1804,7 @@ def main() -> int:
                 harness=args.harness,
                 base_ref=base_ref,
                 base_sha=base_sha,
+                subject_model_id=subject,
             )
         except EvalCredentialError as e:
             print(f"error: {skill}: eval-role session refresh failed, stopping: {e}", file=sys.stderr)

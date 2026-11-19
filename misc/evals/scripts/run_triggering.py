@@ -32,14 +32,19 @@ Design (PLAN §1.5.2):
 
   run_single_query(...) runs one query on the `--harness` adapter (claude,
   kiro or codex; one function each: run_claude, run_kiro, run_codex) with
-  `cwd=sandbox`, `HOME=home`, the eval-role env and a per-run kubeconfig
-  copy, and watches its JSON Lines output for the skill load: for claude a
+  `cwd=sandbox`, `HOME=home` and the eval-role env (harness_env), and
+  watches its JSON Lines output for the skill load: for claude a
   Skill tool_use naming the canonical skill, for kiro and codex a tool call
   that reads the staged SKILL.md. Kills the subprocess on first match so
-  negatives don't burn the full response-generation budget. A run that
-  times out, shows no start event, exits non-zero or shows no end event
-  (without a seen trigger) is invalid; invalid runs count in neither the
-  trigger count nor the run count, and a case with no valid run fails.
+  negatives don't burn the full response-generation budget. A run is
+  invalid when it shows no start event, or, without a seen trigger, times
+  out, closes stdout without exiting, exits non-zero or shows no end event;
+  also when the harness reports an error (claude result is_error, kiro
+  runError, codex turn.failed or error), claude's system/init lists an
+  unexpected skill, a kiro or codex run shows no tool view (no ACP update,
+  no item event), or the worker raised. Invalid runs count in neither the
+  trigger count nor the run count; a case with no valid run fails, and so
+  does a class's shared should-not case with any invalid run.
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
   run_all_evals.py keeps parsing the stdout JSON blob; the fields it adds
@@ -70,6 +75,15 @@ import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+
+from parse_trajectory import (
+    END_EVENTS,
+    HARNESSES,
+    START_EVENTS,
+    acp_update,
+    codex_usage,
+    kiro_usage,
+)
 
 try:  # PyYAML is present in this eval env (siblings import it unconditionally),
     import yaml  # but keep the stdlib-only regex fallback below so this runner
@@ -146,16 +160,19 @@ def build_subprocess_env(
     """Build the env dict for a `claude -p` subprocess. Strips CLAUDECODE so
     a session-local parent doesn't confuse the child, drops every AWS_*
     variable of the parent (keys, AWS_PROFILE, config paths, Bedrock API
-    keys) and SUBJECT_DROPPED_VARS, sets HOME to the clean temp dir, merges
-    caller-supplied overrides (KUBECONFIG, etc.) and then `aws_env`, the
-    eval-role credentials from EvalCredentials.env. `extra` may not carry
-    AWS_* names."""
+    keys), every APEX_EVAL_* variable (the CI secrets the eval-role config
+    is written from) and SUBJECT_DROPPED_VARS, sets HOME to the clean temp
+    dir, merges caller-supplied overrides (KUBECONFIG, etc.) and then
+    `aws_env`, the eval-role credentials from EvalCredentials.env. `extra`
+    may not carry AWS_* names. harness_env adds what a kiro or codex
+    subject needs on top."""
     bad = sorted(k for k in (extra or {}) if k.startswith("AWS_"))
     if bad:
         raise ValueError(f"AWS variables reach the subject only as eval-role credentials: {bad}")
     env = {
         k: v for k, v in os.environ.items()
-        if k != "CLAUDECODE" and not k.startswith("AWS_") and k not in SUBJECT_DROPPED_VARS
+        if k != "CLAUDECODE" and not k.startswith(("AWS_", "APEX_EVAL_"))
+        and k not in SUBJECT_DROPPED_VARS
     }
     env["HOME"] = str(home)
     if extra:
@@ -176,10 +193,12 @@ EVAL_SESSION_SECONDS = 3600
 # Spare seconds a session must have left past a subprocess's timeout.
 EVAL_SESSION_MARGIN = 120
 # Never passed to the subject: each could send its model calls somewhere
-# other than Bedrock on the eval-role session.
+# other than Bedrock on the eval-role session. KIRO_API_KEY goes back only
+# to a kiro subject (harness_env).
 SUBJECT_DROPPED_VARS = frozenset({
     "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
     "ANTHROPIC_BEDROCK_BASE_URL", "CLAUDE_CODE_SKIP_BEDROCK_AUTH", "CLAUDE_CONFIG_DIR",
+    "KIRO_API_KEY",
 })
 
 
@@ -412,9 +431,6 @@ def _match_skill_in_input(raw_json: str, skill_name: str) -> bool:
     )
 
 
-HARNESSES = ("claude", "kiro", "codex")
-
-
 def new_run_record(harness: str) -> dict:
     """The per-run record every harness adapter returns.
 
@@ -429,6 +445,8 @@ def new_run_record(harness: str) -> dict:
                     such as the kill on a seen trigger)
     timed_out       the run hit --timeout
     tokens          token counts when the output carries them, else None
+                    (claude: the result's usage keys; kiro and codex:
+                    parse_trajectory's USAGE_TOKEN_KEYS names)
     """
     return {
         "harness": harness,
@@ -721,45 +739,13 @@ def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
 # 2026-11-19), so Kiro's model calls go to Kiro's service, not to Bedrock on
 # the eval-role session; the eval-role env still reaches the subprocess for
 # its AWS tool calls. Kiro reads global skills from ~/.kiro/skills/
-# (kiro.dev/docs/skills) and loads a skill's full SKILL.md on activation, which
-# shows as a file-read tool call on .../skills/<name>/SKILL.md. The record
-# types read here (runStarted, sessionUpdate, runFinished, runError) are the
-# names in the 3.4.0 binary and the headless page's runError record; an ACP
-# tool call is a sessionUpdate whose update has sessionUpdate "tool_call" or
-# "tool_call_update". Token counts are read only if runFinished carries them.
-
-
-KIRO_TOKEN_KEYS = ("input_tokens", "output_tokens", "inputTokens", "outputTokens",
-                   "total_tokens", "totalTokens")
-
-
-def _acp_tool_calls(obj):
-    """Every dict under `obj` whose sessionUpdate is an ACP tool call."""
-    if isinstance(obj, dict):
-        if obj.get("sessionUpdate") in ("tool_call", "tool_call_update"):
-            yield obj
-        for v in obj.values():
-            yield from _acp_tool_calls(v)
-    elif isinstance(obj, list):
-        for v in obj:
-            yield from _acp_tool_calls(v)
-
-
-def _find_tokens(obj, keys) -> dict | None:
-    if isinstance(obj, dict):
-        found = _int_fields(obj, keys)
-        if found:
-            return found
-        for v in obj.values():
-            got = _find_tokens(v, keys)
-            if got:
-                return got
-    elif isinstance(obj, list):
-        for v in obj:
-            got = _find_tokens(v, keys)
-            if got:
-                return got
-    return None
+# (kiro.dev/docs/skills). A trigger is read as a file-read tool call on
+# .../skills/<name>/SKILL.md: assumed, not seen in a recorded stream (that
+# page names no activation mechanism). The record types read here
+# (runStarted, sessionUpdate, runFinished) are the names in the 3.4.0
+# binary; the runError record is documented for Kiro CLI 3.5.0 or later
+# (kiro.dev/docs/cli/headless, read 2026-11-19). Events, tool calls and
+# tokens are read with parse_trajectory's helpers, the task runner's rules.
 
 
 def parse_kiro_stream(process: subprocess.Popen, skill_name: str, skill_dir: Path,
@@ -772,29 +758,32 @@ def parse_kiro_stream(process: subprocess.Popen, skill_name: str, skill_dir: Pat
         if evt is None:
             return False
         etype = evt.get("type")
-        if etype == "runStarted":
+        if etype == START_EVENTS["kiro"]:
             out["init_seen"] = True
-        elif etype == "runFinished":
+            return False
+        if etype == END_EVENTS["kiro"]:
             out["end_seen"] = True
-            tokens = _find_tokens(evt, KIRO_TOKEN_KEYS)
+            tokens = kiro_usage(evt)
             if tokens:
-                if "total_tokens" not in tokens:
-                    tokens["total_tokens"] = tokens.get("totalTokens") or sum(
-                        v for k, v in tokens.items() if k not in ("totalTokens",))
+                tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
                 out["tokens"] = tokens
-        elif etype == "runError":
+            return False
+        if etype == "runError":
             _mark_invalid(out, "runError record")
-        elif etype == "sessionUpdate":
-            updates[0] += 1
-            for call in _acp_tool_calls(evt):
-                probe = {k: call.get(k) for k in ("rawInput", "locations", "title")}
-                if _names_skill_file(probe, skill_name, skill_dir):
-                    out["trigger_seen"] = True
-                    return True
+            return False
+        call = acp_update(evt)
+        if call is None:
+            return False
+        updates[0] += 1
+        if call.get("sessionUpdate") in ("tool_call", "tool_call_update"):
+            probe = {k: call.get(k) for k in ("rawInput", "locations", "title")}
+            if _names_skill_file(probe, skill_name, skill_dir):
+                out["trigger_seen"] = True
+                return True
         return False
 
     how = read_stream_lines(process, timeout, on_line)
-    finish_run(out, process, how, timeout, "runStarted", "runFinished")
+    finish_run(out, process, how, timeout, START_EVENTS["kiro"], END_EVENTS["kiro"])
     if not out["invalid"] and not out["trigger_seen"] and updates[0] == 0:
         _mark_invalid(out, "no sessionUpdate event, so the output cannot show whether the skill loaded")
     return out
@@ -808,6 +797,7 @@ def run_kiro(query: str, skill_name: str, skill_dir: Path, model: str | None,
     (skills / skill_name).symlink_to(Path(skill_dir).resolve())
     cmd = [
         "kiro-cli", "chat",
+        "--agent-engine", "v3",
         "--no-interactive",
         "--output-format", "stream-json",
         "--trust-all-tools",
@@ -838,12 +828,26 @@ def run_kiro(query: str, skill_name: str, skill_dir: Path, model: str | None,
 # (codex-rs/model-provider/src/amazon_bedrock/auth.rs), here the eval role's.
 
 
-CODEX_TOKEN_KEYS = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens",
-                    "output_tokens", "reasoning_output_tokens")
 CODEX_BEDROCK_PROVIDER = "amazon-bedrock-runtime"
 # Never passed to a Codex subject: each could route its model calls off the
 # eval-role session or load a config other than the clean HOME's.
 CODEX_DROPPED_VARS = frozenset({"CODEX_HOME", "CODEX_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"})
+
+
+def harness_env(env: dict[str, str], home: Path, harness: str) -> dict[str, str]:
+    """A copy of build_subprocess_env's `env` for a `harness` subject, used
+    by both runners: codex loses CODEX_DROPPED_VARS and gets CODEX_HOME in
+    the clean HOME; kiro gets the parent's KIRO_API_KEY, its headless
+    sign-in, which every other subject and the grader never see."""
+    env = dict(env)
+    if harness == "codex":
+        for k in CODEX_DROPPED_VARS:
+            env.pop(k, None)
+        (home / ".codex").mkdir(exist_ok=True)
+        env["CODEX_HOME"] = str(home / ".codex")
+    elif harness == "kiro" and os.environ.get("KIRO_API_KEY"):
+        env["KIRO_API_KEY"] = os.environ["KIRO_API_KEY"]
+    return env
 
 
 def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Path,
@@ -856,20 +860,18 @@ def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Pa
         if evt is None:
             return False
         etype = evt.get("type")
-        if etype == "thread.started":
+        if etype == START_EVENTS["codex"]:
             out["init_seen"] = True
-        elif etype == "turn.completed":
+        elif etype == END_EVENTS["codex"]:
             out["end_seen"] = True
-            usage = evt.get("usage")
-            if isinstance(usage, dict):
-                got = _int_fields(usage, CODEX_TOKEN_KEYS)
-                if got:
-                    tokens = out["tokens"] or {}
-                    for k, v in got.items():
-                        tokens[k] = tokens.get(k, 0) + v
-                    # cached and reasoning counts are parts of input and output
-                    tokens["total_tokens"] = tokens.get("input_tokens", 0) + tokens.get("output_tokens", 0)
-                    out["tokens"] = tokens
+            got = codex_usage(evt)
+            if got:
+                tokens = out["tokens"] or dict.fromkeys(got, 0)
+                for k, v in got.items():
+                    tokens[k] += v
+                # cached counts are part of input
+                tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
+                out["tokens"] = tokens
         elif etype == "turn.failed":
             _mark_invalid(out, "turn.failed event")
         elif etype == "error":
@@ -890,7 +892,7 @@ def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Pa
         return False
 
     how = read_stream_lines(process, timeout, on_line)
-    finish_run(out, process, how, timeout, "thread.started", "turn.completed")
+    finish_run(out, process, how, timeout, START_EVENTS["codex"], END_EVENTS["codex"])
     if not out["invalid"] and not out["trigger_seen"] and items[0] == 0:
         _mark_invalid(out, "no item event, so the output cannot show whether the skill loaded")
     return out
@@ -899,15 +901,11 @@ def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Pa
 def run_codex(query: str, skill_name: str, skill_dir: Path, model: str | None,
               timeout: int, sandbox: Path, home: Path, env: dict[str, str]) -> dict:
     """Codex CLI adapter: the skill is linked at <clean HOME>/.agents/skills/<name>,
-    CODEX_HOME is the clean HOME's .codex, and the model provider is Bedrock
-    in the eval role's region."""
+    CODEX_HOME is the clean HOME's .codex (harness_env), and the model
+    provider is Bedrock in the eval role's region."""
     skills = home / ".agents" / "skills"
     skills.mkdir(parents=True, exist_ok=True)
     (skills / skill_name).symlink_to(Path(skill_dir).resolve())
-    (home / ".codex").mkdir(exist_ok=True)
-    for k in CODEX_DROPPED_VARS:
-        env.pop(k, None)
-    env["CODEX_HOME"] = str(home / ".codex")
     region = env.get("AWS_REGION", "")
     cmd = [
         "codex", "exec",
@@ -928,27 +926,46 @@ def run_codex(query: str, skill_name: str, skill_dir: Path, model: str | None,
 
 
 HARNESS_ADAPTERS = {"claude": run_claude, "kiro": run_kiro, "codex": run_codex}
+# The subject model on kiro and codex when --subject-model is not given
+# (claude's is --model, a Bedrock id). codex: the amazon-bedrock-runtime
+# provider's Terra id (openai/codex rust-v0.163.0,
+# codex-rs/model-provider-info/src/lib.rs:93-94; that provider's catalog
+# holds OpenAI models only). kiro: a Kiro catalog id
+# (kiro.dev/docs/cli/chat/model-selection). Both read 2026-11-19.
+HARNESS_SUBJECT_MODELS = {"codex": "global.openai.gpt-5.6-terra", "kiro": "claude-opus-4.8"}
 
 
-def per_run_kubeconfig(home: Path, source: str | None) -> dict[str, str] | None:
-    """Copy the kubeconfig (`source`, else the parent's KUBECONFIG list) into
-    the run's clean HOME, so a run that rewrites its kubeconfig (such as
-    `aws eks update-kubeconfig`) changes only its own copy. Missing entries
-    of the parent's list are skipped, as kubectl skips them."""
-    src = source or os.environ.get("KUBECONFIG")
-    if not src:
-        return None
-    kube = home / ".kube"
-    kube.mkdir(mode=0o700, exist_ok=True)
-    copies = []
-    for path in (p for p in src.split(os.pathsep) if p):
-        if source is None and not os.path.isfile(path):
-            continue
-        dst = kube / f"config-{len(copies)}"
-        shutil.copyfile(path, dst)
-        os.chmod(dst, 0o600)
-        copies.append(str(dst))
-    return {"KUBECONFIG": os.pathsep.join(copies)} if copies else None
+def subject_model(harness: str, model: str | None, override: str | None) -> str | None:
+    """The subject's model: `override` (--subject-model) when given, else
+    `model` on claude and HARNESS_SUBJECT_MODELS on kiro and codex."""
+    if override:
+        return override
+    return model if harness == "claude" else HARNESS_SUBJECT_MODELS[harness]
+
+
+# The CLI and version each adapter was written against; .github/workflows/
+# evals.yml installs the same claude and codex pins (kiro is not in CI).
+HARNESS_CLI_VERSIONS = {"claude": ("claude", "2.1.121"), "codex": ("codex", "0.163.0"),
+                        "kiro": ("kiro-cli", "3.4.0")}
+
+
+def check_cli_versions(harnesses) -> str | None:
+    """None when each harness's `<cli> --version` names its
+    HARNESS_CLI_VERSIONS version, else the error to print. A version read is
+    not a model call; both runners call this before any run."""
+    for harness in dict.fromkeys(harnesses):
+        cli, want = HARNESS_CLI_VERSIONS[harness]
+        try:
+            out = subprocess.run([cli, "--version"], capture_output=True, text=True,
+                                 timeout=30).stdout
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return f"cannot read `{cli} --version` ({e}); the {harness} adapter needs {cli} {want}"
+        got = re.search(r"\d+\.\d+\.\d+", out)
+        if not got or got.group(0) != want:
+            found = got.group(0) if got else repr(out.strip())
+            return (f"{cli} {found} is installed, but the {harness} adapter was written "
+                    f"against {cli} {want}: install {want} or update the adapter")
+    return None
 
 
 def run_single_query(
@@ -959,15 +976,14 @@ def run_single_query(
     timeout: int,
     *,
     harness: str = "claude",
-    kubeconfig: str | None = None,
 ) -> dict:
     """Run one query on one harness in a fresh sandbox and clean HOME, with
-    the eval-role env and a per-run kubeconfig copy. Returns the adapter's
-    new_run_record dict; the caller counts only valid runs."""
+    the eval-role env (harness_env). Returns the adapter's new_run_record
+    dict; the caller counts only valid runs."""
     adapter = HARNESS_ADAPTERS[harness]
     with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = build_subprocess_env(home, per_run_kubeconfig(home, kubeconfig),
-                                   aws_env=eval_aws_env(timeout))
+        env = harness_env(build_subprocess_env(home, aws_env=eval_aws_env(timeout)),
+                          home, harness)
         return adapter(query, skill_name, Path(repo_skill_dir), model, timeout, sandbox, home, env)
 
 
@@ -1049,11 +1065,11 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
 
 
 def _worker(args: tuple) -> tuple[int, dict]:
-    case_idx, query, skill_name, repo_skill_dir, model, timeout, creds, harness, kubeconfig = args
+    case_idx, query, skill_name, repo_skill_dir, model, timeout, creds, harness = args
     set_eval_credentials(creds)
     try:
         result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout,
-                                  harness=harness, kubeconfig=kubeconfig)
+                                  harness=harness)
     except EvalCredentialError:
         raise  # a failed refresh stops the run; it is never an invalid run that can pass
     except Exception as e:  # noqa: BLE001
@@ -1118,7 +1134,6 @@ def run_eval(
     creds: EvalCredentials,
     *,
     harness: str = "claude",
-    kubeconfig: str | None = None,
 ) -> dict:
     """Execute every (case x run) pair; aggregate into run_eval.py's output
     schema plus the fields score_case adds. Cases are keyed by their index,
@@ -1129,7 +1144,7 @@ def run_eval(
     for idx, item in enumerate(eval_set):
         for _ in range(runs_per_query):
             jobs.append((idx, item["query"], skill_name, str(repo_skill_dir), model, timeout,
-                         creds, harness, kubeconfig))
+                         creds, harness))
 
     records_by_case: dict[int, list[dict]] = {}
 
@@ -1176,11 +1191,13 @@ def run_eval(
 # A class's shared trigger cases live at classes/<class>/evals/trigger/
 # triggering.json. They run against each target of the
 # class, merged with the target's own cases, a class's parents' cases first.
-# Until skills declare metadata.apex-classes (added by later skill rebuilds),
-# the targets are this explicit list. `blocking` False is a report-only target:
-# the 22 planned skills, until the maintainers decide which targets block, the
-# 4 owner-held skills and the 3 other devops-agent copies. dotnet-aws-ecs runs
-# once it is de-vendored in its own later rebuild.
+# A class's targets are this explicit list (no runner reads class membership
+# from a skill's frontmatter); run_task_evals.py builds its target list from
+# it too. Only the 3 repo-owned devops-agent copies block. The other 29 are
+# report-only: a failure stays in the run results and stops no merge. They
+# are the 22 planned skills, the 4 skills their owners hold and the 3
+# devops-agent copies of owner-held skills. dotnet-aws-ecs runs once it is
+# de-vendored in its own later rebuild.
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -1346,29 +1363,21 @@ def main() -> int:
                         metavar="CLASS",
                         help="Also run this class's shared trigger evals (and its parents'); "
                              "the skill must be on the class's target list. Repeatable")
-    parser.add_argument("--list-class-targets", metavar="CLASS", default=None,
-                        help="Print the class's target list as JSON and exit; runs nothing")
     parser.add_argument("--harness", choices=HARNESSES, default="claude")
-    parser.add_argument("--kubeconfig", default=None,
-                        help="Kubeconfig each run gets its own copy of (default: the "
-                             "parent's KUBECONFIG, copied the same way)")
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=90, help="Per-query wallclock seconds")
     parser.add_argument("--runs-per-query", type=int, default=3)
     parser.add_argument("--trigger-threshold", type=float, default=0.5)
-    parser.add_argument("--model", default=None)
+    parser.add_argument("--model", default=None,
+                        help="The claude subject's model (a Bedrock id)")
+    parser.add_argument("--subject-model", default=None,
+                        help="The subject's model on any harness; default --model on claude, "
+                             "else HARNESS_SUBJECT_MODELS (codex "
+                             f"{HARNESS_SUBJECT_MODELS['codex']}, kiro "
+                             f"{HARNESS_SUBJECT_MODELS['kiro']})")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
-
-    if args.list_class_targets is not None:
-        listed = CLASS_TARGETS.get(args.list_class_targets)
-        if listed is None:
-            print(f"error: class {args.list_class_targets!r} has no target list", file=sys.stderr)
-            return 1
-        print(json.dumps({"class": args.list_class_targets, "targets": [
-            {"target": t, "run_key": run_key_for(REPO_ROOT / t), "blocking": b}
-            for t, b in listed.items()]}, indent=2))
-        return 0
+    model = subject_model(args.harness, args.model, args.subject_model)
 
     if not args.skill_path:
         print("error: --skill-path is required", file=sys.stderr)
@@ -1376,9 +1385,6 @@ def main() -> int:
     skill_dir = Path(args.skill_path).resolve()
     if not (skill_dir / "SKILL.md").exists():
         print(f"error: no SKILL.md at {skill_dir}", file=sys.stderr)
-        return 1
-    if args.kubeconfig is not None and not os.path.isfile(args.kubeconfig):
-        print(f"error: --kubeconfig {args.kubeconfig} is not a file", file=sys.stderr)
         return 1
     try:
         eval_set, meta = build_eval_set(
@@ -1392,6 +1398,10 @@ def main() -> int:
 
     name, description = read_skill_meta(skill_dir)
 
+    version_error = check_cli_versions([args.harness])
+    if version_error:
+        print(f"error: {version_error}", file=sys.stderr)
+        return 2
     try:
         creds = mint_eval_role_credentials(timeout=args.timeout, source="--timeout")
     except EvalCredentialError as e:
@@ -1401,7 +1411,7 @@ def main() -> int:
     if args.verbose:
         print(f"[run_triggering] skill={name} run_key={meta['run_key']} harness={args.harness} "
               f"prompts={len(eval_set)} runs={args.runs_per_query} workers={args.num_workers} "
-              f"model={args.model}",
+              f"model={model}",
               file=sys.stderr)
 
     try:
@@ -1414,10 +1424,9 @@ def main() -> int:
             timeout=args.timeout,
             runs_per_query=args.runs_per_query,
             trigger_threshold=args.trigger_threshold,
-            model=args.model,
+            model=model,
             creds=creds,
             harness=args.harness,
-            kubeconfig=args.kubeconfig,
         )
     except EvalCredentialError as e:
         print(f"error: eval-role session refresh failed, stopping: {e}", file=sys.stderr)

@@ -30,6 +30,8 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 
 ## Scorecard
 
+These scores are the baseline runner's (`make task-<skill>` and `make composite-<skill>`, run on the date below), not the merge gate's: the gate compares old against new per change and records no grade.
+
 *Baseline: 2026-06-04 · model: claude-opus-4-6 via Bedrock · pass@3*
 
 | Skill | Grade | Score | Triggering | Process | Artifact | Knowledge | Quality |
@@ -57,7 +59,7 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 
 ## How to update evals (manual process)
 
-Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers are maintainer-run; the model-backed `eval-gate` CI job runs by hand until its secrets are added (see "Merge gate" below).
+Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers are maintainer-run; the model-backed `eval-gate` CI job runs by hand until a maintainer configures CI credentials (see "Merge gate" below).
 
 ### Step 1 — Run evals
 
@@ -183,13 +185,13 @@ make composite-all
 Baselines are committed under `<skill>/baselines/baseline.json`. Compare current scores against the baseline:
 
 ```bash
-make snapshot-<skill>       # freeze current scores
+make snapshot-<skill>       # freeze current scores (reads the run's base arm: base_skill or without_skill)
 make regression-<skill>     # compare against baseline, exit 2 on regression
 ```
 
 ## Merge gate (old against new)
 
-The gate compares each skill as it is now (arm `with_skill`) with the same skill at a git ref (arm `base_skill`, default the `v1.3.0` tag, then the skill's last released tag). A skill absent at the ref, such as a new skill, runs against `without_skill`.
+The gate compares each skill as it is now (arm `with_skill`) with the same skill at a git ref (arm `base_skill`, default `v1.3.0`; pass `BASE_REF=<ref>` for another ref). A skill absent at the ref, such as a new skill, runs against `without_skill`.
 
 ```bash
 make gate SKILL=<run key>                   # one run key
@@ -198,14 +200,14 @@ make gate-all                               # every run key with a runnable case
 make gate-stages                            # the deterministic stages only, no model call
 ```
 
-`gate` runs, in this order, the deterministic stages (class admission checks, schema validation, link check, size check), then the evals. The four stage commands are the Makefile variables `GATE_ADMISSION_CMD`, `GATE_SCHEMA_CMD`, `GATE_LINK_CMD` and `GATE_SIZE_CMD`. They are empty here, and the stage prints that it is not wired; the checks are owned by later changes, which set the commands from `.github/workflows/evals.yml`. A stage that exits non-zero stops the gate before any model call. Then `run_task_evals.py` runs each case `regression.pass_k` times per arm, and `regression.py --gate` scores that run's own result. `SKILL` takes any run key `run_task_evals.py --list-targets` prints: a `misc/evals/<skill>` folder or a class target.
+`gate` runs the deterministic stages, then the evals. The stages are one ordered shell command list, the Makefile variable `GATE_STAGES` (class admission checks, schema validation, link check, size check, in that order); it is empty here, so `gate` prints that no stage is wired, and the changes that own those checks set it. The first stage that exits non-zero stops the gate before any model call. Then `run_task_evals.py` runs each case `regression.pass_k` times per arm, and `regression.py --gate` scores that run's own result. `SKILL` takes any run key `run_task_evals.py --list-targets` prints: a `misc/evals/<skill>` folder or a class target, each with at least one runnable case. `eks-operation-review` is not gated: both its cases need a live cluster (`live_only`), and CI has none, so `gate-all` skips it.
 
 What blocks (exit 2):
 
-- A case that fails Pass@k: none of its k `with_skill` runs passed. A run passes only when it is valid and every grader expectation, process assertion and artifact check passed; an invalid run (no events, no init event, a non-zero exit, a timeout) never passes. One failed case fails the gate on its own. A skill's own cases always block; a shared class case blocks only on a blocking target (`CLASS_TARGETS`: today the three repo-owned `devops-agent` copies), and on a report-only target it is listed without blocking.
-- A pooled pass-rate drop (the `with_skill` mean less the base arm's mean) past `THRESHOLD` points.
+- A case that fails Pass@k: none of its k `with_skill` runs passed. A run passes only when it is valid and every grader expectation, process assertion and artifact check passed; an invalid run (for example no events, no init event, a non-zero exit or a timeout) never passes. One failed case fails the gate on its own, and a case that also fails on the base arm still blocks. A skill's own cases always block; a shared class case blocks only on a blocking target (`CLASS_TARGETS`: the three repo-owned `devops-agent` copies), and on a report-only target it is listed without blocking. No class has shared task cases on a target yet, so today every gated case is a skill's own.
+- A pooled pass-rate drop past `THRESHOLD` points: the `with_skill` mean less the base arm's mean, of the grader pass rate only (process and artifact checks count per case, above), with an invalid run scoring 0.
 
-Tokens and time per case and per skill are in the report and do not block: until the maintainers decide whether tokens or time may block a merge, only pass rate blocks. The gate exits 1, never 0, when there is nothing to score: a runner error, a refused eval-role session or a run key with no runnable case. The report goes to stderr, to `gate-report.md` in the run key's workspace and, in GitHub Actions, to the job summary.
+Tokens and time per case and per skill are in the report and do not block: only pass rate blocks. `regression.py --gate` exits 1, never 0, when there is nothing to score: a runner error, a refused eval-role session or a run key with no runnable case; through `make`, any failure exits 2 (the log tells them apart). The report goes to stderr, to `gate-report.md` in the run key's workspace and, in GitHub Actions, to the job summary.
 
 Runner flags the gate uses (`run_task_evals.py`):
 
@@ -213,16 +215,17 @@ Runner flags the gate uses (`run_task_evals.py`):
 |---|---|---|
 | `--harness {claude,kiro,codex}` | `claude` | Subject harness, one adapter each; the grader is `claude -p` on every harness |
 | `--base-ref REF` | `v1.3.0` | Git ref of the base arm; `none` runs `with_skill` against `without_skill` |
+| `--subject-model ID` | `--model` on claude, else the harness's default | The subject's model; the grader keeps `--model` |
 | `--runs N` | the skill's `regression.pass_k` | Runs per case and arm |
-| `--list-targets` | | Prints one JSON line per run key and exits; mints no credential, runs nothing |
+| `--list-targets` | | Prints one JSON line per run key with a runnable case (a `live_only` case counts only with `--include-live-only`) and exits; mints no credential, runs nothing |
 
-`run_triggering.py` takes `--harness` too, plus `--class CLASS` (repeatable: adds that class's shared trigger cases from `classes/<class>/evals/trigger/triggering.json`, parents first, for a skill on the class's target list), `--list-class-targets CLASS` (prints the target list and exits), `--kubeconfig PATH` (each run gets its own 0600 copy) and `--runs-per-query` (default 3). `--eval-set` is needed unless `--class` is given. A triggering run that is invalid (no init event, a non-zero exit, a timeout, an error result) is left out of the trigger count, and a query with no valid run fails on both the should and the should-not side.
+`run_triggering.py` takes `--harness` too, plus `--class CLASS` (repeatable: adds that class's shared trigger cases from `classes/<class>/evals/trigger/triggering.json`, parents first, for a skill on the class's target list) and `--runs-per-query` (default 3); `make triggering-<skill>` passes `HARNESS` and `SUBJECT_MODEL`. `--eval-set` is needed unless `--class` is given. A triggering run that is invalid (for example no init event, a non-zero exit, a timeout or an error result) is left out of the trigger count. A query with no valid run fails on both the should and the should-not side, and a shared class should-not query fails when any of its runs is invalid.
 
-Harnesses: `claude` (`claude -p`), `kiro` (`kiro-cli chat --no-interactive`) and `codex` (`codex exec --json`). The claude and codex subjects call Bedrock on the eval-role session. Kiro's model calls go to Kiro's own service, signed in with `KIRO_API_KEY`, not to Bedrock on the eval role, so a live Kiro run needs a maintainer's approval first. The kiro and codex adapters are built and tested on recorded output only.
+Harnesses: `claude` (`claude -p`), `kiro` (`kiro-cli chat --no-interactive`) and `codex` (`codex exec --json`). The claude and codex subjects call Bedrock on the eval-role session. Kiro's model calls go to Kiro's own service, signed in with `KIRO_API_KEY`, not to Bedrock on the eval role, and running evals outside the eval account is not yet approved, so CI does not run kiro and does not get a Kiro key; a live Kiro run needs a maintainer's approval first. The kiro and codex adapters are built and tested on recorded output only, and no gate run has happened yet on any harness. On kiro and codex a multi-turn case runs as one turn, with no canned answers: today that is `eks-build` case 3, the one case with canned answers (`canned-multiturn`).
 
-Every real run, on any harness, waits on the decision on whether evals may run on a shared host and on the dedicated eval role. The CI job `eval-gate` in `.github/workflows/evals.yml` runs only by hand (`workflow_dispatch`) until a maintainer adds its CI credentials and repository secrets: `APEX_EVAL_AWS_CONFIG` (the `~/.apex-eval/aws-config` contents), `APEX_EVAL_EXPECTED_ACCOUNT` (the eval account id) and, for `HARNESS=kiro`, `KIRO_API_KEY`. How CI gets its AWS credential is not yet decided. Without the secrets the job fails at its first step, and a pull request from a fork gets no secrets, so it fails there too; there is no pass without them.
+The CI job `eval-gate` in `.github/workflows/evals.yml` runs once per harness in its matrix (`claude` and `codex`), and only by hand (`workflow_dispatch`) until a maintainer configures CI credentials: the repository secrets `APEX_EVAL_AWS_CONFIG` (the `~/.apex-eval/aws-config` contents) and `APEX_EVAL_EXPECTED_ACCOUNT` (the eval account id). Without them the job fails at its first step, and a pull request from a fork gets no secrets, so it fails there too; there is no pass without them. Going live is deleting the job's `if:`. It must not be a required check while the `if:` is there, since GitHub counts a job that did not run as passing a required check.
 
-`make eval-manifest-check` (`generate_eval_manifest.py --check`) compares the committed `misc/website/static/manifests/evals.json` with a fresh build and exits 1 on a difference, writing nothing. Each manifest entry carries `tokens_per_run`, the `with_skill` mean tokens per run from the skill's latest task history row, null until a run records it.
+`generate_eval_manifest.py --check` compares the committed `misc/website/static/manifests/evals.json` with a fresh build and exits 1 on a difference, writing nothing. Each manifest entry carries `tokens_per_run`, the `with_skill` mean tokens per run from the skill's latest task history row; it is null in every entry until a task run records tokens (the website shows "not recorded").
 
 ## Per-skill layout
 
@@ -243,12 +246,13 @@ misc/evals/<skill>/
 | Variable | Default | Notes |
 |---|---|---|
 | `PROVIDER` | `bedrock` | `bedrock` is the only value: every run needs `CLAUDE_CODE_USE_BEDROCK=1` and goes to Bedrock in the eval account (setup below) |
-| `MODEL` | `global.anthropic.claude-opus-4-6-v1` | A Bedrock model or inference-profile ID |
+| `MODEL` | `global.anthropic.claude-opus-4-6-v1` | A Bedrock model or inference-profile ID: the grader on every harness, and the claude subject |
+| `SUBJECT_MODEL` | empty: the runners' per-harness default (`MODEL` on claude, `HARNESS_SUBJECT_MODELS` in `run_triggering.py` on codex and kiro) | The subject's model (`--subject-model`). Codex on Bedrock takes OpenAI model IDs only; kiro takes a Kiro model ID (`kiro-cli chat --list-models`) |
 | `RUNS_PER_QUERY` | `3` | ≥3 for meaningful confidence intervals |
 | `NUM_WORKERS` | `10` | Parallelism for triggering runs |
 | `RUNS_PER_PROMPT` | empty | Task eval runs per case and arm; empty uses the skill's `regression.pass_k` in `.skilleval.yaml` (3 when unset) |
-| `HARNESS` | `claude` | Gate subject harness: `claude`, `kiro` or `codex` (the grader is `claude -p` on all three) |
-| `BASE_REF` | `v1.3.0` | Git ref the gate's base arm takes the skill from; `none` runs against `without_skill` |
+| `HARNESS` | `claude` | Subject harness for `gate`, `gate-all` and `triggering-<skill>`: `claude`, `kiro` or `codex` (the grader is `claude -p` on all three) |
+| `BASE_REF` | empty (the runner's `v1.3.0`) | Git ref the base arm of `gate` and `task-<skill>` takes the skill from; `none` runs against `without_skill` |
 | `THRESHOLD` | `5` | Pooled pass-rate drop, in percentage points, that fails `regression` and the gate |
 
 ```bash
@@ -269,7 +273,7 @@ AWS caps a role-chained session at one hour, so a subject or grader timeout plus
 
 ## Adding evals for a new skill
 
-Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge.
+Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge. The merge gate (see "Merge gate") runs only by hand until its CI credentials are configured; once it goes live it runs on every pull request before merge.
 
 ### Steps
 

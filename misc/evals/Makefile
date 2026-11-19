@@ -67,21 +67,25 @@ KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
 TASK_RUNS          = $(if $(strip $(RUNS_PER_PROMPT)),--runs $(RUNS_PER_PROMPT))
 TASK_LIVE          = $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only $(if $(wildcard $(KUBECONFIG_RO)),--kubeconfig $(KUBECONFIG_RO)))
 
-# Gate defaults (gate, gate-all). HARNESS is the subject: claude, kiro or
-# codex. BASE_REF is the git ref the old arm takes the skill from
-# (v1.3.0 first, then the skill's last released tag); a skill absent there
-# runs against without_skill.
+# Gate defaults (gate, gate-all; HARNESS also triggering-<skill>). HARNESS is
+# the subject: claude, kiro or codex. SUBJECT_MODEL is the subject's model;
+# empty uses the runners' per-harness default (MODEL on claude,
+# run_triggering.HARNESS_SUBJECT_MODELS on codex and kiro); the grader stays
+# claude -p on MODEL. BASE_REF is the git ref the old arm takes the skill
+# from; empty uses the runner's default (`v1.3.0`); a skill absent there runs
+# against without_skill.
 HARNESS           ?= claude
-BASE_REF          ?= v1.3.0
-# Deterministic stages the gate runs before any eval, in this order. Each
-# is a shell command; an empty one prints that the stage is not wired here.
-# Later changes own these checks and set the commands from
-# .github/workflows/evals.yml, so this file needs no change for it. A stage
-# that exits non-zero stops the gate before any model call.
-GATE_ADMISSION_CMD ?=
-GATE_SCHEMA_CMD    ?=
-GATE_LINK_CMD      ?=
-GATE_SIZE_CMD      ?=
+SUBJECT_MODEL     ?=
+SUBJECT_ARG        = $(if $(strip $(SUBJECT_MODEL)),--subject-model $(SUBJECT_MODEL))
+BASE_REF          ?=
+TASK_BASE          = $(if $(strip $(BASE_REF)),--base-ref $(BASE_REF))
+# The deterministic stages the gate runs before any eval: one shell command
+# list, run in order (class admission checks, schema validation, link check,
+# size check); the first that exits non-zero stops the gate before any model
+# call. Empty here: the changes that own those checks set it.
+GATE_STAGES       ?=
+# SKILL reaches recipe shells as text, so a target that takes it checks it first.
+skill_ok = @[[ "$$SKILL" =~ ^[A-Za-z0-9_.-]+$$ ]] || { echo "SKILL must match [A-Za-z0-9_.-]+"; exit 1; }
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
@@ -93,7 +97,7 @@ COMPOSITE_T  := $(addprefix composite-,$(SKILLS))
 .PHONY: help list-skills validate-all triggering-all task-all task-all-parallel \
         init-evals init-evals-finalize check-evals-coverage hygiene \
         process-all artifact-all knowledge-all composite-all \
-        gate gate-all gate-stages eval-manifest eval-manifest-check \
+        gate gate-all gate-stages eval-manifest \
         $(VALIDATE_T) $(TRIGGERING_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T) $(COMPOSITE_T)
 
@@ -119,7 +123,6 @@ help:
 	@echo "                         against the skill at BASE_REF, scored per case on Pass@k"
 	@echo "  gate-all               the same for every run key with a runnable case"
 	@echo "  gate-stages            the deterministic stages only (no model call)"
-	@echo "  eval-manifest-check    compare the website evals.json with a fresh build (no write)"
 	@echo ""
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name> [SIBLINGS=\"a,b,c\"]   scaffold misc/evals/<name>/ from _template/"
@@ -129,11 +132,10 @@ help:
 	@echo ""
 	@echo "Overrides: PROVIDER (bedrock), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
 	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, WORKSPACE, BENCHMARK_DIR,"
-	@echo "           HARNESS, BASE_REF, THRESHOLD, GATE_ADMISSION_CMD, GATE_SCHEMA_CMD,"
-	@echo "           GATE_LINK_CMD, GATE_SIZE_CMD"
+	@echo "           HARNESS, SUBJECT_MODEL, BASE_REF, THRESHOLD, GATE_STAGES"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
 	@echo "           RUNS_PER_PROMPT=$(or $(RUNS_PER_PROMPT),the skill's regression.pass_k) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
-	@echo "           HARNESS=$(HARNESS) BASE_REF=$(BASE_REF) THRESHOLD=$(THRESHOLD)"
+	@echo "           HARNESS=$(HARNESS) SUBJECT_MODEL=$(or $(SUBJECT_MODEL),the runner default) BASE_REF=$(or $(BASE_REF),the runner default) THRESHOLD=$(THRESHOLD)"
 	@echo "Eval runs need ~/.apex-eval (aws-config, expected-account) and the eval role: see README.md"
 
 list-skills:
@@ -159,7 +161,8 @@ $(TRIGGERING_T): triggering-%:
 	  --skill-path $(REPO_ROOT)/skills/$* \
 	  --num-workers $(NUM_WORKERS) \
 	  --runs-per-query $(RUNS_PER_QUERY) \
-	  --model $(MODEL)
+	  --harness $(HARNESS) \
+	  --model $(MODEL) $(SUBJECT_ARG)
 
 triggering-all: $(TRIGGERING_T)
 
@@ -224,10 +227,11 @@ $(REVIEW_T): review-%:
 # negative indices into each bullet. Empty SIBLINGS= falls back to the default
 # 2-sibling placeholder already in _template/README.md.
 init-evals:
-	@if [ -z "$(SKILL)" ]; then \
+	@if [ -z "$$SKILL" ]; then \
 	  echo "usage: make init-evals SKILL=<skill-name> [SIBLINGS=\"a,b,c\"]"; \
 	  exit 1; \
 	fi
+	$(skill_ok)
 	@if [ -e "$(EVALS_ROOT)/$(SKILL)" ]; then \
 	  echo "error: $(EVALS_ROOT)/$(SKILL) already exists"; \
 	  exit 1; \
@@ -258,10 +262,11 @@ init-evals:
 # scoped to one skill. No model calls, no cluster. Exits 0 when the eval set is
 # ready to open a PR. Exits 1 with actionable diagnostics otherwise.
 init-evals-finalize:
-	@if [ -z "$(SKILL)" ]; then \
+	@if [ -z "$$SKILL" ]; then \
 	  echo "usage: make init-evals-finalize SKILL=<skill-name>"; \
 	  exit 1; \
 	fi
+	$(skill_ok)
 	python3 $(EVALS_ROOT)/scripts/check_hygiene.py --skill $(SKILL)
 
 # ---------- H  run_task_evals (LIVE; subject + grader per prompt × config) ----
@@ -280,6 +285,7 @@ $(TASK_T): task-%:
 	python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
 	  --skill $* \
 	  $(TASK_RUNS) \
+	  $(TASK_BASE) \
 	  --model $(MODEL) \
 	  $(TASK_LIVE)
 
@@ -294,16 +300,15 @@ task-all-parallel:
 # runs per case (default the skill's regression.pass_k), then
 # `regression.py --gate` on that run's own result. A case that fails Pass@k
 # fails the gate on its own; so does a pooled pass-rate drop past THRESHOLD.
-# Tokens and time are reported and do not block (until the maintainers decide
-# whether tokens or time may block a merge, only pass rate blocks). Exit 2 on a regression, 1 when the run gives nothing to score (a
-# runner error, a refused eval-role session, no runnable case): never 0.
+# Tokens and time are reported and do not block: only pass rate blocks.
+# regression.py exits 2 on a regression and 1 when the run gives nothing to
+# score (a runner error, a refused eval-role session, no runnable case), never
+# 0; through make any failure exits 2 (the log tells them apart).
 # SKILL takes any run key `run_task_evals.py --list-targets` prints.
-# Real runs wait on the decision on whether evals may run on a shared host
-# and on the dedicated eval role.
 define gate_one
 ( out=$$(mktemp) || exit 1; \
   python3 $(EVALS_ROOT)/scripts/run_task_evals.py --skill $(1) --harness $(HARNESS) \
-    --base-ref $(BASE_REF) $(TASK_RUNS) --model $(MODEL) $(TASK_LIVE) > "$$out"; rc=$$?; \
+    $(TASK_BASE) $(TASK_RUNS) --model $(MODEL) $(SUBJECT_ARG) $(TASK_LIVE) > "$$out"; rc=$$?; \
   python3 $(EVALS_ROOT)/scripts/regression.py --gate --skill $(1) --task-result "$$out" \
     --threshold $(THRESHOLD); grc=$$?; \
   rm -f "$$out"; if [ $$grc -ne 0 ]; then exit $$grc; fi; exit $$rc )
@@ -311,28 +316,26 @@ endef
 
 gate-stages:
 	@echo "[gate] deterministic stages"
-	$(if $(strip $(GATE_ADMISSION_CMD)),$(GATE_ADMISSION_CMD),@echo "[gate] 1 class admission checks: not wired (GATE_ADMISSION_CMD)")
-	$(if $(strip $(GATE_SCHEMA_CMD)),$(GATE_SCHEMA_CMD),@echo "[gate] 2 schema validation: not wired (GATE_SCHEMA_CMD)")
-	$(if $(strip $(GATE_LINK_CMD)),$(GATE_LINK_CMD),@echo "[gate] 3 link check: not wired (GATE_LINK_CMD)")
-	$(if $(strip $(GATE_SIZE_CMD)),$(GATE_SIZE_CMD),@echo "[gate] 4 size check: not wired (GATE_SIZE_CMD)")
+	$(if $(strip $(GATE_STAGES)),set -e; $(GATE_STAGES),@echo "[gate] no stage wired (GATE_STAGES is empty)")
 
 gate:
-	@if [ -z "$(SKILL)" ]; then \
-	  echo "usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] [BASE_REF=v1.3.0] [RUNS_PER_PROMPT=<n>]"; \
+	@if [ -z "$$SKILL" ]; then \
+	  echo "usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] [BASE_REF=<ref>] [RUNS_PER_PROMPT=<n>]"; \
 	  exit 1; fi
+	$(skill_ok)
 	@$(MAKE) --no-print-directory gate-stages
-	@echo "[gate] 5 evals: $(SKILL) on $(HARNESS) against $(BASE_REF)"
+	@echo "[gate] evals: $(SKILL) on $(HARNESS) against $(or $(BASE_REF),the runner default)"
 	$(call gate_one,$(SKILL))
 
 gate-all: gate-stages
 	@set -o pipefail; \
-	 keys=$$(python3 $(EVALS_ROOT)/scripts/run_task_evals.py --list-targets \
-	   | python3 $(EVALS_ROOT)/scripts/regression.py --gate-keys $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only)) \
+	 keys=$$(python3 $(EVALS_ROOT)/scripts/run_task_evals.py --list-targets $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only) \
+	   | python3 -c 'import json, sys; [print(json.loads(ln)["run_key"]) for ln in sys.stdin if ln.strip()]') \
 	   || exit 1; \
 	 if [ -z "$$keys" ]; then echo "[gate] no run key has a runnable case"; exit 1; fi; \
 	 worst=0; failed=""; \
 	 for k in $$keys; do \
-	   echo "[gate] 5 evals: $$k on $(HARNESS) against $(BASE_REF)"; \
+	   echo "[gate] evals: $$k on $(HARNESS) against $(or $(BASE_REF),the runner default)"; \
 	   $(call gate_one,$$k); rc=$$?; \
 	   if [ $$rc -ne 0 ]; then failed="$$failed $$k"; if [ $$rc -gt $$worst ]; then worst=$$rc; fi; fi; \
 	 done; \
@@ -380,8 +383,9 @@ knowledge-all: $(KNOWLEDGE_T)
 #        make snapshot-eks-best-practices
 #        make snapshot-all
 snapshot:
-	@if [ -z "$(SKILL)" ]; then \
+	@if [ -z "$$SKILL" ]; then \
 	  echo "usage: make snapshot SKILL=<skill-name>"; exit 1; fi
+	$(skill_ok)
 	python3 $(EVALS_ROOT)/scripts/snapshot.py --skill $(SKILL)
 
 $(SNAPSHOT_T): snapshot-%:
@@ -395,8 +399,9 @@ snapshot-all: $(SNAPSHOT_T)
 #        make regression-eks-best-practices
 #        make regression-all
 regression:
-	@if [ -z "$(SKILL)" ]; then \
+	@if [ -z "$$SKILL" ]; then \
 	  echo "usage: make regression SKILL=<skill-name> [THRESHOLD=5]"; exit 1; fi
+	$(skill_ok)
 	python3 $(EVALS_ROOT)/scripts/regression.py --skill $(SKILL) --threshold $(THRESHOLD)
 
 $(REGRESSION_T): regression-%:
@@ -410,8 +415,9 @@ regression-all: $(REGRESSION_T)
 #        make composite-eks-best-practices
 #        make composite-all
 composite:
-	@if [ -z "$(SKILL)" ]; then \
+	@if [ -z "$$SKILL" ]; then \
 	  echo "usage: make composite SKILL=<skill-name>"; exit 1; fi
+	$(skill_ok)
 	python3 $(EVALS_ROOT)/scripts/composite_score.py --skill $(SKILL)
 
 $(COMPOSITE_T): composite-%:
@@ -445,7 +451,3 @@ check-evals-coverage:
 # ---------- eval-manifest (deterministic; generates website manifest) ---------
 eval-manifest:
 	python3 $(EVALS_ROOT)/scripts/generate_eval_manifest.py
-
-# Compare the committed evals.json with a fresh build; exit 1 on a difference, write nothing.
-eval-manifest-check:
-	python3 $(EVALS_ROOT)/scripts/generate_eval_manifest.py --check

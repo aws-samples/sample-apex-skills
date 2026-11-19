@@ -1,11 +1,11 @@
 """Compare committed baseline against current scores and gate CI on regressions.
 
---gate scores one run key's task result from run_task_evals.py instead: the
-new arm (with_skill) against the base arm the runner names (baseline_arm:
-base_skill at --base-ref, or without_skill), per case on Pass@k. It exits 2
-on a regression and 1 when there is no result to score; tokens and time are
-in the report and never block (until the maintainers decide whether
-tokens or time may block a merge, only pass rate blocks).
+--gate scores one run key's task result from run_task_evals.py instead
+(--task-result, required with --gate): the new arm (with_skill) against the
+base arm the runner names (baseline_arm: base_skill at --base-ref, or
+without_skill), per case on Pass@k. It exits 2 on a regression and 1 when
+there is no result to score; tokens and time are in the report and never
+block: only pass rate blocks.
 """
 
 import argparse
@@ -36,8 +36,7 @@ LAYER_FILENAME = {"knowledge_assertions": "knowledge-assertions.json",
                   "artifact_validation": "artifact-validation.json"}
 # The arms run_task_evals.py compares with_skill against (contract: baseline_arm).
 BASE_ARMS = ("base_skill", "without_skill")
-GATE_TOKENS_NOTE = ("Tokens and time are reported and do not block: until the maintainers "
-                    "decide whether tokens or time may block a merge, only pass rate blocks.")
+GATE_TOKENS_NOTE = "Tokens and time are reported and do not block: only pass rate blocks."
 
 
 def get_git_head() -> str:
@@ -315,7 +314,11 @@ def gather_from_history(skill: str) -> dict[str, Any]:
         sys.exit(1)
     triggering = task = None
     for line in reversed(lines):
-        row = json.loads(line)
+        try:
+            row = json.loads(line)
+        except ValueError:
+            print(f"warning: {hp}: skipping a line that is not JSON", file=sys.stderr)
+            continue
         if triggering is None and row.get("kind", "triggering") != "task":
             pos, neg = row.get("positive", {}), row.get("negative", {})
             triggering = {"accuracy": row.get("overall", {}).get("accuracy"),
@@ -376,38 +379,28 @@ class GateInputError(Exception):
     """The gate has no result it can score. It exits 1, never 0."""
 
 
-def load_gate_entry(skill: str, task_result: Optional[Path]) -> tuple[dict[str, Any], Optional[Path]]:
-    """The run key's kind "task" entry and its runs dir.
-
-    With task_result: the JSON list run_task_evals.py prints; the key's
-    outcome must hold a history_entry (a runner error or a run with no case
-    is refused). Without it: the latest kind "task" row of
-    history/<key>.jsonl, which must hold per-case results."""
-    runs_dir = None
-    if task_result is not None:
-        try:
-            outcomes = json.loads(task_result.read_text())
-        except (OSError, ValueError) as e:
-            raise GateInputError(f"cannot read the runner result {task_result}: {e}")
-        found = [o for o in outcomes if isinstance(o, dict) and o.get("skill") == skill] \
-            if isinstance(outcomes, list) else []
-        if not found:
-            raise GateInputError(f"{task_result} holds no runner result for {skill}")
-        outcome = found[-1]
-        if "error" in outcome:
-            raise GateInputError(f"the runner failed for {skill}: {outcome['error']}")
-        if "skipped" in outcome:
-            raise GateInputError(f"the runner ran no case for {skill} ({outcome['skipped']}), "
-                                 "so nothing passed")
-        entry = outcome.get("history_entry")
-        runs_dir = Path(outcome["runs_dir"]) if outcome.get("runs_dir") else None
-    else:
-        hp = HISTORY_DIR / f"{skill}.jsonl"
-        rows = [json.loads(ln) for ln in hp.read_text().splitlines() if ln.strip()] if hp.exists() else []
-        entry = next((r for r in reversed(rows) if r.get("kind") == "task"), None)
+def load_gate_entry(skill: str, task_result: Path) -> tuple[dict[str, Any], Optional[Path]]:
+    """The run key's kind "task" entry and its runs dir, from task_result:
+    the JSON list run_task_evals.py prints. The key's outcome must hold a
+    history_entry (a runner error or a run with no case is refused)."""
+    try:
+        outcomes = json.loads(task_result.read_text())
+    except (OSError, ValueError) as e:
+        raise GateInputError(f"cannot read the runner result {task_result}: {e}")
+    found = [o for o in outcomes if isinstance(o, dict) and o.get("skill") == skill] \
+        if isinstance(outcomes, list) else []
+    if not found:
+        raise GateInputError(f"{task_result} holds no runner result for {skill}")
+    outcome = found[-1]
+    if "error" in outcome:
+        raise GateInputError(f"the runner failed for {skill}: {outcome['error']}")
+    if "skipped" in outcome:
+        raise GateInputError(f"the runner ran no case for {skill} ({outcome['skipped']}), "
+                             "so nothing passed")
+    entry = outcome.get("history_entry")
+    runs_dir = Path(outcome["runs_dir"]) if outcome.get("runs_dir") else None
     if not isinstance(entry, dict) or not isinstance(entry.get("cases"), list):
-        raise GateInputError(f"no per-case task result for {skill} (older task "
-                             "rows hold no cases)")
+        raise GateInputError(f"no per-case task result for {skill}")
     if not entry["cases"]:
         raise GateInputError(f"the task result for {skill} holds no case")
     return entry, runs_dir
@@ -415,8 +408,8 @@ def load_gate_entry(skill: str, task_result: Optional[Path]) -> tuple[dict[str, 
 
 def _arm_view(arm: dict[str, Any]) -> dict[str, Any]:
     return {"runs": arm.get("runs", 0), "valid_runs": arm.get("valid_runs", 0),
-            "passes": arm.get("passes", 0), "pass_at_k": bool(arm.get("pass_at_k")),
-            "pass_all_k": bool(arm.get("pass_all_k")),
+            "passes": arm.get("passes", 0), "pass_at_k": arm.get("pass_at_k") is True,
+            "pass_all_k": arm.get("pass_all_k") is True,
             "tokens_mean": arm.get("tokens_mean"), "wall_seconds_mean": arm.get("wall_seconds_mean"),
             "invalid_reasons": arm.get("invalid_reasons") or []}
 
@@ -429,8 +422,9 @@ def evaluate_gate(entry: dict[str, Any], threshold: float) -> dict[str, Any]:
     is one of the key's own cases, or a shared class case on a target whose
     `blocking` is not False (CLASS_TARGETS: report-only targets list their
     shared-case fails without blocking). The pooled delta (with_skill mean
-    less the base arm's mean) also blocks below -threshold pp when the key
-    has a blocking case. Tokens and time never block (GATE_TOKENS_NOTE)."""
+    less the base arm's mean, of the grader pass rate only, an invalid run
+    counting as 0), rounded to 0.1 pp, also blocks below -threshold pp when
+    the key has a blocking case. Tokens and time never block (GATE_TOKENS_NOTE)."""
     base_arm = entry.get("baseline_arm") or "without_skill"
     target_blocking = entry.get("blocking")
     cases = []
@@ -438,7 +432,7 @@ def evaluate_gate(entry: dict[str, Any], threshold: float) -> dict[str, Any]:
         arms = c.get("arms") or {}
         cases.append({"eval_id": c.get("eval_id"), "source": c.get("source", "own"),
                       "blocks": c.get("source", "own") == "own" or target_blocking is not False,
-                      "pass": bool(c.get("pass")), "regressed": bool(c.get("regressed")),
+                      "pass": c.get("pass") is True, "regressed": c.get("regressed") is True,
                       "new": _arm_view(arms.get("with_skill") or {}),
                       "base": _arm_view(arms.get(base_arm) or {})})
     k = entry.get("pass_k")
@@ -446,7 +440,7 @@ def evaluate_gate(entry: dict[str, Any], threshold: float) -> dict[str, Any]:
                + (f" ({base_arm} passed it)" if c["regressed"] else "")
                for c in cases if not c["pass"] and c["blocks"]]
     delta = entry.get("delta")
-    delta_pp = delta * 100 if isinstance(delta, (int, float)) else None
+    delta_pp = round(delta * 100, 1) if isinstance(delta, (int, float)) else None
     if delta_pp is not None and delta_pp < -threshold and any(c["blocks"] for c in cases):
         reasons.append(f"pooled pass rate {delta_pp:+.1f}pp against {base_arm}, "
                        f"threshold is {threshold:.1f}pp")
@@ -536,7 +530,7 @@ def gate_workspace(skill: str, runs_dir: Optional[Path]) -> Path:
     return (own if (own / "evals.json").exists() else EVALS_ROOT / "workspace" / skill) / "workspace"
 
 
-def run_gate(skill: str, task_result: Optional[Path], threshold: float) -> int:
+def run_gate(skill: str, task_result: Path, threshold: float) -> int:
     try:
         entry, runs_dir = load_gate_entry(skill, task_result)
     except GateInputError as e:
@@ -557,55 +551,23 @@ def run_gate(skill: str, task_result: Optional[Path], threshold: float) -> int:
     return 2 if result["status"] == "REGRESSION" else 0
 
 
-def gate_keys(lines: list[str], include_live_only: bool) -> list[str]:
-    """Run keys (from `run_task_evals.py --list-targets`) that hold at least
-    one case the runner would run, chosen by the runner's own loaders. A key
-    with none is named on stderr, not gated."""
-    import run_task_evals as rte
-
-    keys = []
-    for line in lines:
-        if not line.strip():
-            continue
-        key = json.loads(line)["run_key"]
-        target = rte.resolve_target(key)
-        own = []
-        if target["own_eval_dir"] is not None:
-            own = json.loads((target["own_eval_dir"] / "evals.json").read_text()).get("evals") or []
-        runnable = [c for c in list(own) + rte.load_shared_cases(target["classes"])
-                    if include_live_only or not c.get("live_only")]
-        if runnable:
-            keys.append(key)
-        else:
-            print(f"[gate] {key}: no runnable case, not gated", file=sys.stderr)
-    return keys
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--skill")
+    parser.add_argument("--skill", required=True)
     parser.add_argument("--threshold", type=float, default=5.0)
     parser.add_argument("--from-history", action="store_true")
-    parser.add_argument("--pass-k", type=int, default=3)
+    parser.add_argument("--pass-k", type=int, default=3,
+                        help="Without --gate only; the gate takes k from the task result.")
     parser.add_argument("--gate", action="store_true",
                         help="Score the run key's per-case task result (with_skill against the "
                              "base arm the runner names); exit 2 on a regression, 1 when there is "
-                             "no result to score.")
+                             "no result to score. Needs --task-result.")
     parser.add_argument("--task-result", type=Path, default=None,
-                        help="With --gate: the JSON run_task_evals.py printed. Without it the "
-                             "latest kind \"task\" history row is scored.")
-    parser.add_argument("--gate-keys", action="store_true",
-                        help="Read `run_task_evals.py --list-targets` lines on stdin and print "
-                             "the run keys that have a runnable case.")
-    parser.add_argument("--include-live-only", action="store_true",
-                        help="With --gate-keys: count live_only cases as runnable.")
+                        help="With --gate: the JSON run_task_evals.py printed.")
     args = parser.parse_args()
-    if args.gate_keys:
-        print("\n".join(gate_keys(sys.stdin.read().splitlines(), args.include_live_only)))
-        sys.exit(0)
-    if not args.skill:
-        parser.error("--skill is required")
     if args.gate:
+        if args.task_result is None:
+            parser.error("--gate needs --task-result")
         sys.exit(run_gate(args.skill, args.task_result, args.threshold))
     skill, threshold, pass_k = args.skill, args.threshold, args.pass_k
 

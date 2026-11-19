@@ -53,10 +53,31 @@ from run_task_evals import (  # noqa: E402
 )
 import run_task_evals  # noqa: E402
 import run_triggering  # noqa: E402
+import snapshot  # noqa: E402
 import elicitation  # noqa: E402
 from run_triggering import _handle_line  # noqa: E402
 
+# The host's CLIs may differ from the runners' pinned versions, so the
+# version check is off for every test but CliVersionCheck's.
+REAL_CHECK_CLI_VERSIONS = run_triggering.check_cli_versions
+_CLI_CHECK_OFF = [mock.patch.object(m, "check_cli_versions", return_value=None)
+                  for m in (run_triggering, run_task_evals)]
+
+
+def setUpModule():
+    for p in _CLI_CHECK_OFF:
+        p.start()
+
+
+def tearDownModule():
+    for p in _CLI_CHECK_OFF:
+        p.stop()
+
 REPO = Path(MISC_DIR).parent
+HAS_BASE_TAG = subprocess.run(
+    ["git", "-C", str(REPO), "rev-parse", "--verify", "--quiet",
+     run_task_evals.DEFAULT_BASE_REF + "^{commit}"], capture_output=True).returncode == 0
+NO_TAG = f"needs the {run_task_evals.DEFAULT_BASE_REF} tag (absent in a tagless archive)"
 
 
 def tool_use(name, **extra):
@@ -848,7 +869,9 @@ class KiroAdapterParsing(unittest.TestCase):
         out = kiro_parse([KIRO_START, KIRO_TEXT, KIRO_OTHER_READ, KIRO_DONE])
         self.assertFalse(out["invalid"])
         self.assertFalse(out["triggered"])
-        self.assertEqual(out["tokens"], {"inputTokens": 40, "outputTokens": 2, "total_tokens": 42})
+        self.assertEqual(out["tokens"], {"input_tokens": 40, "output_tokens": 2,
+                                         "cache_read_input_tokens": 0,
+                                         "cache_creation_input_tokens": 0, "total_tokens": 42})
 
     def test_run_error_is_invalid(self):
         out = kiro_parse([KIRO_START, KIRO_TEXT, KIRO_ERROR, KIRO_DONE])
@@ -877,7 +900,7 @@ class CodexAdapterParsing(unittest.TestCase):
         self.assertFalse(out["invalid"])
         self.assertFalse(out["triggered"])
         self.assertEqual(out["tokens"]["total_tokens"], 24763 + 122)
-        self.assertEqual(out["tokens"]["cached_input_tokens"], 24448)
+        self.assertEqual(out["tokens"]["cache_read_input_tokens"], 24448)
 
     def test_turn_failed_is_invalid(self):
         out = codex_parse([CODEX_START, CODEX_TURN, CODEX_FAILED], code=1)
@@ -892,8 +915,8 @@ class CodexAdapterParsing(unittest.TestCase):
 
 
 class AdaptersGetTheEvalRoleEnv(unittest.TestCase):
-    """Every adapter's subprocess gets the eval-role session, a clean HOME,
-    no host AWS key, and a kubeconfig copy of its own."""
+    """Every adapter's subprocess gets the eval-role session, a clean HOME
+    and no host AWS key."""
 
     ROLE = {"AWS_ACCESS_KEY_ID": "ASIAROLEKEY", "AWS_SECRET_ACCESS_KEY": "role-secret",
             "AWS_SESSION_TOKEN": "role-token", "AWS_REGION": "us-west-2",
@@ -957,15 +980,6 @@ class AdaptersGetTheEvalRoleEnv(unittest.TestCase):
                                                   "codex": "codex"}[harness])
                 self.assertIn("m1", seen["cmd"])
 
-    def test_each_run_gets_its_own_kubeconfig_copy(self):
-        for harness in run_triggering.HARNESSES:
-            with self.subTest(harness=harness):
-                _out, seen = self.run_harness(harness)
-                kc = seen["env"]["KUBECONFIG"]
-                self.assertTrue(kc.startswith(seen["env"]["HOME"]))
-                self.assertEqual(seen["kube_text"], "apiVersion: v1\nkind: Config\n")
-                self.assertEqual(self.kube.read_text(), "apiVersion: v1\nkind: Config\n")
-
     def test_harness_skill_staging_and_codex_routing(self):
         _out, seen = self.run_harness("kiro")
         self.assertTrue(seen["links"][f".kiro/skills/{SKILL}"])
@@ -979,12 +993,6 @@ class AdaptersGetTheEvalRoleEnv(unittest.TestCase):
         self.assertNotIn("OPENAI_API_KEY", seen["env"])
         self.assertTrue(seen["env"]["CODEX_HOME"].startswith(seen["env"]["HOME"]))
         self.assertEqual(seen["stdin"], subprocess.DEVNULL)
-
-    def test_claude_command_is_unchanged(self):
-        _out, seen = self.run_harness("claude")
-        self.assertEqual(seen["cmd"], ["claude", "-p", "q", "--output-format", "stream-json",
-                                       "--verbose", "--include-partial-messages",
-                                       "--permission-mode", "bypassPermissions", "--model", "m1"])
 
 
 class ClassSharedTriggerEvals(unittest.TestCase):
@@ -1087,15 +1095,6 @@ class TriggeringCli(unittest.TestCase):
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = run_triggering.main()
         return code, out.getvalue(), err.getvalue()
-
-    def test_list_class_targets_runs_nothing(self):
-        with mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint:
-            code, out, _ = self.main(["--list-class-targets", "apex-base"])
-        self.assertEqual(code, 0)
-        mint.assert_not_called()
-        data = json.loads(out)
-        self.assertIn({"target": "devops-agent/eks-recon", "run_key": "devops-agent-eks-recon",
-                       "blocking": True}, data["targets"])
 
     def test_three_runs_by_default_and_harness_passed(self):
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
@@ -1335,9 +1334,6 @@ class PerAssertionTimeout(unittest.TestCase):
         self.assertEqual((res.passed, res.failed, res.total), (1, 1, 2))
         self.assertEqual(res.to_dict()["pass_rate"], 0.5)
 
-    def test_default_limit_is_ten_seconds(self):
-        self.assertEqual(run_task_evals.ASSERTION_TIMEOUT_SECONDS, 10)
-
     def test_result_matches_evaluate_on_fast_assertions(self):
         traj = parse_events([INIT, RESULT])
         defs = [{"type": "tool-called", "tool": "Bash"}, {"type": "no-such-type"}]
@@ -1381,14 +1377,13 @@ KIRO_RPC = [
 ]
 
 KIRO_TYPED = [
+    {"type": "runStarted", "data": {"sessionId": "s1"}},
     {"type": "sessionUpdate", "data": {"sessionUpdate": "tool_call", "toolCallId": "t1",
                                         "title": "execute_bash", "kind": "execute", "status": "pending",
                                         "rawInput": {"command": "kubectl get pods"}}},
     {"type": "sessionUpdate", "data": {"sessionUpdate": "tool_call_update", "toolCallId": "t1",
                                         "status": "failed", "rawOutput": "forbidden"}},
-    {"type": "sessionUpdate", "data": {"sessionUpdate": "usage_update", "inputTokens": 7,
-                                        "outputTokens": 3}},
-    {"type": "runFinished", "data": {}},
+    {"type": "runFinished", "data": {"usage": {"inputTokens": 7, "outputTokens": 3}}},
 ]
 
 
@@ -1437,8 +1432,11 @@ class HarnessShapes(unittest.TestCase):
 
     def test_kiro_shape_with_no_tool_view_is_invalid(self):
         sri = parse_trajectory.stream_invalid_reason
-        self.assertIn("tool calls cannot be read", sri([{"type": "text", "text": "hi"}], "kiro"))
-        err = KIRO_RPC + [{"type": "runError", "data": {"sessionId": None, "stage": "x", "message": "boom"}}]
+        self.assertEqual(sri([{"type": "text", "text": "hi"}], "kiro"), "no runStarted event")
+        self.assertIn("tool calls cannot be read",
+                      sri([{"type": "runStarted"}, {"type": "runFinished"}], "kiro"))
+        err = [{"type": "runStarted"}] + KIRO_RPC + [
+            {"type": "runError", "data": {"sessionId": None, "stage": "x", "message": "boom"}}]
         self.assertEqual(sri(err, "kiro"), "kiro reported an error: boom")
 
     def test_claude_stream_is_unchanged(self):
@@ -1537,7 +1535,7 @@ class ClassCases(Tmp):
             merge(own, [{"id": 9001, "_source": "a"}, {"id": 9001, "_source": "b"}])
         with self.assertRaisesRegex(ValueError, "not an integer"):
             merge(own, [{"id": "9001", "_source": "a"}])
-        with self.assertRaisesRegex(ValueError, "not an integer"):
+        with self.assertRaisesRegex(ValueError, "repeats"):
             merge(own, [{"id": 1, "_source": "a"}])
 
     def test_fixtures_stage_from_the_class_folder(self):
@@ -1571,7 +1569,7 @@ class ClassCases(Tmp):
         self.assertNotEqual(run_task_evals.history_path("devops-agent-eks-recon"),
                             run_task_evals.history_path("eks-recon"))
 
-    def test_list_targets_prints_every_key_and_runs_nothing(self):
+    def test_list_targets_prints_runnable_keys_and_runs_nothing(self):
         out = io.StringIO()
         with mock.patch.object(sys, "argv", ["run_task_evals.py", "--list-targets"]), \
                 mock.patch.object(run_task_evals, "mint_eval_role_credentials") as mint, \
@@ -1579,7 +1577,8 @@ class ClassCases(Tmp):
             self.assertEqual(run_task_evals.main(), 0)
         mint.assert_not_called()
         rows = [json.loads(l) for l in out.getvalue().splitlines()]
-        self.assertIn("devops-agent-eks-security", [r["run_key"] for r in rows])
+        self.assertIn("eks-recon", [r["run_key"] for r in rows])
+        self.assertNotIn("devops-agent-eks-security", [r["run_key"] for r in rows])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -1667,6 +1666,7 @@ class RunSkill(Tmp):
         with contextlib.redirect_stderr(io.StringIO()):
             return run_task_evals.run_skill(skill, **args)
 
+    @unittest.skipUnless(HAS_BASE_TAG, NO_TAG)
     def test_old_arm_is_the_skill_at_the_base_ref(self):
         self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
         sha = run_task_evals.resolve_base_ref("v1.3.0")
@@ -1685,6 +1685,7 @@ class RunSkill(Tmp):
         self.assertFalse(str(base_dir).startswith(str(REPO)))
         self.assertFalse(base_dir.exists(), "the materialised ref is removed after the run")
 
+    @unittest.skipUnless(HAS_BASE_TAG, NO_TAG)
     def test_skill_absent_at_the_ref_runs_against_without(self):
         self.write_own("apex-new-skill", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
         sha = run_task_evals.resolve_base_ref("v1.3.0")
@@ -1800,6 +1801,7 @@ class RunSkill(Tmp):
 
 
 class BaseRef(unittest.TestCase):
+    @unittest.skipUnless(HAS_BASE_TAG, NO_TAG)
     def test_materialise_reads_git_objects_only(self):
         sha = run_task_evals.resolve_base_ref("v1.3.0")
         with tempfile.TemporaryDirectory() as d:
@@ -1814,6 +1816,7 @@ class BaseRef(unittest.TestCase):
         with self.assertRaises(run_task_evals.BaseRefError):
             run_task_evals.resolve_base_ref("no-such-ref-evals")
 
+    @unittest.skipUnless(HAS_BASE_TAG, NO_TAG)
     def test_cli_defaults(self):
         captured = {}
 
@@ -1850,6 +1853,282 @@ class BaseRef(unittest.TestCase):
             with mock.patch.object(sys, "argv", argv + ["--base-ref", "no-such-ref-evals"]):
                 self.assertEqual(run_task_evals.main(), 2)
             self.assertIn("names no commit", err.getvalue())
+
+
+# ---------- fix round: one parse, one env, models, targets, fixtures ----
+
+
+class KiroOneParse(unittest.TestCase):
+    """The task and triggering runners read a kiro stream by one set of rules."""
+
+    def test_task_kiro_needs_start_and_finish(self):
+        sri = parse_trajectory.stream_invalid_reason
+        self.assertIsNone(sri(KIRO_TYPED, "kiro"))
+        self.assertEqual(sri(KIRO_TYPED[1:], "kiro"), "no runStarted event")
+        self.assertEqual(sri(KIRO_TYPED[:-1], "kiro"), "kiro stream ended with no runFinished")
+        self.assertIn("tool calls cannot be read", sri([KIRO_TYPED[0], KIRO_TYPED[-1]], "kiro"))
+
+    def test_task_kiro_tokens_come_from_run_finished(self):
+        traj = parse_events(parse_trajectory.normalize_events(KIRO_TYPED, "kiro"))
+        self.assertEqual((traj.input_tokens, traj.output_tokens), (7, 3))
+        self.assertEqual(traj.token_source, "usage")
+        usage_update = {"type": "sessionUpdate", "data": {"sessionUpdate": "usage_update",
+                                                          "inputTokens": 9, "outputTokens": 9}}
+        stream = KIRO_TYPED[:-1] + [usage_update, {"type": "runFinished", "data": {}}]
+        traj = parse_events(parse_trajectory.normalize_events(stream, "kiro"))
+        self.assertIsNone(traj.input_tokens)
+
+    def test_calls_with_no_id_are_kept_apart(self):
+        calls = [{"type": "sessionUpdate", "data": {"sessionUpdate": "tool_call", "title": "read",
+                                                     "rawInput": {"path": p}}} for p in "abc"]
+        stream = [KIRO_TYPED[0]] + calls + [KIRO_TYPED[-1]]
+        traj = parse_events(parse_trajectory.normalize_events(stream, "kiro"))
+        self.assertEqual([s.tool_calls[0].input for s in traj.steps],
+                         [{"path": "a"}, {"path": "b"}, {"path": "c"}])
+
+    def test_triggering_reads_the_same_tokens_and_envelopes(self):
+        rpc_read = j({"jsonrpc": "2.0", "method": "session/update", "params": {"update": {
+            "sessionUpdate": "tool_call", "toolCallId": "t9", "kind": "read",
+            "rawInput": {"path": f"/tmp/h/.kiro/skills/{SKILL}/SKILL.md"}}}})
+        out = kiro_parse([KIRO_START, rpc_read], sleep=30)
+        self.assertTrue(out["triggered"])
+        out = kiro_parse([KIRO_START, KIRO_TEXT, KIRO_DONE])
+        self.assertEqual(out["tokens"], {"input_tokens": 40, "output_tokens": 2,
+                                         "cache_read_input_tokens": 0,
+                                         "cache_creation_input_tokens": 0, "total_tokens": 42})
+
+    def test_codex_tokens_share_one_reading(self):
+        out = codex_parse([CODEX_START, CODEX_TURN, CODEX_LS, CODEX_MSG, CODEX_DONE])
+        traj = parse_events(parse_trajectory.normalize_events(
+            [json.loads(x) for x in (CODEX_START, CODEX_LS, CODEX_DONE)], "codex"))
+        self.assertEqual(out["tokens"]["cache_read_input_tokens"], traj.cache_read_input_tokens)
+        self.assertEqual(out["tokens"]["input_tokens"], traj.input_tokens)
+
+    def test_harnesses_defined_once(self):
+        self.assertIs(run_triggering.HARNESSES, parse_trajectory.HARNESSES)
+        self.assertIs(run_task_evals.HARNESSES, parse_trajectory.HARNESSES)
+
+
+class SubjectEnv(Tmp):
+    """One env builder for every subject: codex loses its host routing on the
+    task runner too, CI secrets never reach a subject, Kiro's key reaches
+    only kiro."""
+
+    def setUp(self):
+        super().setUp()
+        self.envlog = self.tmp / "env.json"
+        self.host = mock.patch.dict(os.environ, {
+            "CODEX_HOME": "/host/codex", "OPENAI_BASE_URL": "http://evil", "OPENAI_API_KEY": "k",
+            "CODEX_API_KEY": "k", "APEX_EVAL_AWS_CONFIG": "cfg", "APEX_EVAL_EXPECTED_ACCOUNT": "1",
+            "KIRO_API_KEY": "kiro-key"})
+        self.host.start()
+
+    def tearDown(self):
+        self.host.stop()
+        super().tearDown()
+
+    def record_env(self):
+        return ("json.dump({k: os.environ.get(k) for k in ('CODEX_HOME', 'OPENAI_BASE_URL',"
+                " 'OPENAI_API_KEY', 'CODEX_API_KEY', 'APEX_EVAL_AWS_CONFIG',"
+                " 'APEX_EVAL_EXPECTED_ACCOUNT', 'KIRO_API_KEY', 'HOME')}, open(%r, 'w'))\n"
+                % str(self.envlog))
+
+    def test_task_codex_subject_env(self):
+        fake_exe(self.bin, "codex", CODEX_STREAM, 0, extra=self.record_env())
+        out = self.subject(harness="codex")
+        self.assertTrue(out["ok"], out)
+        seen = json.loads(self.envlog.read_text())
+        for k in ("OPENAI_BASE_URL", "OPENAI_API_KEY", "CODEX_API_KEY", "APEX_EVAL_AWS_CONFIG",
+                  "APEX_EVAL_EXPECTED_ACCOUNT", "KIRO_API_KEY"):
+            self.assertIsNone(seen[k], k)
+        self.assertEqual(seen["CODEX_HOME"], str(Path(seen["HOME"]) / ".codex"))
+
+    def test_task_kiro_subject_gets_only_its_key(self):
+        fake_exe(self.bin, "kiro-cli", KIRO_TYPED, 0, extra=self.record_env())
+        out = self.subject(harness="kiro")
+        self.assertTrue(out["ok"], out)
+        seen = json.loads(self.envlog.read_text())
+        self.assertEqual(seen["KIRO_API_KEY"], "kiro-key")
+        self.assertIsNone(seen["APEX_EVAL_AWS_CONFIG"])
+
+    def test_claude_subject_and_grader_env_drop_ci_secrets(self):
+        env = run_triggering.build_subprocess_env(self.tmp, aws_env=dict(ROLE))
+        for k in ("APEX_EVAL_AWS_CONFIG", "APEX_EVAL_EXPECTED_ACCOUNT", "KIRO_API_KEY"):
+            self.assertNotIn(k, env)
+        self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["KIRO_API_KEY"],
+                         "kiro-key")
+        self.assertNotIn("KIRO_API_KEY", run_triggering.harness_env(env, self.tmp, "claude"))
+
+
+class SubjectModelPerHarness(unittest.TestCase):
+
+    def test_defaults(self):
+        sm = run_triggering.subject_model
+        self.assertEqual(sm("claude", "bedrock-id", None), "bedrock-id")
+        self.assertEqual(sm("codex", "bedrock-id", None), "global.openai.gpt-5.6-terra")
+        self.assertEqual(sm("kiro", "bedrock-id", None), "claude-opus-4.8")
+        self.assertEqual(sm("codex", "bedrock-id", "x"), "x")
+
+    def test_task_cli_runs_the_subject_on_its_harness_model_and_the_grader_on_model(self):
+        captured = {}
+
+        def fake_run_skill(skill, **kw):
+            captured.update(kw)
+            return {"skill": skill, "skipped": "fake"}
+
+        argv = ["run_task_evals.py", "--skill", "eks-recon", "--harness", "codex",
+                "--model", "grader-id", "--base-ref", "none"]
+        with mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(run_task_evals, "mint_eval_role_credentials"), \
+                mock.patch.object(run_task_evals, "set_eval_credentials"), \
+                mock.patch.object(run_task_evals, "run_skill", side_effect=fake_run_skill), \
+                contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_evals.main(), 0)
+        self.assertEqual(captured["model"], "grader-id")
+        self.assertEqual(captured["subject_model_id"], "global.openai.gpt-5.6-terra")
+
+    def test_kiro_pins_the_v3_engine_on_both_runners(self):
+        cmd = run_task_evals.adapter_kiro(prompt="P", model="M", sandbox=Path("/tmp"), env={})
+        self.assertEqual(cmd[cmd.index("--agent-engine") + 1], "v3")
+        seen = {}
+
+        def fake_popen(c, **kw):
+            seen["cmd"] = c
+            return printer([KIRO_START, KIRO_TEXT, KIRO_DONE])
+
+        home = Path(tempfile.mkdtemp(prefix="evals-kiro-cmd-"))
+        try:
+            with mock.patch.object(run_triggering.subprocess, "Popen", side_effect=fake_popen):
+                run_triggering.run_kiro("q", SKILL, home, "m", 30, home, home, {})
+        finally:
+            shutil.rmtree(home, ignore_errors=True)
+        self.assertEqual(seen["cmd"][seen["cmd"].index("--agent-engine") + 1], "v3")
+
+
+class TokensNotRecorded(unittest.TestCase):
+    """A run with no token count reads None, never 0, up to the scorecard mean."""
+
+    def test_run_record_and_means(self):
+        with tempfile.TemporaryDirectory() as d:
+            run_dir = Path(d)
+            (run_dir / "timing.json").write_text(json.dumps({
+                "total_tokens": 0, "input_tokens": 0, "token_source": None,
+                "total_duration_seconds": 1.0}))
+            rec = run_task_evals.run_record(run_dir, arm="with_skill", k=1, harness="kiro",
+                                            subj={"ok": True, "reason": None})
+        self.assertIsNone(rec["tokens"])
+        self.assertIsNone(rec["token_usage"]["input_tokens"])
+        arm = run_task_evals.summarize_arm([rec], 1)
+        self.assertIsNone(arm["tokens_mean"])
+        mixed = run_task_evals.summarize_arm([rec, dict(rec, tokens=90)], 2)
+        self.assertEqual(mixed["tokens_mean"], 90)
+        case = run_task_evals.summarize_case(1, "own", {"with_skill": [rec]}, "without_skill", 1)
+        skill = run_task_evals.summarize_skill([case], "without_skill")
+        self.assertIsNone(skill["arms"]["with_skill"]["tokens_per_run_mean"])
+
+
+class TargetsAndCases(Tmp):
+
+    def list_targets(self, *flags):
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(sys, "argv", ["run_task_evals.py", "--list-targets", *flags]), \
+                mock.patch.object(run_task_evals, "mint_eval_role_credentials") as mint, \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(run_task_evals.main(), 0)
+        mint.assert_not_called()
+        return [json.loads(l)["run_key"] for l in out.getvalue().splitlines()], err.getvalue()
+
+    def test_list_targets_keeps_only_keys_with_a_runnable_case(self):
+        keys, err = self.list_targets()
+        self.assertIn("eks-recon", keys)
+        self.assertNotIn("devops-agent-eks-security", keys)
+        self.assertIn("devops-agent-eks-security: no runnable case", err)
+        self.assertNotIn("eks-operation-review", keys)
+        self.assertNotIn("setup", keys)
+        keys, _ = self.list_targets("--include-live-only")
+        self.assertIn("eks-operation-review", keys)
+        self.assertNotIn("setup", keys)
+
+    def test_subject_model_flag_overrides_the_harness_default(self):
+        captured = {}
+
+        def fake_run_skill(skill, **kw):
+            captured.update(kw)
+            return {"skill": skill, "skipped": "fake"}
+
+        argv = ["run_task_evals.py", "--skill", "eks-recon", "--harness", "kiro", "--model", "g",
+                "--subject-model", "s-id", "--base-ref", "none"]
+        with mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(run_task_evals, "mint_eval_role_credentials"), \
+                mock.patch.object(run_task_evals, "set_eval_credentials"), \
+                mock.patch.object(run_task_evals, "run_skill", side_effect=fake_run_skill), \
+                contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_evals.main(), 0)
+        self.assertEqual((captured["model"], captured["subject_model_id"]), ("g", "s-id"))
+
+    def test_runs_below_one_is_refused(self):
+        with mock.patch.object(sys, "argv", ["run_task_evals.py", "--runs", "0"]), \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as e:
+            run_task_evals.main()
+        self.assertEqual(e.exception.code, 2)
+
+    def test_shared_ids_need_no_range(self):
+        merged = run_task_evals.merge_cases([{"id": 1, "_source": "own"}],
+                                            [{"id": 8, "_source": "class:x/y"}])
+        self.assertEqual([c["id"] for c in merged], [1, 8])
+
+    def test_targets_come_from_the_triggering_list(self):
+        task = {(t["classes"][0], t["skill_dir"]): t["blocking"] for t in run_task_evals.CLASS_TARGETS}
+        trig = {(c, p): b for c, d in run_triggering.CLASS_TARGETS.items() for p, b in d.items()}
+        self.assertEqual(task, trig)
+
+    def test_removed_triggering_flags(self):
+        for argv in (["--list-class-targets", "apex-base"], ["--skill-path", "x", "--kubeconfig", "k"]):
+            with mock.patch.object(sys, "argv", ["run_triggering.py"] + argv), \
+                    contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                run_triggering.main()
+
+
+class FixtureAndOutputEdges(Tmp):
+    """Fixture links to the repo root or .git and special files are refused;
+    a linked fixture folder's files are hashed, so they leave outputs/."""
+
+    def fixture(self):
+        src = self.tmp / "suite" / "files" / "shared"
+        src.mkdir(parents=True)
+        return src
+
+    def test_link_to_repo_root_or_git_is_refused(self):
+        for target in (REPO, REPO / ".git"):
+            src = self.fixture()
+            (src / "link").symlink_to(target)
+            with self.assertRaisesRegex(run_task_evals.FixtureLinkError, "repo root or .git"):
+                run_task_evals.check_fixture_links(src)
+            shutil.rmtree(self.tmp / "suite")
+
+    def test_fifo_in_fixture_is_refused(self):
+        src = self.fixture()
+        os.mkfifo(src / "pipe")
+        with self.assertRaisesRegex(run_task_evals.FixtureLinkError, "not a regular file"):
+            run_task_evals.check_fixture_links(src)
+
+    def test_fifo_in_sandbox_is_not_copied(self):
+        sandbox = self.tmp / "sb"
+        (sandbox / "d").mkdir(parents=True)
+        os.mkfifo(sandbox / "d" / "pipe")
+        (sandbox / "d" / "ok.txt").write_text("x")
+        out = self.tmp / "out"
+        run_task_evals.snapshot_sandbox_outputs(sandbox, out)
+        self.assertTrue((out / "d" / "ok.txt").is_file())
+        self.assertFalse((out / "d" / "pipe").exists())
+
+    def test_files_under_a_linked_fixture_folder_are_hashed(self):
+        src = self.fixture()
+        (src / "link").symlink_to(REPO / "skills" / SKILL)
+        sandbox = self.tmp / "sb"
+        sandbox.mkdir()
+        staged = run_task_evals.stage_fixture_files(sandbox, self.tmp / "suite", 1, ["x"])
+        self.assertIn("link/SKILL.md", staged)
 
 
 # ---------- the gate: regression.py --gate, manifest, Makefile -------
@@ -1931,14 +2210,13 @@ class GatePerCase(GateTmp):
         rc, _, _ = self.gate(self.outcome(gate_entry([case])))
         self.assertEqual(rc, 2)
 
-    def test_all_pass_is_exit_0_with_tokens_time_and_the_b56_note(self):
+    def test_all_pass_is_exit_0_with_tokens_time_and_the_note(self):
         entry = gate_entry([gate_case(1, 1, 3), gate_case(2, 3, 3)])
         rc, out, err = self.gate(self.outcome(entry))
         self.assertEqual(rc, 0)
         self.assertEqual(json.loads(out)["status"], "PASS")
         self.assertIn("Tokens/run new | Tokens/run base | Time/run new (s)", err)
         self.assertIn("| with_skill | 2 | 1 | 6 | 0 | 200 | 2.0 |", err)
-        self.assertIn("until the maintainers decide whether tokens or time may block a merge", err)
         self.assertIn("only pass rate blocks", err)
         report = (self.tmp / "ws" / "gate-report.md").read_text()
         self.assertIn("**Status:** PASS", report)
@@ -1991,33 +2269,38 @@ class GatePerCase(GateTmp):
             self.assertEqual(out, "", bad)
             self.assertIn("FAIL", err)
 
-    def test_gate_from_history_needs_a_per_case_row(self):
-        hist = self.tmp / "history"
-        hist.mkdir()
-        old_row = {"kind": "task", "with_skill_mean": 0.9, "without_skill_mean": 0.8, "delta": 0.1}
-        (hist / "eks-recon.jsonl").write_text(json.dumps(old_row) + "\n")
-        with mock.patch.object(regression, "HISTORY_DIR", hist):
-            with contextlib.redirect_stderr(io.StringIO()):
-                self.assertEqual(regression.run_gate("eks-recon", None, 5.0), 1)
-            (hist / "eks-recon.jsonl").write_text(
-                json.dumps(old_row) + "\n" + json.dumps(gate_entry([gate_case(1, 0, 3)])) + "\n")
-            with mock.patch.object(regression, "EVALS_ROOT", self.tmp), \
-                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                self.assertEqual(regression.run_gate("eks-recon", None, 5.0), 2)
+    def test_only_a_true_pass_passes(self):
+        case = gate_case(1, 3, 3)
+        case["pass"] = "false"
+        rc, out, _ = self.gate(self.outcome(gate_entry([case])))
+        self.assertEqual(rc, 2)
+        self.assertEqual(json.loads(out)["cases"][0]["pass"], False)
+
+    def test_pooled_delta_is_rounded_before_the_threshold(self):
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)], delta=-0.07000000001)),
+                               threshold=7.0)
+        self.assertEqual((rc, json.loads(out)["delta_pp"]), (0, -7.0))
+        rc, _, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)], delta=-0.072)), threshold=7.0)
+        self.assertEqual(rc, 2)
+
+    def test_gate_needs_task_result(self):
+        with mock.patch.object(sys, "argv", ["regression.py", "--gate", "--skill", "eks-recon"]), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            with self.assertRaises(SystemExit) as cm:
+                regression.main()
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("--gate needs --task-result", err.getvalue())
+        self.assertFalse(hasattr(regression, "gate_keys"))
+
+    def test_note_names_no_pending_decision(self):
+        self.assertEqual(regression.GATE_TOKENS_NOTE,
+                         "Tokens and time are reported and do not block: only pass rate blocks.")
 
     def test_step_summary_gets_the_report(self):
         summary = self.tmp / "summary.md"
         os.environ["GITHUB_STEP_SUMMARY"] = str(summary)
         self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])))
         self.assertIn("# Eval Gate Report: eks-recon", summary.read_text())
-
-    def test_gate_keys_keep_only_keys_with_a_runnable_case(self):
-        lines = [json.dumps({"run_key": k}) for k in ("setup", "eks-best-practices", "ecs-architect")]
-        with contextlib.redirect_stderr(io.StringIO()) as err:
-            keys = regression.gate_keys(lines, include_live_only=False)
-        self.assertEqual(keys, ["eks-best-practices"])
-        self.assertIn("setup: no runnable case", err.getvalue())
-
 
 class RegressionBaseArm(unittest.TestCase):
     """regression.py reads the base arm the runner names, so a
@@ -2066,6 +2349,66 @@ class RegressionBaseArm(unittest.TestCase):
             task = regression.gather_from_history("eks-recon")["task"]
         self.assertEqual((task["baseline_arm"], task["base_mean"]), ("base_skill", 0.6))
 
+    def test_history_skips_a_line_that_is_not_json(self):
+        hist = self.tmp / "history"
+        hist.mkdir()
+        row = {"kind": "task", "with_skill_mean": 0.9, "baseline_arm": "base_skill",
+               "base_skill_mean": 0.6}
+        (hist / "eks-recon.jsonl").write_text(json.dumps(row) + "\n" + '{"kind": "tas')
+        with mock.patch.object(regression, "HISTORY_DIR", hist), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            task = regression.gather_from_history("eks-recon")["task"]
+        self.assertEqual(task["base_mean"], 0.6)
+        self.assertIn("skipping a line that is not JSON", err.getvalue())
+
+
+def snap_arm(mean):
+    return {"pass_rate": {"mean": mean, "stddev": 0.1}}
+
+
+class SnapshotBaseArm(unittest.TestCase):
+    """snapshot.py reads the base arm the runner names (with_skill against
+    base_skill or without_skill), as regression.py does."""
+
+    def _bench(self, arms, cases_base_arm=None):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        latest = root / "demo" / "workspace" / "latest"
+        latest.mkdir(parents=True)
+        (latest / "benchmark.json").write_text(json.dumps({
+            "run_summary": arms,
+            "metadata": {"runs_per_configuration": 3}}))
+        if cases_base_arm:
+            (latest / "cases.json").write_text(json.dumps({"base_arm": cases_base_arm}))
+        return root
+
+    def _read(self, root):
+        with mock.patch.object(snapshot, "EVALS_ROOT", root):
+            return snapshot.read_task_benchmark("demo", 3)
+
+    def test_base_skill_benchmark_snapshots_with_the_base_arm(self):
+        root = self._bench({"with_skill": snap_arm(0.9), "base_skill": snap_arm(0.6)})
+        task = self._read(root)
+        self.assertEqual(task["with_skill_mean"], 0.9)
+        self.assertEqual(task["baseline_arm"], "base_skill")
+        self.assertEqual(task["base_mean"], 0.6)
+        self.assertIsNone(task["without_skill_mean"])
+
+    def test_cases_json_base_arm_names_the_arm(self):
+        root = self._bench({"with_skill": snap_arm(0.9), "base_skill": snap_arm(0.6)},
+                           cases_base_arm="base_skill")
+        self.assertEqual(self._read(root)["baseline_arm"], "base_skill")
+
+    def test_without_skill_benchmark_works_as_before(self):
+        root = self._bench({"with_skill": snap_arm(0.8), "without_skill": snap_arm(0.4)})
+        task = self._read(root)
+        self.assertEqual(task["with_skill_mean"], 0.8)
+        self.assertEqual(task["with_skill_stddev"], 0.1)
+        self.assertEqual(task["without_skill_mean"], 0.4)
+        self.assertEqual(task["baseline_arm"], "without_skill")
+        self.assertEqual(task["base_mean"], 0.4)
+        self.assertEqual(task["runs_per_prompt"], 3)
+
 
 class EvalManifest(unittest.TestCase):
     """--check compares and writes nothing; each entry carries
@@ -2111,6 +2454,16 @@ class EvalManifest(unittest.TestCase):
         self.assertEqual(self.gem.tokens_per_run("eks-recon"), 200)
         self.assertIsNone(self.gem.tokens_per_run("no-such-skill"))
 
+    def test_bad_trailing_line_is_skipped_and_null_mean_stays_null(self):
+        entry = gate_entry([gate_case(1, 3, 3)])
+        (self.tmp / "history" / "eks-recon.jsonl").write_text(json.dumps(entry) + "\n" + '{"kind": "ta')
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(self.gem.tokens_per_run("eks-recon"), 200)
+        self.assertIn("skipping a line that is not JSON", err.getvalue())
+        entry["skill_summary"]["arms"]["with_skill"]["tokens_per_run_mean"] = None
+        (self.tmp / "history" / "eks-recon.jsonl").write_text(json.dumps(entry) + "\n")
+        self.assertIsNone(self.gem.tokens_per_run("eks-recon"))
+
     def test_check_both_ways_and_writes_nothing(self):
         code, err = self.main("--check")
         self.assertEqual(code, 1)
@@ -2136,61 +2489,172 @@ class GateMakefile(unittest.TestCase):
                                os.path.join(MISC_DIR, "evals"), *args],
                               capture_output=True, text=True, timeout=60)
 
-    def test_gate_runs_stages_in_order_then_runner_then_gate(self):
-        r = self.make("gate", "SKILL=eks-recon")
+    def test_gate_runs_stages_then_runner_then_gate(self):
+        r = self.make("gate", "SKILL=eks-recon", "GATE_STAGES=echo stage-one; echo stage-two")
         self.assertEqual(r.returncode, 0, r.stderr)
         out = r.stdout
-        marks = ["1 class admission checks", "2 schema validation", "3 link check", "4 size check",
-                 "run_task_evals.py --skill eks-recon --harness claude --base-ref v1.3.0",
+        marks = ["set -e; echo stage-one; echo stage-two",
+                 "run_task_evals.py --skill eks-recon --harness claude",
                  "regression.py --gate --skill eks-recon --task-result"]
         self.assertEqual([out.index(m) for m in marks], sorted(out.index(m) for m in marks))
         self.assertNotIn("--runs", out)
+        self.assertNotIn("--base-ref", out)  # empty BASE_REF: the runner's own default
+        self.assertIn("no stage wired", self.make("gate-stages").stdout)
 
-    def test_overrides_and_stage_commands(self):
-        r = self.make("gate", "SKILL=eks-recon", "RUNS_PER_PROMPT=3", "HARNESS=codex",
-                      "BASE_REF=v1.2.0", "GATE_LINK_CMD=echo links, ok")
+    def test_overrides_and_subject_model_per_harness(self):
+        r = self.make("gate", "SKILL=eks-recon", "RUNS_PER_PROMPT=3", "HARNESS=codex", "BASE_REF=v1.2.0")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("--harness codex --base-ref v1.2.0 --runs 3", r.stdout)
-        self.assertIn("echo links, ok", r.stdout)
-        self.assertNotIn("3 link check: not wired", r.stdout)
+        self.assertIn("--model global.anthropic.claude-opus-4-6-v1", r.stdout)  # the grader
+        self.assertNotIn("--subject-model", r.stdout)  # the runner's per-harness default
+        r = self.make("gate", "SKILL=x", "SUBJECT_MODEL=m2")
+        self.assertIn("--subject-model m2", r.stdout)
 
-    def test_gate_needs_skill_and_task_runs_default_to_pass_k(self):
-        # A real run: the usage check exits 1 before any stage or runner line.
+    def test_gate_needs_a_plain_skill(self):
+        # Real runs: each check exits before any stage or runner line.
         r = self.make("gate", dry_run=False)
         self.assertEqual(r.returncode, 2)  # make's own exit for a failed recipe
         self.assertEqual(r.stdout.strip().splitlines(),
                          ["usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] "
-                          "[BASE_REF=v1.3.0] [RUNS_PER_PROMPT=<n>]"])
-        r = self.make("task-eks-recon")
-        self.assertIn("run_task_evals.py", r.stdout)
-        self.assertNotIn("--runs", r.stdout)
+                          "[BASE_REF=<ref>] [RUNS_PER_PROMPT=<n>]"])
+        for target in ("gate", "snapshot", "regression", "composite", "init-evals-finalize"):
+            r = self.make(target, "SKILL=x; echo INJECTED; #", dry_run=False)
+            self.assertEqual(r.returncode, 2, target)
+            self.assertNotIn("INJECTED", r.stdout.replace("echo INJECTED", ""), target)
+            self.assertIn("SKILL must match", r.stdout, target)
 
-    def test_gate_all_lists_targets_and_gates_each(self):
+    def test_task_and_triggering_take_base_ref_and_harness(self):
+        r = self.make("task-eks-recon", "BASE_REF=v1.2.0")
+        self.assertIn("--base-ref v1.2.0", r.stdout)
+        self.assertNotIn("--runs", r.stdout)
+        r = self.make("triggering-eks-recon", "HARNESS=codex")
+        self.assertIn("--harness codex", r.stdout)
+        self.assertIn("--subject-model m2", self.make("triggering-eks-recon", "SUBJECT_MODEL=m2").stdout)
+
+    def test_gate_all_lists_runnable_targets_and_gates_each(self):
         r = self.make("gate-all")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("--list-targets", r.stdout)
-        self.assertIn("regression.py --gate-keys", r.stdout)
+        self.assertRegex(r.stdout, r"run_task_evals\.py --list-targets +\| python3 -c")
+        self.assertNotIn("--gate-keys", r.stdout)
+        self.assertIn("run_task_evals.py --list-targets --include-live-only",
+                      self.make("gate-all", "INCLUDE_LIVE_ONLY=1").stdout)
         self.assertIn("regression.py --gate --skill $k", r.stdout)
 
     def test_only_bedrock_provider(self):
         r = self.make("help", "PROVIDER=anthropic")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("PROVIDER must be 'bedrock', got 'anthropic'", r.stderr)
-        text = Path(MISC_DIR, "evals", "Makefile").read_text()
-        self.assertNotIn("claude-opus-4-6-v1\nelse ifeq", text)
-        self.assertNotIn("gate-%", text)
 
 
-class ClassTargetsAgree(unittest.TestCase):
-    """Both runners name the same class targets with the same blocking flag."""
+class EvalGateWorkflow(unittest.TestCase):
+    """The eval-gate job: dispatch-only, claude and codex, secrets only on
+    the steps that read them, no Kiro key, pinned CLIs."""
 
-    def test_same_targets(self):
-        trig = {(c, p): b for c, d in run_triggering.CLASS_TARGETS.items() for p, b in d.items()}
-        task = {(c, t["skill_dir"]): t["blocking"]
-                for t in run_task_evals.CLASS_TARGETS for c in t["classes"]}
-        self.assertEqual(trig, task)
-        self.assertEqual({run_triggering.run_key_for(p) for _, p in trig},
-                         {t["run_key"] for t in run_task_evals.CLASS_TARGETS})
+    def setUp(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("pyyaml not installed")
+        self.text = (REPO / ".github" / "workflows" / "evals.yml").read_text()
+        self.wf = yaml.safe_load(self.text)
+        self.job = self.wf["jobs"]["eval-gate"]
+
+    def test_dispatch_only_matrix_without_kiro(self):
+        self.assertEqual(self.job["if"], "github.event_name == 'workflow_dispatch'")
+        self.assertEqual(self.job["strategy"]["matrix"]["harness"], ["claude", "codex"])
+        self.assertNotIn("KIRO_API_KEY", self.text)
+        self.assertNotIn("harness", self.wf[True]["workflow_dispatch"]["inputs"])  # `on:` loads as True
+
+    def test_secrets_only_on_the_steps_that_read_them(self):
+        self.assertNotIn("env", self.job)
+        with_secret = [s.get("name") for s in self.job["steps"] if "secrets." in json.dumps(s)]
+        self.assertEqual(with_secret, ["Require the eval secrets", "Write the eval-role config"])
+        checkout = self.job["steps"][0]
+        self.assertIs(checkout["with"]["persist-credentials"], False)
+
+    def test_pinned_clis(self):
+        install = next(s for s in self.job["steps"] if s.get("name") == "Install the eval tools")
+        self.assertIn("@anthropic-ai/claude-code@2.1.121", install["run"])
+        self.assertIn("@openai/codex@0.163.0", install["run"])
+
+    def test_a_dispatched_run_is_not_cancelled(self):
+        c = self.wf["concurrency"]
+        self.assertIn("github.event_name", c["group"])
+        self.assertEqual(c["cancel-in-progress"], "${{ github.event_name != 'workflow_dispatch' }}")
+
+
+class CliVersionCheck(unittest.TestCase):
+    """Both runners read `<cli> --version` and stop on a version other than
+    the one the adapter was written against, or on a missing CLI."""
+
+    def setUp(self):
+        self.bin = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.bin)
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        stack.enter_context(mock.patch.dict(os.environ, {"PATH": self.bin}))
+        for m in (run_triggering, run_task_evals):
+            stack.enter_context(mock.patch.object(m, "check_cli_versions", REAL_CHECK_CLI_VERSIONS))
+        self.runs = stack.enter_context(
+            mock.patch.object(subprocess, "run", wraps=subprocess.run))
+
+    def cli(self, name, version_line):
+        fake_exe(self.bin, name, [version_line])
+
+    def assert_only_version_reads(self):
+        self.assertTrue(self.runs.call_args_list)
+        for call in self.runs.call_args_list:
+            self.assertEqual(call.args[0][1:], ["--version"])
+
+    def test_matching_versions_pass(self):
+        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("codex", "codex-cli 0.163.0")
+        self.cli("kiro-cli", "kiro-cli 3.4.0")
+        self.assertIsNone(REAL_CHECK_CLI_VERSIONS(["claude", "codex", "kiro"]))
+
+    def test_a_missing_cli_stops(self):
+        err = REAL_CHECK_CLI_VERSIONS(["kiro"])
+        self.assertIn("kiro-cli --version", err)
+        self.assertIn("3.4.0", err)
+
+    def test_a_different_version_stops_triggering_before_any_run(self):
+        self.cli("claude", "2.1.328 (Claude Code)")
+        skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
+        eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
+        argv = ["run_triggering.py", "--eval-set", eval_set, "--skill-path", skill]
+        err = io.StringIO()
+        with mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint, \
+                mock.patch.object(run_triggering, "run_eval") as run_eval, \
+                contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_triggering.main(), 2)
+        self.assertIn("claude 2.1.328 is installed", err.getvalue())
+        self.assertIn("claude 2.1.121", err.getvalue())
+        mint.assert_not_called()
+        run_eval.assert_not_called()
+        self.assert_only_version_reads()
+
+    def test_a_different_version_stops_task_evals_before_any_run(self):
+        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("codex", "codex-cli 0.170.0")
+        argv = ["run_task_evals.py", "--skill", "eks-recon", "--harness", "codex",
+                "--model", "grader-id", "--base-ref", "none"]
+        err = io.StringIO()
+        with mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(run_task_evals, "mint_eval_role_credentials") as mint, \
+                mock.patch.object(run_task_evals, "run_skill") as run_skill, \
+                contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_evals.main(), 2)
+        self.assertIn("codex 0.170.0 is installed", err.getvalue())
+        mint.assert_not_called()
+        run_skill.assert_not_called()
+        self.assert_only_version_reads()
+
+    def test_expected_versions_match_the_ci_pins(self):
+        text = (REPO / ".github" / "workflows" / "evals.yml").read_text()
+        versions = run_triggering.HARNESS_CLI_VERSIONS
+        self.assertIn(f"@anthropic-ai/claude-code@{versions['claude'][1]}", text)
+        self.assertIn(f"@openai/codex@{versions['codex'][1]}", text)
 
 
 if __name__ == "__main__":
