@@ -219,28 +219,29 @@ def record_run(script_file, skill_dir, files):
     """Leave a run record for the operator Stop gate (classes/script/hooks/stop-gate/stop_gate.py).
 
     The record names paths only, never a verdict: the gate re-runs the tool
-    itself. One JSON file run-<ns>-<pid>.json in <root>/.apex-stop-gate/, root
-    the nearest folder at or above the working folder holding .git (else the
-    working folder). The tool writes only into a folder the gate made (it does
-    at each Stop it runs with its switch on), never through a link, and the
-    gate reads it only when it is a real folder owned by this user with no
-    group or other write bit.
+    itself, when it is one the gate runs (stop_gate.py tool_kind()). One JSON
+    file run-<ns>-<pid>.json in <root>/.apex-stop-gate/, root the nearest
+    folder at or above the working folder holding .git (else the working
+    folder). The tool writes only into an existing .apex-stop-gate folder
+    there, never through a link (the gate makes it at each Stop it runs with
+    its switch on); the gate ignores one it does not own, so no run recorded
+    there is checked.
     Best effort: an OSError is ignored. The gate's own re-run sets
     APEX_STOP_GATE_RUN, and then no record is written."""
     if os.environ.get("APEX_STOP_GATE_RUN"):
         return
-    cwd = os.getcwd()
-    root = cwd
-    while not os.path.exists(os.path.join(root, ".git")) and os.path.dirname(root) != root:
-        root = os.path.dirname(root)
-    if not os.path.exists(os.path.join(root, ".git")):
-        root = cwd
-    folder = os.path.join(root, ".apex-stop-gate")
-    if not os.path.isdir(folder) or os.path.islink(folder):
-        return
-    rec = {"tool": os.path.abspath(script_file), "skill_dir": os.path.abspath(skill_dir),
-           "files": [os.path.abspath(f) for f in files], "cwd": cwd, "time": time.time()}
     try:
+        cwd = os.getcwd()
+        root = cwd
+        while not os.path.exists(os.path.join(root, ".git")) and os.path.dirname(root) != root:
+            root = os.path.dirname(root)
+        if not os.path.exists(os.path.join(root, ".git")):
+            root = cwd
+        folder = os.path.join(root, ".apex-stop-gate")
+        if not os.path.isdir(folder) or os.path.islink(folder):
+            return
+        rec = {"tool": os.path.abspath(script_file), "skill_dir": os.path.abspath(skill_dir),
+               "files": [os.path.abspath(f) for f in files], "cwd": cwd, "time": time.time()}
         with open(os.path.join(folder, f"run-{time.time_ns()}-{os.getpid()}.json"), "x", encoding="utf-8") as f:
             json.dump(rec, f)
     except OSError:

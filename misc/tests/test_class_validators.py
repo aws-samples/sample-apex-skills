@@ -50,8 +50,8 @@ def run(tool, args, path_env=None, cwd=ROOT, env_extra=None):
     """Run a class tool as a script from cwd; return (rc, stdout + stderr).
 
     APEX_STOP_GATE_RUN is set, so the tools write no Stop gate run record into
-    this repo's .apex-stop-gate/ (a stale record there would make the gate fail
-    a contributor's next turn), unless env_extra sets it to ""."""
+    this repo's .apex-stop-gate/ (a left-over record there could make the gate
+    hold a contributor's next turn), unless env_extra sets it to ""."""
     env = dict(os.environ, PYTHONPATH=BASE, APEX_STOP_GATE_RUN="1")
     env.update(env_extra or {})
     if path_env is not None:
@@ -374,6 +374,20 @@ class RunRecord(Tmp):
         cwd, folder = self.project()
         rc, out = self.run_rec(os.path.join(SCRIPT, "validate_output.py"), ["--skill-dir", RECON, good], cwd, rerun=True)
         self.assertEqual(rc, 0, out)
+        self.assertEqual(self.records(folder), [])
+
+    def test_deleted_working_folder_keeps_the_check_result(self):
+        """A working folder deleted under the tool: the record is skipped, the exit code is the check's own."""
+        good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
+        cwd, folder = self.project()
+        tool = os.path.join(SCRIPT, "validate_output.py")
+        start = ("import os, sys; d = sys.argv[1]; os.chdir(d); os.rmdir(d); "
+                 "os.execv(sys.executable, [sys.executable, '-B'] + sys.argv[2:])")
+        env = dict(os.environ, PYTHONPATH=BASE, APEX_STOP_GATE_RUN="")
+        p = subprocess.run([sys.executable, "-c", start, cwd, tool, "--skill-dir", RECON, good],
+                           capture_output=True, text=True, timeout=120, env=env)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertNotIn("Traceback", p.stdout + p.stderr)
         self.assertEqual(self.records(folder), [])
 
 
