@@ -24,17 +24,21 @@ run that crosses the limit completes. The limit is per invocation.
 Paid runs use a separate eval account through the eval role
 apex-eval-bedrock-invoke (misc/evals/README.md, Eval-role setup); see
 cases.md, Credentials and permissions, for the eval role's status. The
-subject still runs as your OS user and can read your files by path (same
-section).
+subject runs as your OS user with bypassPermissions, so it can read, write
+and run anything your user can, the runner's environment included (and on
+an EC2 host, the instance role through the metadata endpoint unless that is
+blocked); run it as another OS user or in a container for a hard fence
+(misc/evals/README.md, Eval-role setup).
 
 Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
 (pass count per case and arm, for score-sheet.md S1 and S2, plus a T6
 "both_queries" cell counting runs k where both query arms passed at run k,
 and runner_head, the git HEAD of the checkout whose runner ran), and each
-run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass` over `runs`
-(an 'error' run counts as a failed run, as the shipped runner does); n/a only
-when every run is 'cannot run' or 'not run'. An error the driver does not
+run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass` over the runs
+whose status is 'ran' or 'error' (an 'error' run counts as a failed run, as
+the shipped runner does); 'cannot run' and 'not run' runs are left out, and
+S2 is n/a when none is left. An error the driver does not
 catch (an OSError, an unreadable timing.json) ends the invocation:
 runs.jsonl holds the runs before it and summary.json is not written.
 
@@ -191,11 +195,10 @@ def plan_runs(cases: list[dict]) -> list[dict]:
 
 
 def check_commits() -> str | None:
-    """None when PIN and OLD are both commits in this clone, else the refusal text (git, no model call)."""
-    for label, rev in (("PIN", PIN), ("OLD", OLD)):
-        r = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{rev}^{{commit}}"], capture_output=True)
-        if r.returncode != 0:
-            return f"--paid refused: {label} commit {rev} is not in this clone (fetch it first)"
+    """None when OLD is a commit in this clone, else the refusal text (git, no model call)."""
+    r = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{OLD}^{{commit}}"], capture_output=True)
+    if r.returncode != 0:
+        return f"--paid refused: OLD commit {OLD} is not in this clone (fetch it first)"
     return None
 
 
@@ -421,7 +424,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
     for rec in records:
         cell = summary["cases"].setdefault(rec["case"], {}).setdefault(
             rec["arm"], {"pass": 0, "ran": 0, "runs": 0, "statuses": []})
-        cell["runs"] += 1
+        cell["runs"] += rec["status"] in ("ran", "error")
         cell["ran"] += rec["status"] == "ran"
         cell["pass"] += bool(rec["pass"])
         cell["statuses"].append(rec["status"])
@@ -443,8 +446,11 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p = argparse.ArgumentParser(
         description="Drive runner-trial candidate C1 (misc/runner-trial/cases.md). Dry run by default: "
                     "prints the planned runs and makes no model call. --paid needs the eval-role session the "
-                    "runner mints (misc/evals/README.md, Eval-role setup); the subject still runs as your OS "
-                    "user and can read your files by path (cases.md, Credentials and permissions).")
+                    "runner mints (misc/evals/README.md, Eval-role setup); the subject runs as your OS user "
+                    "with bypassPermissions, so it can read, write and run anything your user can, the "
+                    "runner's environment included (and on an EC2 host, the instance role through the "
+                    "metadata endpoint unless that is blocked); run it as another OS user or in a "
+                    "container for a hard fence (misc/evals/README.md, Eval-role setup).")
     p.add_argument("--out", type=Path, help="output dir, empty or new (required with --paid)")
     p.add_argument("--case", action="append", help="case id, repeatable (default: T1 to T7)")
     p.add_argument("--paid", action="store_true", help="start the runs (model calls, billed)")
