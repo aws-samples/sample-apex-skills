@@ -111,6 +111,7 @@ def main(argv=None):
             raise CheckError(f"unknown check id(s) {', '.join(unknown)}; known: {', '.join(KNOWN)}")
         if not os.path.exists(args.artifact):
             raise CheckError(f"{args.artifact}: no such artifact")
+        schema_check.record_run("artifact-checks", __file__, skill_dir, [args.artifact])
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
         return 2

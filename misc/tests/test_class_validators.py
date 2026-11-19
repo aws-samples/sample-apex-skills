@@ -46,9 +46,17 @@ sys.path.insert(0, BASE)
 import schema_check  # noqa: E402
 
 
-def run(tool, args, path_env=None):
-    """Run a class tool as a script; return (rc, stdout + stderr)."""
-    env = dict(os.environ, PYTHONPATH=BASE)
+def run(tool, args, path_env=None, record_dir=None):
+    """Run a class tool as a script; return (rc, stdout + stderr).
+
+    APEX_STOP_GATE_RUN is set, so the tools write no Stop gate run record into
+    the real temp folder (a stale record there would make the gate fail a
+    contributor's next turn). With record_dir, it is unset and the records go
+    to <record_dir>/apex-stop-gate-<uid>."""
+    env = dict(os.environ, PYTHONPATH=BASE, APEX_STOP_GATE_RUN="1")
+    if record_dir is not None:
+        del env["APEX_STOP_GATE_RUN"]
+        env["TMPDIR"] = record_dir
     if path_env is not None:
         env["PATH"] = path_env
     p = subprocess.run([sys.executable, "-B", tool] + list(args), capture_output=True,
@@ -272,6 +280,74 @@ class ArtifactChecks(Tmp):
                 args = ["--skill-dir", d, artifact]
                 path_env = self.fake_bin(case["fake_tools"]) if "fake_tools" in case else None
                 self.expect(case, *run(os.path.join(OPERATOR, "run_artifact_checks.py"), args, path_env))
+
+
+class RunRecord(Tmp):
+    """The run record validate_output.py and run_artifact_checks.py leave for
+    the operator Stop gate: one JSON file per run, paths only, no verdict."""
+
+    def records(self, record_dir):
+        folder = os.path.join(record_dir, f"apex-stop-gate-{os.getuid()}")
+        names = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+        out = []
+        for name in names:
+            self.assertRegex(name, r"^run-\d+-\d+\.json$")
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                out.append(json.load(f))
+        return out
+
+    def check_record(self, rec, kind, tool, skill_dir, files):
+        self.assertEqual(sorted(rec), ["cwd", "files", "kind", "python", "pythonpath", "skill_dir", "time", "tool", "v"])
+        self.assertEqual((rec["v"], rec["kind"], rec["tool"], rec["skill_dir"], rec["files"]),
+                         (1, kind, tool, skill_dir, files))
+        self.assertEqual((rec["python"], rec["pythonpath"], rec["cwd"]), (sys.executable, BASE, ROOT))
+        self.assertIsInstance(rec["time"], float)
+
+    def test_output_run_writes_a_record(self):
+        tool = os.path.join(SCRIPT, "validate_output.py")
+        good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
+        rec_dir = os.path.join(self.tmp, "rec")
+        os.makedirs(rec_dir)
+        rc, out = run(tool, ["--skill-dir", RECON, good], record_dir=rec_dir)
+        self.assertEqual(rc, 0, out)
+        self.assertRegex(out, r"\A<apex_script_output_([0-9a-f]{16})>\nok [^\n]*\n</apex_script_output_\1>\n\Z")
+        recs = self.records(rec_dir)
+        self.assertEqual(len(recs), 1)
+        self.check_record(recs[0], "outputs", tool, RECON, [good])
+
+    def test_failed_output_run_writes_a_record(self):
+        tool = os.path.join(SCRIPT, "validate_output.py")
+        bad = self.write("bad.yaml", output_case(OUTPUTS["V1"]))
+        rec_dir = os.path.join(self.tmp, "rec")
+        os.makedirs(rec_dir)
+        self.assertEqual(run(tool, ["--skill-dir", RECON, bad], record_dir=rec_dir)[0], 1)
+        recs = self.records(rec_dir)
+        self.assertEqual(len(recs), 1)
+        self.check_record(recs[0], "outputs", tool, RECON, [bad])
+
+    def test_artifact_run_writes_a_record(self):
+        tool = os.path.join(OPERATOR, "run_artifact_checks.py")
+        d = self.skill("op", {"name": "op", "description": "x",
+                              "metadata": {"apex-outputs": "assets/recon-output.schema.json",
+                                           "apex-artifact-checks": ["structural"]}})
+        artifact = self.write("op.yaml", output_case(OUTPUTS["V0"]))
+        rec_dir = os.path.join(self.tmp, "rec")
+        os.makedirs(rec_dir)
+        rc, out = run(tool, ["--skill-dir", d, artifact], record_dir=rec_dir)
+        self.assertEqual(rc, 0, out)
+        recs = self.records(rec_dir)
+        self.assertEqual(len(recs), 1)
+        self.check_record(recs[0], "artifact-checks", tool, d, [artifact])
+
+    def test_gate_rerun_writes_no_record(self):
+        good = self.write("good.yaml", output_case(OUTPUTS["V0"]))
+        rec_dir = os.path.join(self.tmp, "rec")
+        os.makedirs(rec_dir)
+        env = dict(os.environ, PYTHONPATH=BASE, APEX_STOP_GATE_RUN="1", TMPDIR=rec_dir)
+        p = subprocess.run([sys.executable, "-B", os.path.join(SCRIPT, "validate_output.py"), "--skill-dir", RECON, good],
+                           capture_output=True, text=True, timeout=120, cwd=ROOT, env=env)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        self.assertEqual(self.records(rec_dir), [])
 
 
 class DeepInput(Tmp):

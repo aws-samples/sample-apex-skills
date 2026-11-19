@@ -29,6 +29,8 @@ import argparse
 import json
 import os
 import sys
+import tempfile
+import time
 
 
 class CheckError(Exception):
@@ -154,8 +156,9 @@ def load_schema(path):
     return schema
 
 
-def check_files(schema_path, files, out=sys.stdout):
+def check_files(schema_path, files, out=None):
     """Validate each file; print one result line per file. Return the worst exit code."""
+    out = out if out is not None else sys.stdout
     schema = load_schema(schema_path)
     rc = 0
     for f in files:
@@ -213,6 +216,28 @@ def default_skill_dir(script_file):
     return cand if os.path.isfile(os.path.join(cand, "SKILL.md")) else None
 
 
+def record_run(kind, script_file, skill_dir, files):
+    """Leave a run record for the operator Stop gate (classes/script/hooks/stop-gate/stop_gate.py).
+
+    The record names paths only, never a verdict: the gate re-runs the tool
+    itself. One JSON file run-<ns>-<pid>.json in <temp>/apex-stop-gate-<uid>
+    (folder 0700). Best effort: an OSError is ignored. The gate's own re-run
+    sets APEX_STOP_GATE_RUN, and then no record is written."""
+    if os.environ.get("APEX_STOP_GATE_RUN"):
+        return
+    uid = os.getuid() if hasattr(os, "getuid") else None
+    folder = os.path.join(tempfile.gettempdir(), "apex-stop-gate" + (f"-{uid}" if uid is not None else ""))
+    try:
+        rec = {"v": 1, "kind": kind, "tool": os.path.abspath(script_file), "python": sys.executable,
+               "pythonpath": os.environ.get("PYTHONPATH"), "skill_dir": os.path.abspath(skill_dir),
+               "files": [os.path.abspath(f) for f in files], "cwd": os.getcwd(), "time": time.time()}
+        os.makedirs(folder, mode=0o700, exist_ok=True)
+        with open(os.path.join(folder, f"run-{time.time_ns()}-{os.getpid()}.json"), "x", encoding="utf-8") as f:
+            json.dump(rec, f)
+    except OSError:
+        pass
+
+
 def run_declared(key, argv, script_file, inline_json=False):
     """CLI shared by validate_input.py and validate_output.py."""
     p = argparse.ArgumentParser(description=f"Check a document against the skill's metadata.{key} schema.")
@@ -238,6 +263,8 @@ def run_declared(key, argv, script_file, inline_json=False):
             return 1 if errors else 0
         if not args.files:
             raise CheckError("no input given")
+        if key == "apex-outputs":
+            record_run("outputs", script_file, skill_dir, args.files)
         return check_files(schema_path, args.files)
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
