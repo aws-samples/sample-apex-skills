@@ -56,11 +56,15 @@ python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 --id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
 __APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). A Stop command
 ends ` || exit 3` and has no matcher. Entries go in class folder order, then
-file order, so a new class that sorts earlier shifts a Codex user's saved
-per-hook disables and trust, which Codex keys by position. An entry with a
+file order. Codex keys a user's saved per-hook disables by position, so a
+new class that sorts earlier shifts them onto other hooks, and a shifted
+hook's saved trust no longer matches it, so Codex reads it as modified, not
+trusted. An entry with a
 missing or malformed field, a mode its script does not accept (the choices
 of the script's one add_argument("--mode", choices=[...]) call, read from
-its source; a script where they cannot be read is refused too), differing
+its source; a script where they cannot be read is refused too), a script
+without one add_argument("--id") call that is not required (hooks.json
+passes --id, the Kiro command does not), differing
 claude-code and codex matchers, an id given twice, two ids with one
 userConfig key (compared in upper case) or two entries with one event,
 script and mode stops the sync. With no entry, none of these files is
@@ -733,14 +737,21 @@ STOP_TAIL = " || exit 3"
 
 
 def script_modes(root, src):
-    """The choices of the hook script's one add_argument("--mode", choices=[...]) call."""
+    """The choices of the hook script's one add_argument("--mode", choices=[...]) call.
+
+    The script must also have one add_argument("--id") call that is not required."""
     try:
         tree = ast.parse(read_text(os.path.join(root, src)))
     except SyntaxError as exc:
         raise SyncError(f"{src}: not valid Python ({exc.msg})") from exc
-    calls = [c for c in ast.walk(tree) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
-             and c.func.attr == "add_argument" and c.args and isinstance(c.args[0], ast.Constant)
-             and c.args[0].value == "--mode"]
+    adds = [c for c in ast.walk(tree) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+            and c.func.attr == "add_argument" and c.args and isinstance(c.args[0], ast.Constant)]
+    ids = [c for c in adds if c.args[0].value == "--id"]
+    if len(ids) != 1 or any(k.arg == "required" and not (isinstance(k.value, ast.Constant)
+                                                         and k.value.value is False) for k in ids[0].keywords):
+        raise SyncError(f"{src}: it needs one add_argument(\"--id\") call that is not required, "
+                        "since hooks.json passes --id and the Kiro command does not")
+    calls = [c for c in adds if c.args[0].value == "--mode"]
     kws = [k.value for c in calls for k in c.keywords if k.arg == "choices"]
     try:
         modes = ast.literal_eval(kws[0]) if len(calls) == 1 and len(kws) == 1 else None

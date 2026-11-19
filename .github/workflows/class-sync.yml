@@ -49,7 +49,7 @@ jobs:
           '.github/scripts/ci-gate.sh'
       - name: No-op (no watched path changed)
         if: steps.changes.outputs.relevant == 'false'
-        run: echo "No change to classes, skills, the plugin hook files or the plugin manifests; class sync check not needed."
+        run: echo "No change to classes, skills, the plugin hook files or a plugin manifest; class sync check not needed."
       # Anything but an explicit 'false' runs the real check.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.changes.outputs.relevant != 'false'
@@ -70,8 +70,9 @@ jobs:
         # The class-text checks run on every class, member or not. The skill
         # checks cover only skills that declare metadata.apex-classes; a skill
         # joins in its own rebuild step, so today no skill is a member. The
-        # plugin checks cover the hook files under plugins/apex/ and both
-        # plugin manifests.
+        # plugin checks cover the hook files under plugins/apex/, its one
+        # plugin manifest (.claude-plugin/plugin.json) and a
+        # .codex-plugin/plugin.json if one is added.
         run: python3 misc/sync-classes.py --check
       - name: Skill pages are in sync
         if: steps.changes.outputs.relevant != 'false'
@@ -90,5 +91,5 @@ jobs:
           git add classes/ skills/<member>/ plugins/apex/hooks/ plugins/apex/kiro/ misc/website/ README.md skills/README.md devops-agent/README.md
           ```
 
-          A `hooks` key in `plugins/apex/.claude-plugin/plugin.json` or `plugins/apex/.codex-plugin/plugin.json` also fails the check: remove it by hand, since a re-sync does not.
+          A `hooks` key in `plugins/apex/.claude-plugin/plugin.json`, or in a `plugins/apex/.codex-plugin/plugin.json` if one is added, also fails the check: remove it by hand, since a re-sync does not.
           EOF
