@@ -24,8 +24,8 @@
 # per mutant. One pass took 99 to 135 s with 113 cases (119 at this head) on
 # one 16-CPU Linux machine on 2026-10-20 (the harness runs its cases one at a
 # time; a pass takes longer when a mutant makes an installer run hang until
-# its 60 s limit). With 115 mutants and the baseline, the 116 passes take
-# about 191 to 261 minutes there, so the weekly job may stop at its
+# its 60 s limit). With 129 mutants and the baseline, the 130 passes take
+# about 215 to 293 minutes there, so the weekly job may stop at its
 # 240-minute cap (timeout-minutes in installer-mutation.yml) on a
 # GitHub-hosted runner, where a pass has not been timed. A job stopped at the
 # cap is a timeout, not a surviving mutant: rerun each mutant it did not
@@ -292,6 +292,34 @@ module.exports = [
     'else if (st && prev && prev[dest] && prev[dest].sha256 === current.sha256 && entryMatches(dest, current)) {', 'else if (false) {'],
   ['kiro-unmarked-recorded-conflict', 'a recorded Kiro copy that lost its marker is also listed as not created by the installer',
     '{ if (!keepIfEdited(area, dest, prev && prev[dest])) conflicts.push(dest); continue; }', '{ conflicts.push(dest); continue; }'],
+  ['maintainer-all-linked', 'a default install links the maintainer skills',
+    'if (!maintainer && MAINTAINER_SKILLS.includes(name)) return false;', ''],
+  ['maintainer-steering-creator-linked', 'a default install links steering-workflow-creator',
+    "const MAINTAINER_SKILLS = ['skill-creator', 'steering-workflow-creator', 'update-docs', 'apex-new-skill'];", "const MAINTAINER_SKILLS = ['skill-creator', 'update-docs', 'apex-new-skill'];"],
+  ['maintainer-choice-not-saved', '--maintainer is not recorded, so the next run drops the links',
+    'if (run.maintainer) rec.maintainer = true;', 'if (false) rec.maintainer = true;'],
+  ['maintainer-record-ignored', 'a later run ignores the saved --maintainer choice',
+    'run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);', 'run.maintainer = flags.maintainer;'],
+  ['maintainer-held-back-silent', 'a default run does not say how to link the maintainer skills',
+    'if (heldBack.length > 0) info(`Maintainer skills not linked', 'if (false) info(`Maintainer skills not linked'],
+  ['maintainer-skills-line-lists-all', 'the Skills: line lists the skills the run did not link',
+    '`${c.dim}  Skills: ${linkSkills.join', '`${c.dim}  Skills: ${skills.join'],
+  ['maintainer-drop-off', 'an older install\'s maintainer links stay on a default run with no record of them',
+    'if (isInstallerLink(p) && tryUnlink(p)) dropped++;', 'if (false) dropped++;'],
+  ['maintainer-drop-user-link', 'the drop removes a link of the user\'s that points outside the clone',
+    'if (isInstallerLink(p) && tryUnlink(p)) dropped++;', 'if (lstatOrNull(p) && tryUnlink(p)) dropped++;'],
+  ['maintainer-drop-after-prune', 'the prune runs first and calls the maintainer links skills missing from this version',
+    '  let dropped = 0;\n  for (const name of drop) {', '  const pruned0 = pruneArea(area, targetDir);\n  if (pruned0 > 0) info(`Removed ${pruned0} links to skills that are not in this version`);\n  let dropped = 0;\n  for (const name of drop) {'],
+  ['maintainer-kiro-no-drop', 'the Kiro run does not remove an older install\'s maintainer links',
+    "symlinkSkills('kiro-skills', kiroSkillsDir, linkSkills, heldBack);", "symlinkSkills('kiro-skills', kiroSkillsDir, linkSkills);"],
+  ['maintainer-kiro-only-uninstall-clears', '--uninstall --kiro-only clears the choice while the Claude links stay (review mutant A)',
+    'if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;', 'if (rec && !flags.claudeOnly) delete rec.maintainer;'],
+  ['maintainer-claude-only-uninstall-clears', '--uninstall --claude-only clears the choice while the Kiro links stay',
+    'if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;', 'if (rec && !flags.kiroOnly) delete rec.maintainer;'],
+  ['maintainer-uninstall-keeps-on-changed', 'a full --uninstall that keeps a changed skill link keeps the choice',
+    'if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;', "if (rec && !rec.areas['claude-skills'] && !rec.areas['kiro-skills']) delete rec.maintainer;"],
+  ['maintainer-help-body-gone', 'the --maintainer help row loses its uninstall text (review mutant D)',
+    "  log(`                       a full --uninstall removes them and clears the choice, while --uninstall`);\n", ''],
 ];
 EOF
 

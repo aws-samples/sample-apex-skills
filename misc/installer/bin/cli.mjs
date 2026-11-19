@@ -109,7 +109,6 @@ function parseArgs(argv) {
   if (flags.branch && flags.version) throw new UsageError('Cannot use --branch and --version together. Pick one.');
   if (flags.kiroHooks && flags.claudeOnly) throw new UsageError('--kiro-hooks installs Kiro hooks, so it cannot be combined with --claude-only.');
   if (flags.kiroHooks && flags.uninstall) throw new UsageError('--kiro-hooks is an install flag: --uninstall removes the Kiro hooks with the rest of the Kiro install.');
-  if (flags.maintainer && flags.uninstall) throw new UsageError('--maintainer is an install flag: --uninstall removes the maintainer skill links with the rest of the install.');
   if (flags.uninstall && (flags.update || flags.branch || flags.version)) {
     throw new UsageError('--uninstall cannot be combined with --update, --branch or --version.');
   }
@@ -577,7 +576,7 @@ function cloneSource(ref) {
 
 // Skills for people who maintain this repository, not for its users: linked
 // only with --maintainer, or while an install base's record holds that choice.
-const MAINTAINER_SKILLS = ['skill-creator', 'update-docs', 'apex-new-skill'];
+const MAINTAINER_SKILLS = ['skill-creator', 'steering-workflow-creator', 'update-docs', 'apex-new-skill'];
 
 function getSkills(maintainer = true) {
   const skillsDir = join(INSTALL_DIR, 'skills');
@@ -938,7 +937,9 @@ function safeSymlink(area, target, linkPath) {
 
 // drop: skill names this run does not link (the maintainer skills without
 // --maintainer); an installer link at one is removed even with no record of
-// it (an install made before the manifest), while a link of the user's stays.
+// it (an install made before the manifest), while a link of the user's that
+// does not point into the clone stays. It runs before the prune, so the prune
+// does not count those links as skills missing from this version.
 function symlinkSkills(area, targetDir, skills, drop = []) {
   if (!prepareDir(targetDir)) return null;
   startArea(area);
@@ -949,14 +950,14 @@ function symlinkSkills(area, targetDir, skills, drop = []) {
     if (result === 'created') count++;
     if (result !== 'conflict') linked++;
   }
-  const pruned = pruneArea(area, targetDir);
-  if (pruned > 0) info(`Removed ${pruned} links to skills that are not in this version`);
   let dropped = 0;
   for (const name of drop) {
     const p = join(targetDir, name);
     if (isInstallerLink(p) && tryUnlink(p)) dropped++;
   }
   if (dropped > 0) info(`Removed ${dropped} maintainer skill links (not linked without --maintainer)`);
+  const pruned = pruneArea(area, targetDir);
+  if (pruned > 0) info(`Removed ${pruned} links to skills that are not in this version`);
   // The line names the links in place (new or already there), not the skills
   // found, so a run that skipped every path does not read as installed.
   if (linked === 0) info(`Nothing installed to ${c.dim}${targetDir}${c.reset}: ${skills.length} paths skipped (listed below)`);
@@ -1270,9 +1271,10 @@ function uninstall(flags) {
       if (existsSync(dir)) for (const entry of listDir(dir)) { const full = join(dir, entry); if (isKiroCopy(full) && !changed.includes(full) && !blocked.includes(full)) keptCopies.push(full); }
     }
   }
-  // The --maintainer choice goes once no skill links of this base stay
-  // recorded, so the next install links no maintainer skill.
-  if (rec && !rec.areas['claude-skills'] && !rec.areas['kiro-skills']) delete rec.maintainer;
+  // A full --uninstall clears the --maintainer choice, even when it keeps a
+  // changed path, so the next install links no maintainer skill; a scoped one
+  // (--claude-only or --kiro-only) keeps it while the base stays recorded.
+  if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;
   if (rec) {
     if (Object.keys(rec.areas).length === 0) delete manifest.bases[base];
     saveManifest(manifest);
@@ -1315,11 +1317,12 @@ function showHelp() {
   log(`                       the Kiro copies stay and are not updated (they go stale), while the Claude Code`);
   log(`                       links stay and follow the clone. To remove it, run --uninstall, then install`);
   log(`                       with --no-steering`);
-  log(`  --maintainer         Also link the maintainer skills (skill-creator, update-docs, apex-new-skill),`);
-  log(`                       which a default install leaves out. The choice is saved for this install:`);
-  log(`                       later runs, --update included, keep the links; --uninstall removes them`);
-  log(`                       and clears the choice`);
-  log(`  --update            Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
+  log(`  --maintainer         Also link the maintainer skills (skill-creator, steering-workflow-creator,`);
+  log(`                       update-docs, apex-new-skill), which a default install leaves out. The choice`);
+  log(`                       is saved for this install: later runs, --update included, keep the links;`);
+  log(`                       a full --uninstall removes them and clears the choice, while --uninstall`);
+  log(`                       with --claude-only or --kiro-only keeps it while the other tool's install stays`);
+  log(`  --update             Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
   log(`                       links and steering copies (non-interactive; a branch chosen with --branch is`);
   log(`                       followed). It keeps a saved no-steering choice (--no-steering or n), as`);
   log(`                       --claude-only and --kiro-only do; a run that asks the steering question`);
@@ -1356,7 +1359,6 @@ function showHelp() {
   log(`  npx apex-skills --version v1.1.0       Pin to release v1.1.0`);
   log(`  npx apex-skills --branch feat/new-eks  Install from a branch`);
   log(`  npx apex-skills --claude-only          Install for Claude Code only`);
-  log(`  npx apex-skills --maintainer           Also install the skills for maintaining this repository`);
   log(`  npx apex-skills --project              Install into current project\n`);
 }
 
