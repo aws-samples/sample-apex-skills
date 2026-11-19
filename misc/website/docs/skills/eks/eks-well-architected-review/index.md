@@ -188,10 +188,8 @@ Or ask explicitly for a Well-Architected review, naming the cluster and region:
 > "Do a WAFR of my EKS cluster `my-cluster` in `us-west-2` using profile `my-profile`"
 
 The skill binds to that one cluster, collects live data once, scores the five pillars and writes the
-report to `eks-war-<CLUSTER>/report.html` in the current directory. The whole `eks-war-<CLUSTER>/`
-work directory, not just the report, holds the raw JSON of every workload, with each container's literal
-env values, command and args, plus a kubeconfig: treat it as credential material, keep it out of version
-control and delete it after the review.
+report to `eks-war-<CLUSTER>/report.html` in the current directory.
+It writes everything under `eks-war-<CLUSTER>/`; that directory is credential material, see Step 8 before sharing or deleting anything.
 
 ## Workflow
 
