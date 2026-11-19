@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "block"
+  ],
+  "env": {
+    "APEX_STOP_GATE_RECORDS": "[{\"tool\": \"classes/script/scripts/validate_output.py\", \"skill_dir\": \"skills/eks-recon\", \"files\": [\"classes/script/hooks/stop-gate/tests/no-such-recon-report.yaml\"], \"cwd\": \".\"}]"
+  },
+  "stderr_contains": "already continued once",
+  "timeout": 60
+}

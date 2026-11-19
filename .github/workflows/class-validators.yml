@@ -54,3 +54,8 @@ jobs:
       - name: Run the class validators on fixtures
         if: steps.changes.outputs.relevant != 'false'
         run: pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7' && python3 -B misc/tests/test_class_validators.py -v
+      # The operator Stop gate and the random-token tag tool (P-318), fed
+      # fixture events on stdin; no model runs.
+      - name: Run the Stop gate and token tag tests
+        if: steps.changes.outputs.relevant != 'false'
+        run: pip install 'pytest>=8,<10' && python3 -B -m pytest -q -p no:cacheprovider classes/script/hooks/stop-gate/tests classes/script/hooks/token-tags/tests
