@@ -6,13 +6,13 @@ description: "How to author and contribute APEX skills: the skill-creator skill,
 
 # Contributing
 
-APEX skills are authored using the [`skill-creator`](../skills/index.md) skill, which encodes the [Agent Skills](https://agentskills.io/) spec: frontmatter constraints, the `scripts/` / `references/` / `assets/` layout, and the iterate-with-evals loop.
+APEX skills are authored using the [`skill-creator`](../skills/index.md) skill (a maintainer skill: a default install leaves it out, and `npx apex-skills@1.4.0 --maintainer --branch main` links it), which encodes the [Agent Skills](https://agentskills.io/) spec: frontmatter constraints, the `scripts/` / `references/` / `assets/` layout, and the iterate-with-evals loop.
 
 See [`CONTRIBUTING.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/CONTRIBUTING.md) in the repo for the full contribution flow.
 
 ## Running `update-docs`
 
-Adding, renaming, or removing a skill, or editing a `SKILL.md` frontmatter description, should be followed by running the [`update-docs`](../skills/general/update-docs/index.md) skill so wrappers, marker blocks, and prose references stay in sync.
+Adding, renaming, or removing a skill, or editing a `SKILL.md` frontmatter description, should be followed by running the [`update-docs`](../skills/general/update-docs/index.md) skill (linked by the same `--maintainer` install) so wrappers, marker blocks, and prose references stay in sync.
 
 ## Writing for the blog
 

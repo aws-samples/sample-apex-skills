@@ -1,6 +1,6 @@
 # APEX Skills Installer
 
-Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.apex-skills/` and links each skill into place. It needs Node.js 18+ and git on macOS or Linux (on Windows, use WSL).
+Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.apex-skills/` and links each skill into place, except the maintainer skills, which only `--maintainer` links. It needs Node.js 18+ and git on macOS or Linux (on Windows, use WSL).
 
 ## Usage
 
@@ -15,6 +15,8 @@ npx apex-skills@1.3.0 --update   # update, with no questions
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
+From installer 1.4.0, a default run removes the maintainer skill links (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`) that an older install made; run with `--maintainer` to keep them.
+
 ## Flags
 
 | Flag | Description |
@@ -24,6 +26,7 @@ Before upgrading from installer 1.2.0 or earlier, and before re-running after mo
 | `--project` | Install into the current directory instead of `~` |
 | `--kiro-hooks` | Also install the opt-in APEX guard hooks for Kiro CLI (see Installed paths). A release with no Kiro hook file gets a warning and no hooks. Not with `--claude-only` or `--uninstall`. `--update` keeps an installed set current |
 | `--no-steering` | Skip steering and commands. Steering an earlier run installed stays |
+| `--maintainer` | Also link the maintainer skills (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`), which a default install leaves out. The choice is saved for the install: later runs, `--update` included, keep the links. A full `--uninstall` removes them and clears the choice |
 | `--update` | Move to the latest release of the clone's major line, or follow the `--branch` branch. Asks no questions |
 | `-v, --version <tag>` | Pin to a tag (e.g. `v1.2.0`). A later run without `--version` or `--branch` moves to the latest release |
 | `--branch <name>` | Follow a branch (e.g. `main`) instead of the latest release |

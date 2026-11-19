@@ -74,6 +74,19 @@
 #   M5  a corrupt or wrong-shape manifest is set aside with a warning; built-in rules apply
 #   M6  a deleted manifest: --update falls back, prunes dangling clone links, writes a new one
 #   N3  the no-steering choice survives rm -rf ~/.apex-skills
+#   MT1 a default install links no maintainer skill (skill-creator, steering-workflow-creator,
+#       update-docs, apex-new-skill) and lists none under Skills:; --maintainer links them for
+#       Claude Code and Kiro and records the choice
+#   MT2 the saved --maintainer choice: a plain run, --update, --claude-only, --kiro-only and a
+#       re-clone keep the links (no prune); another install base does not inherit it
+#   MT3 a full --uninstall removes the maintainer links and clears the choice, also when it keeps
+#       an edited copy or a changed skill link (so the install base stays recorded); a scoped
+#       --uninstall (--claude-only or --kiro-only) keeps the choice while the other tool's links stay,
+#       and the choice goes with the base's record once nothing of it is left
+#   MT4 maintainer links with no saved choice (an older install): a default run removes them,
+#       says so as maintainer links (not as skills missing from this version) and names
+#       --maintainer, for Claude Code and Kiro; a user's own link at that name that does not point
+#       into the clone stays, with or without a manifest
 #   P1  --project without a global install still warns about the imports, on stderr
 #   ENV1 XDG_*, CLAUDE_CONFIG_DIR and GIT_* in the caller's environment do not reach the installer
 #   NF1 network fence: an https repo URL is refused at once, nothing is fetched
@@ -298,6 +311,9 @@ build_fixture() {
   git -C "$REPO_ROOT" cat-file -e "$STEERING_SRC:steering" 2>/dev/null || { echo "the steering tree $STEERING_SRC has no steering/" >&2; exit 2; }
   (set -o pipefail; git -C "$REPO_ROOT" archive HEAD skills | tar -x -C "$ORIGIN") || { echo "git archive of HEAD skills/ failed" >&2; exit 2; }
   (set -o pipefail; git -C "$REPO_ROOT" archive "$STEERING_SRC" steering | tar -x -C "$ORIGIN") || { echo "git archive of $STEERING_SRC steering/ failed" >&2; exit 2; }
+  # A maintainer skill the real v1.3.0 ships and main no longer has, so MT1
+  # checks that a default install of such a tree leaves it out.
+  [ -d "$ORIGIN/skills/steering-workflow-creator" ] || add_fixture_skill "$ORIGIN" steering-workflow-creator "a maintainer skill the v1 releases ship"
   "${GITC[@]}" -C "$ORIGIN" init -q
   # Older release: two skills missing, like v1.1.0 against main.
   local s
@@ -336,17 +352,24 @@ build_fixture() {
 build_fixture
 export APEX_SKILLS_REPO_URL="file://$ORIGIN"
 
+# Maintainer skills: a default install leaves them out, --maintainer links them.
+# The *_COUNT values and the sample skills below are what a default install links.
+MAINT_SKILLS="skill-creator steering-workflow-creator update-docs apex-new-skill"
+not_maint() { /usr/bin/grep -v -x -e skill-creator -e steering-workflow-creator -e update-docs -e apex-new-skill; }
 count_skill_dirs() { # <git ref>
-  git -C "$ORIGIN" ls-tree -d --name-only "$1:skills" | /usr/bin/grep -v '^\.' | wc -l | tr -d ' '
+  git -C "$ORIGIN" ls-tree -d --name-only "$1:skills" | /usr/bin/grep -v '^\.' | not_maint | wc -l | tr -d ' '
 }
 commit_of() { git -C "$ORIGIN" rev-parse "$1^{commit}"; }
 MAIN_COUNT="$(count_skill_dirs main)"
 LATEST_COUNT="$(count_skill_dirs "$LATEST_TAG")"
 MID_COUNT="$(count_skill_dirs "$MID_TAG")"
 TAG_COUNT="$(count_skill_dirs "$FIXTURE_TAG")"
+MAINT_COUNT=0
+for s in $MAINT_SKILLS; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$s" 2>/dev/null; then MAINT_COUNT=$((MAINT_COUNT + 1)); fi; done
+[ "$MAINT_COUNT" -gt 0 ] || { echo "the fixture's $LATEST_TAG has none of the maintainer skills ($MAINT_SKILLS)" >&2; exit 2; }
 WF_COUNT="$(git -C "$ORIGIN" ls-tree --name-only "$LATEST_TAG:steering/workflows" | /usr/bin/grep -c '\.md$')"
 # Sample skills: the first two folders under skills/ that hold a SKILL.md.
-SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
+SKILLS_WITH_MD="$(git -C "$ORIGIN" ls-tree -d --name-only "$LATEST_TAG:skills" | /usr/bin/grep -v '^\.' | not_maint | while read -r d; do if git -C "$ORIGIN" cat-file -e "$LATEST_TAG:skills/$d/SKILL.md" 2>/dev/null; then echo "$d"; fi; done)"
 SKILL_A="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 1p)"
 SKILL_B="$(printf '%s\n' "$SKILLS_WITH_MD" | sed -n 2p)"
 
@@ -1036,7 +1059,7 @@ finish_case
 
 new_case X2 "unknown, contradictory or incomplete flags exit 2 and change nothing"
 for args in "--claude-onyl" "--claude-only --kiro-only" "--branch" "--version --claude-only" "install" \
-            "--update=yes" "--uninstall --update" "--uninstall --version v1.1.0" "--branch main --version v1.1.0" "--branch ../x" "-x"; do
+            "--update=yes" "--uninstall --update" "--uninstall --version v1.1.0" "--branch main --version v1.1.0" "--branch ../x" "-x" "--maintainer=yes"; do
   read -r -a x2_argv <<< "$args"
   run_cli "${x2_argv[@]}"
   expect_rc 2
@@ -1339,6 +1362,177 @@ expect_out "Steering stays off"
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT skill links after the re-clone"
 finish_case
 
+maint_links() { # <skills dir>: maintainer skill links there that resolve
+  local s n=0
+  for s in $MAINT_SKILLS; do if [ -L "$1/$s" ] && [ -e "$1/$s" ]; then n=$((n + 1)); fi; done
+  echo "$n"
+}
+maint_choice() { mfq "$(manifest_of)" '(m.bases[b] || {}).maintainer === true' "${1:-$H}"; }
+
+new_case MT1 "a default install links no maintainer skill; --maintainer links them for Claude Code and Kiro and records the choice"
+mkdir -p "$H/.claude" "$H/.kiro"
+run_cli -y
+expect_rc 0
+for s in $MAINT_SKILLS; do
+  if [ -L "$H/.claude/skills/$s" ] || [ -e "$H/.claude/skills/$s" ]; then err "a default install linked $s into ~/.claude/skills"; fi
+  if [ -L "$H/.kiro/skills/$s" ] || [ -e "$H/.kiro/skills/$s" ]; then err "a default install linked $s into ~/.kiro/skills"; fi
+done
+[ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude skill links, got $(count_resolving_links "$H/.claude/skills")"
+[ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links, got $(count_resolving_links "$H/.kiro/skills")"
+for s in $MAINT_SKILLS; do
+  if /usr/bin/grep '  Skills: ' "$OUT_STDOUT" | /usr/bin/grep -q -w -- "$s"; then err "the Skills: line of a default install lists $s"; fi
+done
+[ "$(maint_choice)" = false ] || err "a default install recorded a maintainer choice"
+run_cli -y --maintainer
+expect_rc 0
+[ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "--maintainer linked $(maint_links "$H/.claude/skills") of $MAINT_COUNT maintainer skills into ~/.claude/skills"
+[ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "--maintainer linked $(maint_links "$H/.kiro/skills") of $MAINT_COUNT maintainer skills into ~/.kiro/skills"
+[ "$(count_resolving_links "$H/.claude/skills")" -eq "$((LATEST_COUNT + MAINT_COUNT))" ] || err "--maintainer: expected $((LATEST_COUNT + MAINT_COUNT)) Claude skill links"
+[ "$(maint_choice)" = true ] || err "--maintainer did not record the choice in the manifest"
+[ "$(mfq "$(manifest_of)" 'Object.keys(m.bases[b].areas["claude-skills"]).filter((p) => p.endsWith("/skill-creator")).length')" = 1 ] || err "the record lacks the skill-creator link"
+finish_case
+
+new_case MT2 "the saved --maintainer choice: a plain run, --update, --claude-only, --kiro-only and a re-clone keep the links; the prune removes none; another install base does not inherit it"
+mkdir -p "$H/.claude" "$H/.kiro" "$H/proj"
+run_cli -y --maintainer
+expect_rc 0
+for mt_args in "-y" "--update" "--claude-only" "--kiro-only"; do
+  read -r -a mt_argv <<< "$mt_args"
+  run_cli "${mt_argv[@]}"
+  expect_rc 0
+  expect_no_out "Removed .* links"
+  [ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "'$mt_args' left $(maint_links "$H/.claude/skills") of $MAINT_COUNT maintainer links in ~/.claude/skills"
+  [ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "'$mt_args' left $(maint_links "$H/.kiro/skills") of $MAINT_COUNT maintainer links in ~/.kiro/skills"
+  [ "$(maint_choice)" = true ] || err "'$mt_args' dropped the saved maintainer choice"
+done
+rm -rf "$H/.apex-skills"
+run_cli --update
+expect_rc 0
+expect_no_out "Removed .* links"
+[ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "--update after rm -rf ~/.apex-skills left $(maint_links "$H/.claude/skills") of $MAINT_COUNT maintainer links"
+[ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "--update after rm -rf ~/.apex-skills left $(maint_links "$H/.kiro/skills") of $MAINT_COUNT Kiro maintainer links"
+[ "$(maint_choice)" = true ] || err "--update after rm -rf ~/.apex-skills dropped the saved maintainer choice"
+RUN_CWD="$H/proj" run_cli --project -y
+expect_rc 0
+[ "$(maint_links "$H/proj/.claude/skills")" -eq 0 ] || err "a --project install inherited the global --maintainer choice"
+[ "$(maint_choice "$(realpath "$H/proj")")" = false ] || err "the --project base recorded a maintainer choice it was not given"
+[ "$(maint_choice)" = true ] || err "the --project run changed the global base's choice"
+finish_case
+
+new_case MT3 "a full --uninstall removes the maintainer links and clears the choice; a scoped --uninstall keeps it while the other tool's links stay"
+mkdir -p "$H/.claude" "$H/.kiro"
+run_cli -y --maintainer
+expect_rc 0
+run_cli --uninstall
+expect_rc 0
+for d in "$H/.claude/skills" "$H/.kiro/skills"; do
+  [ "$(links_into_install "$d")" -eq 0 ] || err "--uninstall left $(links_into_install "$d") links in $d"
+done
+[ "$(maint_choice)" = false ] || err "--uninstall kept the maintainer choice"
+run_cli -y
+expect_rc 0
+[ "$(maint_links "$H/.claude/skills")" -eq 0 ] || err "the install after --uninstall linked maintainer skills"
+# scoped: --uninstall --claude-only keeps the choice and the Kiro links
+H="$WORK/MT3/home-b"; mkdir -p "$H/.claude" "$H/.kiro"
+run_cli -y --maintainer
+expect_rc 0
+run_cli --uninstall --claude-only
+expect_rc 0
+[ "$(maint_links "$H/.claude/skills")" -eq 0 ] || err "--uninstall --claude-only left Claude maintainer links"
+[ "$(maint_choice)" = true ] || err "--uninstall --claude-only cleared the choice while the Kiro links stay"
+run_cli --kiro-only
+expect_rc 0
+[ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "a --kiro-only run after --uninstall --claude-only pruned the Kiro maintainer links"
+run_cli --uninstall --kiro-only
+expect_rc 0
+[ "$(maint_choice)" = false ] || err "the choice stayed after the last install of the base was removed"
+# scoped: --uninstall --kiro-only keeps the choice and the Claude links
+H="$WORK/MT3/home-d"; mkdir -p "$H/.claude" "$H/.kiro"
+run_cli -y --maintainer
+expect_rc 0
+run_cli --uninstall --kiro-only
+expect_rc 0
+[ "$(maint_links "$H/.kiro/skills")" -eq 0 ] || err "--uninstall --kiro-only left Kiro maintainer links"
+[ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "--uninstall --kiro-only removed Claude maintainer links"
+[ "$(maint_choice)" = true ] || err "--uninstall --kiro-only cleared the choice while the Claude links stay"
+run_cli --claude-only
+expect_rc 0
+[ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "a --claude-only run after --uninstall --kiro-only pruned the Claude maintainer links"
+# the base stays recorded (an edited Kiro copy is kept), and a full --uninstall still clears the choice
+H="$WORK/MT3/home-c"; mkdir -p "$H/.kiro"
+run_cli --kiro-only --maintainer
+expect_rc 0
+echo "my edit" >> "$H/.kiro/steering/new-skill.md"
+run_cli --uninstall
+expect_rc 3
+[ "$(mfq "$(manifest_of)" 'Boolean(m.bases[b])')" = true ] || err "the kept copy did not keep the install base recorded"
+[ "$(maint_choice)" = false ] || err "--uninstall kept the maintainer choice while only an edited copy stays recorded"
+run_cli --kiro-only
+expect_rc 3
+[ "$(maint_links "$H/.kiro/skills")" -eq 0 ] || err "the install after that --uninstall linked maintainer skills"
+# a full --uninstall that keeps a changed skill link still clears the choice
+H="$WORK/MT3/home-e"; mkdir -p "$H/.claude" "$H/elsewhere"
+run_cli --claude-only --maintainer
+expect_rc 0
+rm "$H/.claude/skills/$SKILL_A"
+ln -s "$H/elsewhere" "$H/.claude/skills/$SKILL_A"
+run_cli --uninstall
+expect_rc 3
+[ "$(mfq "$(manifest_of)" 'Boolean(m.bases[b])')" = true ] || err "the changed link did not keep the install base recorded"
+[ "$(maint_choice)" = false ] || err "--uninstall kept the maintainer choice while a changed skill link stays recorded"
+run_cli --claude-only
+[ "$(maint_links "$H/.claude/skills")" -eq 0 ] || err "the default install after that --uninstall linked maintainer skills"
+finish_case
+
+new_case MT4 "an install that linked the maintainer skills with no saved choice (installer 1.3.0 and earlier): a default run prunes them and says how to keep them; a user's own link at that name stays"
+mkdir -p "$H/.claude" "$H/my-skill-creator"
+run_cli --claude-only --maintainer
+expect_rc 0
+node -e 'const fs = require("fs"); const f = process.argv[1]; const m = JSON.parse(fs.readFileSync(f, "utf8")); delete m.bases[process.argv[2]].maintainer; fs.writeFileSync(f, JSON.stringify(m, null, 2));' "$(manifest_of)" "$H"
+rm "$H/.claude/skills/update-docs" 2>/dev/null
+ln -s "$H/my-skill-creator" "$H/.claude/skills/update-docs"
+run_cli --update --claude-only
+expect_rc 0
+expect_stdout "Removed $((MAINT_COUNT - 1)) maintainer skill links"
+expect_no_out "links to skills that are not in this version"
+for s in $MAINT_SKILLS; do
+  [ "$s" = update-docs ] && continue
+  if [ -L "$H/.claude/skills/$s" ]; then err "the default run kept the installer's $s link"; fi
+done
+expect_link "$H/.claude/skills/update-docs" "$H/my-skill-creator"
+[ "$(count_resolving_links "$H/.claude/skills")" -eq "$((LATEST_COUNT + 1))" ] || err "expected $LATEST_COUNT skill links plus the user's own"
+# no manifest at all (an install made before the manifest): no record lists the
+# links, so only the held-back name check removes them
+H="$WORK/MT4/home-b"; mkdir -p "$H/.claude" "$H/my-skill-creator"
+run_cli --claude-only --maintainer
+expect_rc 0
+rm "$(manifest_of)"
+rm "$H/.claude/skills/update-docs" 2>/dev/null
+ln -s "$H/my-skill-creator" "$H/.claude/skills/update-docs"
+run_cli --claude-only
+expect_rc 0
+expect_stdout "Removed .* maintainer skill links"
+for s in $MAINT_SKILLS; do
+  [ "$s" = update-docs ] && continue
+  if [ -L "$H/.claude/skills/$s" ]; then err "with no manifest the default run kept the installer's $s link"; fi
+done
+expect_link "$H/.claude/skills/update-docs" "$H/my-skill-creator"
+# Kiro too, on both paths: with a manifest and with none
+for mt4_manifest in keep remove; do
+  H="$WORK/MT4/home-kiro-$mt4_manifest"; mkdir -p "$H/.claude" "$H/.kiro"
+  run_cli -y --maintainer
+  expect_rc 0
+  if [ "$mt4_manifest" = remove ]; then rm "$(manifest_of)"
+  else node -e 'const fs = require("fs"); const f = process.argv[1]; const m = JSON.parse(fs.readFileSync(f, "utf8")); delete m.bases[process.argv[2]].maintainer; fs.writeFileSync(f, JSON.stringify(m, null, 2));' "$(manifest_of)" "$H"; fi
+  run_cli -y
+  expect_rc 0
+  [ "$(/usr/bin/grep -c "Removed $MAINT_COUNT maintainer skill links" "$OUT_STDOUT")" -eq 2 ] || err "($mt4_manifest manifest) expected the maintainer removal line once for Claude Code and once for Kiro"
+  expect_no_out "links to skills that are not in this version"
+  [ "$(maint_links "$H/.kiro/skills")" -eq 0 ] || err "($mt4_manifest manifest) the default run kept $(maint_links "$H/.kiro/skills") Kiro maintainer links"
+  [ "$(maint_links "$H/.claude/skills")" -eq 0 ] || err "($mt4_manifest manifest) the default run kept $(maint_links "$H/.claude/skills") Claude maintainer links"
+done
+finish_case
+
 new_case P1 "--project without a global install still warns about the imports, on stderr"
 mkdir -p "$H/.claude" "$H/proj"
 RUN_CWD="$H/proj" run_cli --project --claude-only
@@ -1557,7 +1751,7 @@ if git -C "$REPO_ROOT" rev-parse -q --verify 'refs/tags/v1.2.0^{commit}' > /dev/
   add_fixture_skill "$REAL_ORIGIN" "$MAIN_SKILL" "present only on main after v1.2.0"
   "${GITC[@]}" -C "$REAL_ORIGIN" add -A skills
   "${GITC[@]}" -C "$REAL_ORIGIN" commit -q -m "main after v1.2.0"
-  real_count="$(git -C "$REAL_ORIGIN" ls-tree -d --name-only v1.2.0:skills | /usr/bin/grep -v '^\.' | wc -l | tr -d ' ')"
+  real_count="$(git -C "$REAL_ORIGIN" ls-tree -d --name-only v1.2.0:skills | /usr/bin/grep -v '^\.' | not_maint | wc -l | tr -d ' ')"
   real_wf="$(git -C "$REAL_ORIGIN" ls-tree --name-only v1.2.0:steering/workflows | /usr/bin/grep -c '\.md$')"
   mkdir -p "$H/.claude" "$H/.kiro"
   RUN_ENV="APEX_SKILLS_REPO_URL=file://$REAL_ORIGIN" run_cli -y
@@ -2375,9 +2569,12 @@ run_cli --help
 expect_rc 0
 # each flag at the start of its own help row, so a flag named only in another
 # row's text (--uninstall in the --no-steering row) does not count
-for f in --claude-only --kiro-only --project --no-steering --update "--version <tag>" "--branch <name>" --uninstall "-y, --yes" "-h, --help"; do
+for f in --claude-only --kiro-only --project --no-steering --maintainer --update "--version <tag>" "--branch <name>" --uninstall "-y, --yes" "-h, --help"; do
   expect_stdout "^  $f "
 done
+expect_stdout "skill-creator, steering-workflow-creator,"
+expect_stdout "update-docs, apex-new-skill), which a default install leaves out"
+expect_stdout "a full --uninstall removes them and clears the choice$"
 expect_stdout "Exit codes:"
 expect_stdout "3  done"
 expect_stdout "run it again to finish before --uninstall: links a stopped"
