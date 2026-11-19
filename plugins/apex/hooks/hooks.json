@@ -1,0 +1,34 @@
+{
+  "description": "generated from classes/*/class.yaml, do not edit",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Bash|use_aws|mcp__.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/operator/mutation-guard/mutation_guard.py\" --mode block --id advisor.no-side-effects"
+          }
+        ]
+      },
+      {
+        "matcher": "^(Bash|mcp__.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/apex-base/secret-deny/secret_deny.py\" --mode block --id apex.no-secrets"
+          }
+        ]
+      },
+      {
+        "matcher": "^(Bash|use_aws|mcp__.*)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/operator/mutation-guard/mutation_guard.py\" --mode ask --id operator.confirm-before-change"
+          }
+        ]
+      }
+    ]
+  }
+}
