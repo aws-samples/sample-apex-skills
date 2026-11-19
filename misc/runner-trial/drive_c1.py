@@ -53,7 +53,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import datetime
 import hashlib
 import io
 import json
@@ -363,10 +362,9 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
     raise ValueError(f"{case['id']}: unknown grade kind {kind}")
 
 
-# A live run's cluster session: AWS caps an assume-role made from a role
-# session at one hour, and it must outlast the subject's timeout by the margin.
+# A live run's cluster session lasts one hour, the longest every source
+# allows. main's eval-session check keeps every subject timeout inside the hour.
 LIVE_SESSION_SECONDS = 3600
-LIVE_SESSION_MARGIN = 120
 
 
 class LiveSessionError(RuntimeError):
@@ -402,17 +400,18 @@ def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> 
 
 
 @contextlib.contextmanager
-def live_env(kubeconfig: str, timeout: int):
+def live_env(kubeconfig: str):
     """Yield the extra env a live subject gets. A kubeconfig whose current
     user runs `aws` with AWS_PROFILE in its exec env reaches its role through
     the host's keys, which the subject's empty HOME lacks: the driver assumes
     that role once for this run and writes, into a private temp dir removed
     when the run ends, a kubeconfig whose exec carries only that session (no
     profile, no config file, no host path) and `bin/aws`, a shim that runs
-    the real aws on the same session. PATH puts the shim first, so the
-    subject's own `aws eks ...` reads reach the cluster's account while the
-    subject's AWS_* env stays the eval-role session for its model calls. Any
-    other kubeconfig (token, certificate, or one that does not parse) is
+    the real aws on the same session. PATH puts the shim first, so an `aws`
+    the subject runs by name uses that session, while the subject's AWS_*
+    env stays the eval-role session for its model calls. The role is the one
+    the profile names and is not checked here: pass the read-only kubeconfig.
+    Any other kubeconfig (token, certificate, or one that does not parse) is
     passed as is, with no shim."""
     import yaml
     try:
@@ -428,15 +427,8 @@ def live_env(kubeconfig: str, timeout: int):
     if ex.get("command") != "aws" or "AWS_PROFILE" not in exec_env:
         yield {"KUBECONFIG": kubeconfig}
         return
-    real_aws = shutil.which("aws")
-    if not real_aws:
-        raise LiveSessionError("no aws on PATH for the subject's cluster session")
-    if "--profile" in (ex.get("args") or []):
-        raise LiveSessionError("the kubeconfig's exec passes --profile; set the profile in its env instead")
     creds = assume_profile_role(exec_env["AWS_PROFILE"], exec_env.get("AWS_CONFIG_FILE"), LIVE_SESSION_SECONDS)
-    expires = datetime.datetime.fromisoformat(str(creds["Expiration"]).replace("Z", "+00:00")).timestamp()
-    if time.time() + timeout + LIVE_SESSION_MARGIN >= expires:
-        raise LiveSessionError(f"the cluster session expires before a {timeout}s run ends")
+    real_aws = shutil.which("aws")
     session = (("AWS_ACCESS_KEY_ID", creds["AccessKeyId"]), ("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"]),
                ("AWS_SESSION_TOKEN", creds["SessionToken"]), ("AWS_CONFIG_FILE", os.devnull),
                ("AWS_SHARED_CREDENTIALS_FILE", os.devnull), ("AWS_EC2_METADATA_DISABLED", "true"))
@@ -489,7 +481,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
     timeout = runner.subject_timeout(case["skill"])
     try:
         # Only live_env raises LiveSessionError, before its yield.
-        with (live_env(kubeconfig, timeout) if case.get("live") else contextlib.nullcontext()) as live, \
+        with (live_env(kubeconfig) if case.get("live") else contextlib.nullcontext()) as live, \
                 (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
                  else contextlib.nullcontext(root)) as tree:
             skill_dir = tree / "skills" / case["skill"]

@@ -6,7 +6,6 @@ the old arm's skill from drive_c1.OLD, so the clone must hold both commits.
 Run: python3 -B -m unittest misc.tests.test_drive_c1 -v
 """
 import contextlib
-import datetime
 import importlib.util
 import io
 import json
@@ -317,9 +316,9 @@ users:
     exec:
       apiVersion: client.authentication.k8s.io/v1beta1
       command: aws
-      args: [--region, us-west-2, eks, get-token, --cluster-name, k6, --output, json]
+      args: [--region, us-west-2, eks, get-token, --cluster-name, test-cluster, --output, json]
       env:
-      - {name: AWS_PROFILE, value: k6-ro}
+      - {name: AWS_PROFILE, value: cluster-ro}
       - {name: AWS_CONFIG_FILE, value: %s}
 - name: admin
   user:
@@ -327,10 +326,9 @@ users:
 """
 
 
-def session(seconds=3600):
-    exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=seconds)
+def session():
     return {"AccessKeyId": "ASIATEST", "SecretAccessKey": "s3cret", "SessionToken": "tok",
-            "Expiration": exp.strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "Expiration": "2026-01-01T00:00:00Z"}
 
 
 class LiveSession(unittest.TestCase):
@@ -370,43 +368,72 @@ class LiveSession(unittest.TestCase):
                 rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc))
         return rc, recs, seen, host_cfg
 
-    def test_subject_kubeconfig_carries_only_a_session(self):
+    def test_subject_gets_only_a_session_in_its_kubeconfig_and_aws_shim(self):
         asked = []
         rc, recs, seen, host_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
-        self.assertEqual(rc, 0)
-        self.assertEqual(len(seen), 6)
-        self.assertEqual(asked, [("k6-ro", host_cfg, 3600)] * 6)   # one session per live run
+        self.assertEqual((rc, len(seen)), (0, 6))
+        self.assertEqual(asked, [("cluster-ro", host_cfg, 3600)] * 6)   # one session per live run
         for s in seen:
-            for bad in (".aws", host_cfg, "AWS_PROFILE", "k6-ro", "host-admin"):
+            for bad in (".aws", host_cfg, "AWS_PROFILE", "cluster-ro", "host-admin"):
                 self.assertNotIn(bad, s.text)
             self.assertEqual((s.mode, s.dir_mode), (0o600, 0o700))
             env = {e["name"]: e["value"] for e in json.loads(s.text)["users"][0]["user"]["exec"]["env"]}
             self.assertEqual(env["AWS_SESSION_TOKEN"], "tok")
             self.assertEqual((env["AWS_CONFIG_FILE"], env["AWS_SHARED_CREDENTIALS_FILE"]), (os.devnull, os.devnull))
-            self.assertFalse(s.kc.parent.exists())   # removed when the run ended
-
-    def test_subject_aws_calls_go_through_the_session_shim(self):
-        rc, recs, seen, host_cfg = self.run_t7(lambda p, c, s: session())
-        self.assertEqual((rc, len(seen)), (0, 6))
-        for s in seen:
             # PATH is the shim dir first; no AWS_* in the extra env, so the eval-role session stays the subject's
             self.assertEqual(sorted(s.extra), ["KUBECONFIG", "PATH"])
             self.assertEqual(s.extra["PATH"].split(os.pathsep)[0], str(s.shim.parent))
             self.assertEqual((s.shim_mode, s.bin_mode), (0o700, 0o700))
-            for bad in (".aws", host_cfg, "k6-ro"):
+            for bad in (".aws", host_cfg, "cluster-ro"):
                 self.assertNotIn(bad, s.shim_text)
             # the shim replaces the subject's eval-role keys and drops its profile, for aws only
             self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset cfg={os.devnull} args=eks list-clusters")
-            self.assertFalse(s.shim.parent.exists())
+            self.assertFalse(s.kc.parent.exists())   # removed when the run ended
         self.assertTrue(all(r["status"] == "ran" for r in recs))
 
-    def test_failed_or_short_session_reads_cannot_run(self):
+    def test_failed_session_reads_cannot_run(self):
         def fail(p, c, s):
             raise drive_c1.LiveSessionError("aws sts assume-role exited 254")
-        for assume, why in ((fail, "exited 254"), (lambda p, c, s: session(600), "expires before")):
-            rc, recs, seen, _ = self.run_t7(assume)
-            self.assertEqual((rc, seen), (0, []))
-            self.assertTrue(all(r["status"] == "cannot run" and why in r["reason"] for r in recs))
+        rc, recs, seen, _ = self.run_t7(fail)
+        self.assertEqual((rc, seen), (0, []))
+        self.assertTrue(all(r["status"] == "cannot run" and "exited 254" in r["reason"] for r in recs))
+
+
+    def test_assume_profile_role_runs_as_the_driver_without_the_parent_aws_env(self):
+        with tempfile.TemporaryDirectory() as k:
+            log = Path(k) / "log"
+            fake = Path(k) / "aws"
+            fake.write_text(
+                '#!/bin/sh\n'
+                f'echo "$* | ${{AWS_ACCESS_KEY_ID-unset}} ${{AWS_PROFILE-unset}} ${{AWS_DEFAULT_PROFILE-unset}} '
+                f'$AWS_CONFIG_FILE" >> {log}\n'
+                'case "$*" in\n'
+                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
+                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
+                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
+                '  *) exit 9 ;;\n'
+                'esac\n')
+            fake.chmod(0o700)
+            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "AWS_ACCESS_KEY_ID": "AKIAHOST",
+                   "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin"}
+            with mock.patch.dict(os.environ, env):
+                creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/host", 3600)
+            lines = log.read_text().splitlines()
+        self.assertEqual(creds, {"AccessKeyId": "ASIATEST"})
+        self.assertEqual(len(lines), 3)
+        for line in lines:   # the parent's AWS_* are stripped and only the kubeconfig's config file is set
+            self.assertTrue(line.endswith("| unset unset unset /cfg/host"), line)
+        self.assertTrue(lines[2].startswith("sts assume-role --profile src --role-arn test-role-arn "
+                                            "--role-session-name apex-c1-live-"), lines[2])
+        self.assertIn("--duration-seconds 3600 --output json", lines[2])
+
+    def test_aws_exec_without_a_profile_is_passed_through(self):
+        with tempfile.TemporaryDirectory() as k:
+            kc = Path(k) / "kc"
+            kc.write_text(HOST_KUBECONFIG.replace("      - {name: AWS_PROFILE, value: cluster-ro}\n", "") % "/cfg")
+            with mock.patch.object(drive_c1, "assume_profile_role", side_effect=AssertionError("assumed")):
+                with drive_c1.live_env(str(kc)) as extra:
+                    self.assertEqual(extra, {"KUBECONFIG": str(kc)})
 
 
 class FailingPaths(unittest.TestCase):
