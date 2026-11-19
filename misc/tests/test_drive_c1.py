@@ -173,15 +173,17 @@ class OutputShape(unittest.TestCase):
         calls = []
         with tempfile.TemporaryDirectory() as d:
             rc, _, _ = run_main(["--paid", "--out", d, "--spend-limit-usd", "0.5",
-                                 "--case", "T4"], runner=fake_runner(calls))
+                                 "--case", "T4", "--case", "T6"], runner=fake_runner(calls))
             recs = [json.loads(l) for l in (Path(d) / "runs.jsonl").read_text().splitlines()]
-            cells = json.loads((Path(d) / "summary.json").read_text())["cases"]["T4"]
+            summary = json.loads((Path(d) / "summary.json").read_text())["cases"]
+            cells = summary["T4"]
         self.assertEqual(rc, 0)
-        self.assertEqual([r["status"] for r in recs], ["ran", "ran"] + ["not run"] * 7)
+        self.assertEqual([r["status"] for r in recs], ["ran", "ran"] + ["not run"] * 13)
         self.assertEqual(sum(1 for name, _ in calls if name == "run_subject"), 2)
         # S2 leaves the spend stop's 'not run' runs out: 2/2, not 2/3; an arm with none left is n/a
         self.assertEqual((cells["with_skill"]["pass"], cells["with_skill"]["runs"]), (2, 2))
         self.assertEqual([cells[a]["runs"] for a in ("without_skill", "old_skill")], [0, 0])
+        self.assertEqual(summary["T6"]["both_queries"]["runs"], 0)   # T6 never ran: n/a, not 0/3
 
 
 def paid(d, cases, runner, *extra):

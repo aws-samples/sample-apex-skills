@@ -41,8 +41,9 @@ whose status is 'ran' or 'error' (an 'error' run counts as a failed run, as
 the shipped runner does); 'cannot run' and 'not run' runs are left out, and
 S2 is n/a when none is left. Any error during the runs ends the invocation:
 runs.jsonl holds the runs that finished and summary.json is not written. A
-failed subject or grader call is not such an error: it is recorded as an
-'error' run.
+subject that times out or exits nonzero (a canned multi-turn subject only
+when it times out), a grader that returns an error or the wrong number of
+expectations, or an invalid trigger query is recorded as an 'error' run.
 
 events_to_spans converts one run's events.jsonl into the span input of the
 AgentCore Evaluations Evaluate API, for C3; it is a pure function and no
@@ -255,7 +256,10 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     AgentCore Evaluations Evaluate API: evaluationInput={"sessionSpans": spans}.
     Pure function: no AWS call, no file read.
 
-    The AGENT and TOOL attributes the Claude Agent SDK page lists are converted.
+    The fields the page's extraction section names are converted (input.value
+    and output.value on AGENT; tool.name, tool.id, input.value and output.value
+    on TOOL), plus openinference.span.kind and session.id; the examples'
+    llm.*, mime-type and tool.parameters attributes are not.
     Builtin.GoalSuccessRate (session) and Builtin.Correctness (trace) read the
     user prompt and agent response of each turn; Builtin.TrajectoryAnyOrderMatch
     reads the tool names. Each turn, the events up to and including a result
@@ -266,8 +270,9 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     last result event are a turn that did not finish: its AGENT span has no
     output.value and status ERROR. A line that is not a JSON object is skipped.
     IDs are derived from session_id, so the output is deterministic. No start
-    or end times are emitted and tool spans share the turn's trace; the docs'
-    examples omit them, so whether Evaluate needs them is untested. A session
+    or end times are emitted (the examples omit them). Tool spans share the
+    turn's trace with a parentSpanId (the unified example gives the tool span
+    its own traceId). Whether Evaluate needs either is untested. A session
     with no result event and no tool call gives no spans, and a text-only turn
     after the last result event is dropped.
 
@@ -444,7 +449,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
         summary["cases"]["T6"]["both_queries"] = {
             "pass": sum(all(r.get("pass") for r in rs) for rs in both),
             "ran": sum(all(r.get("status") == "ran" for r in rs) for rs in both),
-            "runs": RUNS}
+            "runs": sum(all(r.get("status") in ("ran", "error") for r in rs) for rs in both)}
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     return summary
 
