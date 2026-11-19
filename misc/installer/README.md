@@ -1,6 +1,6 @@
 # APEX Skills Installer
 
-Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.apex-skills/` and links each skill into place, except the maintainer skills, which only `--maintainer` links. It needs Node.js 18+ and git on macOS or Linux (on Windows, use WSL).
+Installs APEX skills for Claude Code and Kiro CLI. It clones the repo to `~/.apex-skills/` and links each skill into place, except that the installer on `main` links the maintainer skills only with `--maintainer`. It needs Node.js 18+ and git on macOS or Linux (on Windows, use WSL).
 
 ## Usage
 
@@ -26,7 +26,7 @@ On a default run, the installer on `main` (not yet released; run it from a clone
 | `--project` | Install into the current directory instead of `~` |
 | `--kiro-hooks` | Also install the opt-in APEX guard hooks for Kiro CLI (see Installed paths). A release with no Kiro hook file gets a warning and no hooks. Not with `--claude-only` or `--uninstall`. `--update` keeps an installed set current |
 | `--no-steering` | Skip steering and commands. Steering an earlier run installed stays |
-| `--maintainer` | Also link the maintainer skills (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`), which a default install leaves out. The choice is saved for the install: later runs, `--update` included, keep the links. A full `--uninstall` removes them and clears the choice |
+| `--maintainer` | Also link the maintainer skills (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`), which a default run of the installer on `main` leaves out. The choice is saved for the install: later runs, `--update` included, keep the links. A full `--uninstall` removes them and clears the choice |
 | `--update` | Move to the latest release of the clone's major line, or follow the `--branch` branch. Asks no questions |
 | `-v, --version <tag>` | Pin to a tag (e.g. `v1.2.0`). A later run without `--version` or `--branch` moves to the latest release |
 | `--branch <name>` | Follow a branch (e.g. `main`) instead of the latest release |

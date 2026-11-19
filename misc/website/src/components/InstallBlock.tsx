@@ -111,8 +111,7 @@ export default function InstallBlock(): ReactNode {
           <h3>Release 1.3.0 installer</h3>
           <p>
             Detects Claude Code and Kiro CLI and links the skills from the latest published release
-            (the maintainer skills with the rest; the installer on <code>main</code> links them only with
-            <code>--maintainer</code>): no /apex router, and older versions of some skills than the pages
+            (skill-creator and update-docs with the rest): no /apex router, and older versions of some skills than the pages
             here, which describe main.
           </p>
           <Command text={INSTALLER} label="installer command" />
