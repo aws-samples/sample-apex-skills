@@ -67,6 +67,8 @@ def _yaml_problem(e):
     """Where the YAML fails to parse and why, without the document text PyYAML's
     message quotes: its snippet is dropped, and each quoted span (a tag or alias
     name) becomes '...'. The document may be hostile, and stderr is not wrapped."""
+    if isinstance(e, _yaml().reader.ReaderError):
+        return f"unacceptable character #x{e.character:04x} at position {e.position}"
     parts = []
     for what, mark in ((getattr(e, "context", None), getattr(e, "context_mark", None)),
                        (getattr(e, "problem", None), getattr(e, "problem_mark", None))):
@@ -117,6 +119,8 @@ def loads(text, name="<input>", fmt=None):
         raise CheckError(f"{name}: {e}")
     except yaml.YAMLError as e:
         raise CheckError(f"{name}: not valid YAML: {_yaml_problem(e)}")
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        raise CheckError(f"{name}: not valid YAML: a value does not fit its tag ({type(e).__name__})")
     if doc is None:
         raise CheckError(f"{name}: empty document")
     return doc
@@ -142,17 +146,47 @@ def check_schema(schema):
 
 
 def validate(instance, schema):
-    """Return a list of 'path: message' errors; empty means valid.
+    """Return a list of 'path: fails <keyword> <schema value>' errors; empty means valid.
 
-    An anyOf or oneOf failure reports only "is not valid under any of the
-    given schemas", not the branch errors; no shipped schema uses either."""
+    Only schema text is printed, never the document's values or the keys it
+    chose (see _path): the document may be hostile, and only validate_output.py
+    wraps its stdout. A required failure names the missing schema keys. An
+    anyOf or oneOf failure reports only the keyword, not the branch errors; no
+    shipped schema uses either."""
     jsonschema, ref_errors = _jsonschema()
     validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
     try:
         errors = list(validator.iter_errors(instance))
     except ref_errors.Unresolvable as e:
         raise CheckError(f"schema: $ref does not resolve: {e}")
-    return sorted(f"{e.json_path}: {e.message}{_quote_hint(e)}" for e in errors)
+    lines = set()
+    for e in errors:
+        want = e.validator_value
+        if e.validator == "required":
+            want = [k for k in want if k not in e.instance]
+        lines.add(f"{_path(e)}: fails {e.validator} {json.dumps(want)}{_quote_hint(e)}")
+    return sorted(lines)
+
+
+def _path(e):
+    """Where the error is: $, then a key the schema declares under properties, an
+    array index as [n], and [key] for a key the document chose, never its name."""
+    names, steps = [], iter(list(e.absolute_schema_path)[:-1])
+    for kw in steps:
+        if kw == "properties":
+            names.append(next(steps, None))
+        elif kw in ("patternProperties", "prefixItems"):
+            next(steps, None)
+            names.append(None)
+        elif kw in ("additionalProperties", "unevaluatedProperties", "items", "unevaluatedItems"):
+            names.append(None)
+        elif kw in ("allOf", "anyOf", "oneOf", "dependentSchemas"):
+            next(steps, None)
+    where = list(e.absolute_path)
+    if len(names) != len(where):
+        names = [None] * len(where)
+    return "$" + "".join(f"[{p}]" if isinstance(p, int) else f".{p}" if p == n else "[key]"
+                         for p, n in zip(where, names))
 
 
 def _quote_hint(e):
