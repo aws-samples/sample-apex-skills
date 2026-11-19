@@ -656,7 +656,7 @@ skills_in_group() {
 # misc/installer/bin/cli.mjs; keep the two lists the same). The skill list and
 # llms.txt add the note to each.
 MAINTAINER_SKILLS="apex-new-skill skill-creator steering-workflow-creator update-docs"
-MAINTAINER_NOTE='maintainer skill, linked with `--maintainer`'
+MAINTAINER_NOTE='maintainer skill, linked with `--maintainer` from installer 1.4.0'
 maintainer_note() {
   case " $MAINTAINER_SKILLS " in *" $1 "*) printf ' (%s)' "$MAINTAINER_NOTE" ;; esac
 }

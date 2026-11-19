@@ -1320,8 +1320,7 @@ function showHelp() {
   log(`  --maintainer         Also link the maintainer skills (skill-creator, steering-workflow-creator,`);
   log(`                       update-docs, apex-new-skill), which a default install leaves out. The choice`);
   log(`                       is saved for this install: later runs, --update included, keep the links;`);
-  log(`                       a full --uninstall removes them and clears the choice, while --uninstall`);
-  log(`                       with --claude-only or --kiro-only keeps it`);
+  log(`                       a full --uninstall removes them and clears the choice`);
   log(`  --update             Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
   log(`                       links and steering copies (non-interactive; a branch chosen with --branch is`);
   log(`                       followed). It keeps a saved no-steering choice (--no-steering or n), as`);
