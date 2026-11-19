@@ -292,7 +292,7 @@ For the interaction branch, put each piece of text where the table under [Where 
 
 Steps:
 
-1. Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
+1. Install with `npx apex-skills --maintainer` to get apex-new-skill (with skill-creator and update-docs; a default install leaves them out). Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists — see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
