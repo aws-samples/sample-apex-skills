@@ -250,8 +250,8 @@ jobs:
           fetch-depth: 0
           # No token in .git/config for the subject to read.
           persist-credentials: false
-      # The secrets are set only on the two steps that read them, so no
-      # subject or grader process gets them.
+      # The secrets are set only on the two steps that read them,
+      # so no subject or grader inherits them in its environment; the config file they write stays readable by path.
       - name: Require the eval secrets
         env:
           APEX_EVAL_AWS_CONFIG: ${{ secrets.APEX_EVAL_AWS_CONFIG }}

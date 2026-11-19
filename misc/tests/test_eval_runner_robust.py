@@ -1414,6 +1414,14 @@ class HarnessShapes(unittest.TestCase):
         self.assertEqual(sri(failed, "codex"), "codex reported an error: throttled")
         self.assertEqual(sri([], "codex"), "no events")
 
+    def test_codex_error_only_stream_records_no_tokens(self):
+        failed = CODEX_STREAM[:1] + [{"type": "turn.failed", "error": {"message": "throttled"}}]
+        events = parse_trajectory.normalize_events(failed, "codex")
+        traj = parse_events(events)
+        self.assertIsNone(traj.input_tokens)
+        self.assertIsNone(traj.token_source)
+        self.assertIsNone(run_task_evals.extract_result_summary(events)["token_source"])
+
     def test_kiro_acp_updates_in_either_envelope(self):
         traj = parse_events(parse_trajectory.normalize_events(KIRO_RPC, "kiro"))
         self.assertEqual(traj.tool_sequence, ["read_file"])

@@ -354,7 +354,7 @@ def codex_usage(evt: dict) -> dict | None:
 
 def _normalize_codex(events: list) -> list[dict]:
     out: list[dict] = []
-    usage = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+    usage: dict | None = None
     turns = 0
     error: str | None = None
     for evt in events:
@@ -366,8 +366,11 @@ def _normalize_codex(events: list) -> list[dict]:
                         "session_id": evt.get("thread_id")})
         elif etype == "turn.completed":
             turns += 1
-            for key, value in (codex_usage(evt) or {}).items():
-                usage[key] += value
+            counts = codex_usage(evt)
+            if counts is not None:
+                usage = usage or dict.fromkeys(USAGE_TOKEN_KEYS, 0)
+                for key, value in counts.items():
+                    usage[key] += value
         elif etype == "turn.failed":
             turns += 1
             err = evt.get("error") if isinstance(evt.get("error"), dict) else {}
@@ -405,10 +408,13 @@ def _normalize_codex(events: list) -> list[dict]:
             elif itype == "web_search":
                 out.extend(_tool_pair("WebSearch", {"query": item.get("query")}, None, False))
     if turns or error:
-        out.append({"type": "result", "harness": "codex",
-                    "subtype": "error" if error else "success",
-                    "is_error": error is not None, "error": error,
-                    "num_turns": turns, "usage": usage})
+        result_evt = {"type": "result", "harness": "codex",
+                      "subtype": "error" if error else "success",
+                      "is_error": error is not None, "error": error,
+                      "num_turns": turns}
+        if usage is not None:
+            result_evt["usage"] = usage
+        out.append(result_evt)
     return out
 
 
