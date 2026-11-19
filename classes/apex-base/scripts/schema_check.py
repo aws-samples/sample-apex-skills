@@ -29,7 +29,6 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 import time
 
 
@@ -216,22 +215,32 @@ def default_skill_dir(script_file):
     return cand if os.path.isfile(os.path.join(cand, "SKILL.md")) else None
 
 
-def record_run(kind, script_file, skill_dir, files):
+def record_run(script_file, skill_dir, files):
     """Leave a run record for the operator Stop gate (classes/script/hooks/stop-gate/stop_gate.py).
 
     The record names paths only, never a verdict: the gate re-runs the tool
-    itself. One JSON file run-<ns>-<pid>.json in <temp>/apex-stop-gate-<uid>
-    (folder 0700). Best effort: an OSError is ignored. The gate's own re-run
-    sets APEX_STOP_GATE_RUN, and then no record is written."""
+    itself. One JSON file run-<ns>-<pid>.json in <root>/.apex-stop-gate/, root
+    the nearest folder at or above the working folder holding .git (else the
+    working folder). The tool writes only into a folder the gate made (it does
+    at each Stop it runs with its switch on), never through a link, and the
+    gate reads it only when it is a real folder owned by this user with no
+    group or other write bit.
+    Best effort: an OSError is ignored. The gate's own re-run sets
+    APEX_STOP_GATE_RUN, and then no record is written."""
     if os.environ.get("APEX_STOP_GATE_RUN"):
         return
-    uid = os.getuid() if hasattr(os, "getuid") else None
-    folder = os.path.join(tempfile.gettempdir(), "apex-stop-gate" + (f"-{uid}" if uid is not None else ""))
+    cwd = os.getcwd()
+    root = cwd
+    while not os.path.exists(os.path.join(root, ".git")) and os.path.dirname(root) != root:
+        root = os.path.dirname(root)
+    if not os.path.exists(os.path.join(root, ".git")):
+        root = cwd
+    folder = os.path.join(root, ".apex-stop-gate")
+    if not os.path.isdir(folder) or os.path.islink(folder):
+        return
+    rec = {"tool": os.path.abspath(script_file), "skill_dir": os.path.abspath(skill_dir),
+           "files": [os.path.abspath(f) for f in files], "cwd": cwd, "time": time.time()}
     try:
-        rec = {"v": 1, "kind": kind, "tool": os.path.abspath(script_file), "python": sys.executable,
-               "pythonpath": os.environ.get("PYTHONPATH"), "skill_dir": os.path.abspath(skill_dir),
-               "files": [os.path.abspath(f) for f in files], "cwd": os.getcwd(), "time": time.time()}
-        os.makedirs(folder, mode=0o700, exist_ok=True)
         with open(os.path.join(folder, f"run-{time.time_ns()}-{os.getpid()}.json"), "x", encoding="utf-8") as f:
             json.dump(rec, f)
     except OSError:
@@ -264,7 +273,7 @@ def run_declared(key, argv, script_file, inline_json=False):
         if not args.files:
             raise CheckError("no input given")
         if key == "apex-outputs":
-            record_run("outputs", script_file, skill_dir, args.files)
+            record_run(script_file, skill_dir, args.files)
         return check_files(schema_path, args.files)
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)
