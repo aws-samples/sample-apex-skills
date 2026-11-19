@@ -1,0 +1,13 @@
+{
+  "session_id": "s1",
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "tool_name": "execute_bash",
+  "tool_input": {
+    "command": "kubectl apply -f app.yaml",
+    "description": "Run kubectl apply -f app.yaml",
+    "cwd": null,
+    "run_in_background": false,
+    "timeout": null
+  }
+}

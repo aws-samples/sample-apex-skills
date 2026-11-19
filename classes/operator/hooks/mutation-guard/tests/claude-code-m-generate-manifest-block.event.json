@@ -1,0 +1,14 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/w",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "mcp__eks-mcp__generate_app_manifest",
+  "tool_input": {
+    "app_name": "a",
+    "image_uri": "i",
+    "output_dir": "/w"
+  },
+  "tool_use_id": "toolu_01"
+}

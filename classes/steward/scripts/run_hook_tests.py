@@ -12,10 +12,13 @@ has `<harness>-<case>.expected.json` beside it:
      "stdout_contains": "", "args": ["--mode", "block"], "timeout": 10}
 
 `exit` (an integer) is required; the rest are optional: `decision` and the
-`*_contains` fields are strings, `args` a list of strings, `timeout` a
-positive number of seconds, at most 3600. A field of the wrong type is ERROR. The hook script is
+`*_contains` fields are strings, `args` a list of strings, `env` an object of
+string to string, `timeout` a positive number of seconds, at most 3600. A field
+of the wrong type is ERROR. The hook script is
 classes/<c>/hooks/<hook>/<hook, with - as _>.py (secret-deny/secret_deny.py),
-run with `args` and the event on stdin, from the repo root. Decisions:
+run with `args` and the event on stdin, from the repo root, in the runner's
+environment with every CLAUDE_PLUGIN_OPTION_* variable dropped and `env` set
+over it. Decisions:
 `block` is exit 2 with non-empty stderr, `none` exit 0 with empty stdout,
 `ask` exit 0 with a JSON stdout whose hookSpecificOutput.permissionDecision
 is "ask" (Claude Code). A mismatch is FAIL; a run past the timeout is FAIL
@@ -75,6 +78,9 @@ def run_one(event_path):
     args = expected.get("args", [])
     if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
         return "ERROR", "'args' must be a list of strings"
+    env = expected.get("env", {})
+    if not isinstance(env, dict) or not all(isinstance(v, str) for v in env.values()):
+        return "ERROR", "'env' must be an object of string to string"
     timeout = expected.get("timeout", DEFAULT_TIMEOUT)
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= MAX_TIMEOUT:
         return "ERROR", f"'timeout' must be a positive number of seconds, at most {MAX_TIMEOUT}"
@@ -85,7 +91,8 @@ def run_one(event_path):
         return "ERROR", f"no hook script {os.path.relpath(script)}"
     try:
         r = subprocess.run([sys.executable, script, *args], input=event, capture_output=True,
-                           timeout=timeout)
+                           timeout=timeout, env=dict({k: v for k, v in os.environ.items()
+                                                      if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **env))
     except subprocess.TimeoutExpired:
         return "FAIL", "timeout"
     stdout = r.stdout.decode("utf-8", "replace")

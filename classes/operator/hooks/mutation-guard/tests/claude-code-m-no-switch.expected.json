@@ -1,0 +1,10 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "ask",
+    "--id",
+    "operator.confirm-before-change"
+  ]
+}
