@@ -6,6 +6,7 @@ the old arm's skill from drive_c1.OLD, so the clone must hold both commits.
 Run: python3 -B -m unittest misc.tests.test_drive_c1 -v
 """
 import contextlib
+import datetime
 import importlib.util
 import io
 import json
@@ -297,6 +298,85 @@ class FixedBranches(unittest.TestCase):
             rc = drive_c1.main(["--case", "T1"])
         self.assertEqual(rc, 2)
         self.assertIn("git read failed: git archive", err.getvalue())
+
+
+HOST_KUBECONFIG = """apiVersion: v1
+kind: Config
+current-context: ro
+clusters:
+- name: c
+  cluster: {server: "https://example.invalid", certificate-authority-data: Q0E=}
+contexts:
+- name: ro
+  context: {cluster: c, user: u}
+- name: other
+  context: {cluster: c, user: admin}
+users:
+- name: u
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      command: aws
+      args: [--region, us-west-2, eks, get-token, --cluster-name, k6, --output, json]
+      env:
+      - {name: AWS_PROFILE, value: k6-ro}
+      - {name: AWS_CONFIG_FILE, value: %s}
+- name: admin
+  user:
+    exec: {command: aws, args: [eks, get-token], env: [{name: AWS_PROFILE, value: host-admin}]}
+"""
+
+
+def session(seconds=3600):
+    exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=seconds)
+    return {"AccessKeyId": "ASIATEST", "SecretAccessKey": "s3cret", "SessionToken": "tok",
+            "Expiration": exp.strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+class LiveSession(unittest.TestCase):
+    """T7: the subject gets a short read-only cluster session, never the host's profile path."""
+
+    def run_t7(self, assume):
+        seen, calls = [], []
+        runner = fake_runner(calls)
+        inner = runner.run_subject
+
+        def run_subject(**kw):
+            kc = Path(kw["extra_env"]["KUBECONFIG"])
+            seen.append((kc, kc.read_text(), kc.stat().st_mode & 0o777, kc.parent.stat().st_mode & 0o777))
+            return inner(**kw)
+        runner.run_subject = run_subject
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
+            host_cfg = str(Path.home() / ".aws" / "config-host")
+            kc = Path(k) / "kc"
+            kc.write_text(HOST_KUBECONFIG % host_cfg)
+            with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True):
+                rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc))
+        return rc, recs, seen, host_cfg
+
+    def test_subject_kubeconfig_carries_only_a_session(self):
+        asked = []
+        rc, recs, seen, host_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(seen), 6)
+        self.assertEqual(asked, [("k6-ro", host_cfg, 3600)] * 6)   # one session per live run
+        for path, text, mode, dir_mode in seen:
+            for bad in (".aws", host_cfg, "AWS_PROFILE", "k6-ro", "host-admin"):
+                self.assertNotIn(bad, text)
+            self.assertEqual((mode, dir_mode), (0o600, 0o700))
+            env = {e["name"]: e["value"] for e in json.loads(text)["users"][0]["user"]["exec"]["env"]}
+            self.assertEqual(env["AWS_SESSION_TOKEN"], "tok")
+            self.assertEqual((env["AWS_CONFIG_FILE"], env["AWS_SHARED_CREDENTIALS_FILE"]), (os.devnull, os.devnull))
+            self.assertFalse(path.parent.exists())   # removed when the run ended
+        self.assertTrue(all(r["status"] == "ran" for r in recs))
+
+    def test_failed_or_short_session_reads_cannot_run(self):
+        def fail(p, c, s):
+            raise drive_c1.LiveSessionError("aws sts assume-role exited 254")
+        for assume, why in ((fail, "exited 254"), (lambda p, c, s: session(600), "expires before")):
+            rc, recs, seen, _ = self.run_t7(assume)
+            self.assertEqual((rc, seen), (0, []))
+            self.assertTrue(all(r["status"] == "cannot run" and why in r["reason"] for r in recs))
 
 
 class FailingPaths(unittest.TestCase):

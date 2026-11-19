@@ -4,7 +4,7 @@ Repo line cites are at commit 7efa0776.
 
 ## Status
 
-No paid run has happened (cost-estimate.md: $43.12 to $141.13). The runs wait on the eval role in the separate eval account, the only AWS credential the runner hands a subject or grader (the subject runs as your OS user with bypassPermissions, so it can read, write and run anything your user can, the runner's environment included (and on an EC2 host, the instance role through the metadata endpoint unless that is blocked); run it as another OS user or in a container for a hard fence (misc/evals/README.md, Eval-role setup); the role's status: cases.md, Credentials and permissions), and on one proven end-to-end run. Until both are in place, these sections hold that line, except the cost per pull request, which is estimated now:
+No paid run has happened (cost-estimate.md: $43.12 to $141.13). The eval role in the separate eval account, the only AWS credential the runner hands a subject or grader, now exists (the subject runs as your OS user with bypassPermissions, so it can read, write and run anything your user can, the runner's environment included (and on an EC2 host, the instance role through the metadata endpoint unless that is blocked); run it as another OS user or in a container for a hard fence (misc/evals/README.md, Eval-role setup); the role's status: cases.md, Credentials and permissions); the runs wait on one proven end-to-end run. Until then, these sections hold that line, except the cost per pull request, which is estimated now:
 
 - Results per candidate (score-sheet.md S1 to S10): waits on the eval role and one proven end-to-end run.
 - The runner pick, with its reasons from S2, S6 and S10: waits on the eval role and one proven end-to-end run.

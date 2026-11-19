@@ -53,10 +53,12 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import datetime
 import hashlib
 import io
 import json
 import math
+import os
 import shutil
 import subprocess
 import sys
@@ -360,6 +362,92 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
     raise ValueError(f"{case['id']}: unknown grade kind {kind}")
 
 
+# A live run's cluster session: AWS caps an assume-role made from a role
+# session at one hour, and it must outlast the subject's timeout by the margin.
+LIVE_SESSION_SECONDS = 3600
+LIVE_SESSION_MARGIN = 120
+
+
+class LiveSessionError(RuntimeError):
+    """The driver could not mint the live run's read-only cluster session."""
+
+
+def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> dict:
+    """Assume the role of `profile` (its role_arn, through its source_profile)
+    as the driver, from the host's credentials, never the subject. Returns
+    the STS Credentials dict."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
+    if config_file:
+        env["AWS_CONFIG_FILE"] = config_file
+
+    def aws(*argv: str) -> str:
+        try:
+            r = subprocess.run(["aws", *argv], capture_output=True, text=True, timeout=120, env=env)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            raise LiveSessionError(f"aws {argv[0]} {argv[1]} failed: {e.__class__.__name__}") from None
+        if r.returncode != 0:
+            raise LiveSessionError(f"aws {argv[0]} {argv[1]} exited {r.returncode}")
+        return r.stdout.strip()
+
+    role_arn, source = aws("configure", "get", "role_arn", "--profile", profile), \
+        aws("configure", "get", "source_profile", "--profile", profile)
+    out = aws("sts", "assume-role", "--profile", source, "--role-arn", role_arn,
+              "--role-session-name", f"apex-c1-live-{os.getpid()}",
+              "--duration-seconds", str(seconds), "--output", "json")
+    try:
+        return json.loads(out)["Credentials"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise LiveSessionError(f"assume-role returned no credentials ({e.__class__.__name__})") from None
+
+
+@contextlib.contextmanager
+def live_kubeconfig(kubeconfig: str, timeout: int):
+    """Yield the kubeconfig path a live subject gets. A kubeconfig whose
+    current user runs `aws` with AWS_PROFILE in its exec env reaches its role
+    through the host's keys, which the subject's empty HOME lacks: the driver
+    assumes that role once for this run and writes a kubeconfig whose exec
+    carries only that session (no profile, no config file, no host path) into
+    a private temp dir, removed when the run ends. Any other kubeconfig
+    (token, certificate, or one that does not parse) is passed as is."""
+    import yaml
+    try:
+        cfg = yaml.safe_load(Path(kubeconfig).read_text())
+        ctx = next(c["context"] for c in cfg["contexts"] if c["name"] == cfg["current-context"])
+        user = next(u for u in cfg["users"] if u["name"] == ctx["user"])
+        cluster = next(c for c in cfg["clusters"] if c["name"] == ctx["cluster"])
+        ex = user["user"]["exec"]
+        exec_env = {e["name"]: e["value"] for e in ex.get("env") or []}
+    except (yaml.YAMLError, OSError, KeyError, TypeError, StopIteration):
+        yield kubeconfig
+        return
+    if ex.get("command") != "aws" or "AWS_PROFILE" not in exec_env:
+        yield kubeconfig
+        return
+    if "--profile" in (ex.get("args") or []):
+        raise LiveSessionError("the kubeconfig's exec passes --profile; set the profile in its env instead")
+    creds = assume_profile_role(exec_env["AWS_PROFILE"], exec_env.get("AWS_CONFIG_FILE"), LIVE_SESSION_SECONDS)
+    expires = datetime.datetime.fromisoformat(str(creds["Expiration"]).replace("Z", "+00:00")).timestamp()
+    if time.time() + timeout + LIVE_SESSION_MARGIN >= expires:
+        raise LiveSessionError(f"the cluster session expires before a {timeout}s run ends")
+    new_exec = {k: v for k, v in ex.items() if k != "env"}
+    new_exec["env"] = [{"name": k, "value": v} for k, v in (
+        ("AWS_ACCESS_KEY_ID", creds["AccessKeyId"]), ("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"]),
+        ("AWS_SESSION_TOKEN", creds["SessionToken"]), ("AWS_CONFIG_FILE", os.devnull),
+        ("AWS_SHARED_CREDENTIALS_FILE", os.devnull), ("AWS_EC2_METADATA_DISABLED", "true"))]
+    out = {"apiVersion": "v1", "kind": "Config", "current-context": cfg["current-context"],
+           "clusters": [cluster], "contexts": [{"name": cfg["current-context"], "context": ctx}],
+           "users": [{"name": user["name"], "user": {"exec": new_exec}}]}
+    tmp = tempfile.mkdtemp(prefix="drive-c1-live-")   # mode 700
+    try:
+        path = Path(tmp) / "kubeconfig"
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(out, f)
+        yield str(path)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: str, kubeconfig: str | None,
             root: Path) -> dict:
     rec = {"case": case["id"], "arm": item["arm"], "run": item["run"], "status": None, "pass": None,
@@ -384,17 +472,24 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
         return rec
     sys.path.insert(0, str(SCRIPTS))
     from elicitation import ElicitationConfig
-    with (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
-          else contextlib.nullcontext(root)) as tree:
-        skill_dir = tree / "skills" / case["skill"]
-        name, _ = runner.read_skill_meta(skill_dir)
-        subj = runner.run_subject(
-            prompt=spec["prompt"], skill_name=name, repo_skill_dir=skill_dir,
-            with_skill=item["arm"] != "without_skill", model=model, timeout=runner.subject_timeout(case["skill"]),
-            run_dir=run_dir, extra_env=({"KUBECONFIG": kubeconfig} if case.get("live") else None),
-            elicitation=ElicitationConfig.from_dict(spec.get("elicitation")),
-            skill_eval_dir=root / "misc" / "evals" / case["skill"],
-            eval_id=case["eval_id"], fixture_files=spec.get("files"))
+    timeout = runner.subject_timeout(case["skill"])
+    try:
+        # Only live_kubeconfig raises LiveSessionError, before its yield.
+        with (live_kubeconfig(kubeconfig, timeout) if case.get("live") else contextlib.nullcontext()) as kc, \
+                (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
+                 else contextlib.nullcontext(root)) as tree:
+            skill_dir = tree / "skills" / case["skill"]
+            name, _ = runner.read_skill_meta(skill_dir)
+            subj = runner.run_subject(
+                prompt=spec["prompt"], skill_name=name, repo_skill_dir=skill_dir,
+                with_skill=item["arm"] != "without_skill", model=model, timeout=timeout,
+                run_dir=run_dir, extra_env=({"KUBECONFIG": kc} if case.get("live") else None),
+                elicitation=ElicitationConfig.from_dict(spec.get("elicitation")),
+                skill_eval_dir=root / "misc" / "evals" / case["skill"],
+                eval_id=case["eval_id"], fixture_files=spec.get("files"))
+    except LiveSessionError as e:
+        rec.update(status="cannot run", reason=f"cluster session: {e}")
+        return rec
     rec["wall_seconds"] = round(time.time() - t0, 2)
     timing_path = run_dir / "timing.json"
     if timing_path.exists():

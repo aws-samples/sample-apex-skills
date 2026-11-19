@@ -10,7 +10,7 @@ Candidates C1 to C3: README.md. C1's extension is sized, not built, in this tria
 
 ## Grid
 
-Every C1, C2 and C3 cell not filled below waits on the eval role in the separate eval account (its status: cases.md, Credentials and permissions) and one proven end-to-end run. The remaining cells read "pending".
+Every C1, C2 and C3 cell not filled below waits on one proven end-to-end run (the eval role's status: cases.md, Credentials and permissions). The remaining cells read "pending".
 
 | Row | Measured | Cell values | How it is filled | C1 | C2 | C3 |
 |---|---|---|---|---|---|---|
