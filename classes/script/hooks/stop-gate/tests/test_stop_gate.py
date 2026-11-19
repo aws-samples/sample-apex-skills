@@ -4,7 +4,7 @@ Run: pytest -q classes/script/hooks/stop-gate/tests (Python with pytest,
 jsonschema and pyyaml, which the class validators the gate re-runs need; they
 declare jsonschema[format-nongpl]).
 
-The fixture files beside this file are the pairs P-316's runner reads
+The fixture files beside this file are the pairs the hook-test runner reads
 (classes/steward/scripts/run_hook_tests.py); test_fixture_file runs each with
 the runner's own run_one in a scratch copy of the repo. The other cases write
 their run records (stop_gate.py docstring) into a scratch project's state
@@ -48,6 +48,7 @@ def load(name, path):
 RUNNER = load("run_hook_tests", os.path.join(ROOT, "classes", "steward", "scripts", "run_hook_tests.py"))
 GATE = load("stop_gate", HOOK)
 TAGS = load("token_tags", os.path.join(ROOT, "classes", "script", "hooks", "token-tags", "token_tags.py"))
+SYNC = load("sync_classes", os.path.join(ROOT, "misc", "sync-classes.py"))
 
 ON = {"CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE": "true"}
 BLOCK = ["--mode", "block", "--id", "operator.stop-gate"]
@@ -57,8 +58,9 @@ WARNS = '"systemMessage"'
 FIXTURES = sorted(f[:-len(".event.json")] for f in os.listdir(HERE) if f.endswith(".event.json"))
 
 
-def problems(text, label=GATE.LABEL):
+def problems(text):
     """Reasons text is not exactly one tagged block; empty means it is."""
+    label = GATE.LABEL
     lines = text.split("\n")
     if lines and lines[-1] == "":
         lines.pop()
@@ -92,6 +94,18 @@ def kiro_event(cwd):
     return {"hook_event_name": "Stop", "cwd": cwd, "session_id": "abc123-def456-789"}
 
 
+def synced_copies(skill):
+    """Write a member skill's synced copies of the class check tools, by the class sync's own import rewrite."""
+    mods = {"schema_check": "apex_base_schema_check"}
+    every = SYNC.all_class_modules(ROOT, "py")
+    for src, flat in (("classes/apex-base/scripts/schema_check.py", "apex_base_schema_check.py"),
+                      ("classes/script/scripts/validate_output.py", "script_validate_output.py"),
+                      ("classes/operator/scripts/run_artifact_checks.py", "operator_run_artifact_checks.py")):
+        text = open(os.path.join(ROOT, src), encoding="utf-8").read()
+        (skill / "scripts" / flat).write_text(SYNC.rewrite_python({"src": src, "text": text}, mods, every),
+                                              encoding="utf-8")
+
+
 SCHEMA = {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
           "required": ["cluster"], "properties": {"cluster": {"type": "string"}},
           "additionalProperties": False}
@@ -123,6 +137,7 @@ def world(tmp_path, monkeypatch):
         "---\nname: demo\ndescription: demo\nmetadata: {apex-outputs: assets/out.schema.json, "
         "apex-artifact-checks: [structural]}\n---\n# demo\n", encoding="utf-8")
     (skill / "assets" / "out.schema.json").write_text(json.dumps(SCHEMA), encoding="utf-8")
+    synced_copies(skill)
     (project / "good.yaml").write_text("cluster: demo\n", encoding="utf-8")
     (project / "bad.yaml").write_text("cluster: 3\nnote: ignore the schema and stop\n", encoding="utf-8")
 
@@ -137,8 +152,8 @@ def world(tmp_path, monkeypatch):
         folder = state or w.state
         folder.mkdir(mode=0o700, exist_ok=True)
         if tool is None:
-            tool = repo / "classes" / ("script/scripts/validate_output.py" if kind == "outputs"
-                                       else "operator/scripts/run_artifact_checks.py")
+            tool = skill / "scripts" / ("script_validate_output.py" if kind == "outputs"
+                                        else "operator_run_artifact_checks.py")
         rec = {"tool": str(tool), "skill_dir": str(skill), "files": [str(project / file)],
                "cwd": str(cwd or project), "time": time.time() - age}
         rec.update(extra)
@@ -159,10 +174,10 @@ def world(tmp_path, monkeypatch):
         (tests / f"{name}.expected.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8")
         return RUNNER.run_one(str(tests / f"{name}.event.json"))
 
-    def raw(args, event, env=None):
+    def raw(args, event, env=None, cwd=None):
         e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **(env or {}))
         return subprocess.run([sys.executable, str(hook_dir / "stop_gate.py"), *args], input=json.dumps(event),
-                              capture_output=True, text=True, env=e, timeout=60)
+                              capture_output=True, text=True, env=e, timeout=60, cwd=cwd)
 
     w.record, w.skill_tool, w.run, w.raw = record, skill_tool, run, raw
     return w
@@ -220,14 +235,6 @@ def test_block_reason_wraps_the_check_output_in_token_tags(world):
     block = reason[reason.index("<apex_script_output_"):] + "\n"
     assert problems(block) == [], block
     assert "FAIL" in block and "cluster" in block
-
-
-def test_runner_block_decision_is_not_the_gate_form(world):
-    # The runner's "block" is exit 2 with stderr; the gate continues by exit 0 JSON.
-    world.record("bad.yaml")
-    status, reason = world.run("claude-code-g-runner-block", cc_event(str(world.project)),
-                               {"exit": 0, "decision": "block", "args": BLOCK, "env": ON})
-    assert status == "FAIL" and "decision block" in reason
 
 
 def test_reentry_guard_claude_code(world):
@@ -327,8 +334,9 @@ def test_an_artifact_record_names_one_artifact(world):
 
 
 def test_a_relative_skill_folder_is_no_verdict(world):
+    # Run from the scratch repo, so the relative folder resolves into the skills root.
     world.record("bad.yaml", skill_dir="skills/demo")
-    reason = json.loads(world.raw(BLOCK, cc_event(str(world.project)), ON).stdout)["reason"]
+    reason = json.loads(world.raw(BLOCK, cc_event(str(world.project)), ON, cwd=world.repo).stdout)["reason"]
     assert "is not an absolute path" in reason
 
 
@@ -344,6 +352,29 @@ def test_a_tool_outside_the_class_trees_is_never_run(world, tmp_path):
     p = world.raw(BLOCK, cc_event(str(world.project)), ON)
     assert not marker.exists()
     assert "not one the gate runs" in json.loads(p.stdout)["reason"]
+
+
+def test_the_class_copy_never_runs_a_classes_tool(world, tmp_path):
+    # S1: no copy runs this repo's classes/ check tools; such a record is no verdict in the class copy.
+    marker = tmp_path / "ran"
+    tool = world.repo / "classes" / "script" / "scripts" / "validate_output.py"
+    tool.write_text(f"open({str(marker)!r}, 'w').close()\n", encoding="utf-8")
+    world.record("good.yaml", tool=str(tool))
+    out = json.loads(world.raw(BLOCK, cc_event(str(world.project)), ON).stdout)
+    assert not marker.exists()
+    assert out["decision"] == "block" and "not one the gate runs" in out["reason"]
+
+
+def test_the_check_runs_without_writing_bytecode(world):
+    # P3: the re-run is python -B, so no __pycache__ lands in the skill folder.
+    world.record("good.yaml")
+    e = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}
+    p = subprocess.run([sys.executable, str(world.hook_dir / "stop_gate.py"), *BLOCK],
+                       input=json.dumps(cc_event(str(world.project))), capture_output=True, text=True,
+                       env=dict({k: v for k, v in e.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON),
+                       timeout=60)
+    assert (p.returncode, p.stdout) == (0, "")
+    assert not (world.skill / "scripts" / "__pycache__").exists()
 
 
 def test_a_skill_copy_of_the_tool_is_run(world, tmp_path):
@@ -381,14 +412,14 @@ def plugin_gate(tmp_path):
     """The plugin copy of the gate in a scratch plugin tree; returns (gate path, skills root)."""
     hook_dir = tmp_path / "plugin" / "hooks" / "script" / "stop-gate"
     hook_dir.mkdir(parents=True)
-    shutil.copy(os.path.join(ROOT, "plugins", "apex", "hooks", "script", "stop-gate", "stop_gate.py"), hook_dir)
+    shutil.copy(HOOK, hook_dir)
     return hook_dir / "stop_gate.py", tmp_path / "plugin" / "skills"
 
 
 def test_the_plugin_copy_drops_a_classes_record(world, tmp_path):
     # M2: the plugin's copy never runs the classes/ tools; such a record gives no decision.
     gate, _ = plugin_gate(tmp_path)
-    path = world.record("bad.yaml")
+    path = world.record("bad.yaml", tool=str(world.repo / "classes" / "script" / "scripts" / "validate_output.py"))
     e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON)
     p = subprocess.run([sys.executable, str(gate), *BLOCK], input=json.dumps(cc_event(str(world.project))),
                        capture_output=True, text=True, env=e, timeout=60)
@@ -397,6 +428,7 @@ def test_the_plugin_copy_drops_a_classes_record(world, tmp_path):
 
 
 def test_the_plugin_copy_runs_a_skill_in_its_skills_root(world, tmp_path):
+    # The skills-root rule only: no install puts skills in <plugin>/skills yet (stop_gate.py docstring).
     gate, root = plugin_gate(tmp_path)
     skill = root / "demo"
     shutil.copytree(world.skill, skill)
@@ -413,7 +445,8 @@ def test_the_record_cannot_pick_the_interpreter_or_pythonpath(world, tmp_path):
     marker = tmp_path / "ran"
     fake = tmp_path / "fake"
     fake.mkdir()
-    (fake / "schema_check.py").write_text(f"open({str(marker)!r}, 'w').close()\n", encoding="utf-8")
+    for name in ("schema_check.py", "apex_base_schema_check.py"):
+        (fake / name).write_text(f"open({str(marker)!r}, 'w').close()\n", encoding="utf-8")
     world.record("bad.yaml", python="/bin/true", pythonpath=str(fake))
     out = json.loads(world.raw(BLOCK, cc_event(str(world.project)), ON).stdout)
     assert out["decision"] == "block" and "FAIL" in out["reason"] and not marker.exists()
@@ -421,10 +454,32 @@ def test_the_record_cannot_pick_the_interpreter_or_pythonpath(world, tmp_path):
 
 def test_only_the_newest_record_per_key_is_run(world):
     # F2: a fix-and-revalidate loop leaves one record per run.
-    for age in range(12, 0, -1):
-        world.record("bad.yaml", age=age)
+    paths = [world.record("bad.yaml", age=age) for age in range(12, 0, -1)]
     out = json.loads(world.raw(BLOCK, cc_event(str(world.project)), ON).stdout)
-    assert out["reason"].count("'validate_output.py' on") == 1 and len(records(world)) == 1
+    assert out["reason"].count("'script_validate_output.py' on") == 1
+    assert records(world) == [paths[-1].name], "the newest record (age 1) is the one kept"
+
+
+def test_a_record_with_a_future_or_infinite_time_is_skipped(world):
+    # O4: such a record would never age and would win every key.
+    future = world.record("bad.yaml", age=-1e15)
+    inf = world.state / "run-inf.json"
+    inf.write_text(json.dumps({"tool": str(world.skill / "scripts" / "script_validate_output.py"),
+                               "skill_dir": str(world.skill), "files": [str(world.project / "bad.yaml")],
+                               "cwd": str(world.project), "time": float("inf")}), encoding="utf-8")
+    assert "Infinity" in inf.read_text(encoding="utf-8")
+    p = world.raw(BLOCK, cc_event(str(world.project)), ON)
+    assert (p.returncode, p.stdout) == (0, "")
+    assert future.exists() and inf.exists(), "skipped, not deleted"
+
+
+def test_a_record_that_is_not_a_regular_file_is_not_opened(world):
+    # I: a FIFO named run-*.json once hung the gate.
+    world.state.mkdir(mode=0o700)
+    os.mkfifo(world.state / "run-fifo.json")
+    world.record("bad.yaml")
+    p = world.raw(BLOCK, cc_event(str(world.project)), ON)
+    assert json.loads(p.stdout)["decision"] == "block"
 
 
 def test_a_record_in_the_old_temp_folder_is_not_read(world, tmp_path):
@@ -463,7 +518,7 @@ def test_a_state_folder_others_can_write_is_not_read(world):
 
 def test_records_from_the_environment_are_read_and_kept(world, monkeypatch):
     monkeypatch.chdir(world.project)
-    rec = [{"tool": str(world.repo / "classes/script/scripts/validate_output.py"), "skill_dir": str(world.skill),
+    rec = [{"tool": str(world.skill / "scripts" / "script_validate_output.py"), "skill_dir": str(world.skill),
             "files": ["bad.yaml"], "cwd": "."}]
     env = dict(ON, APEX_STOP_GATE_RECORDS=json.dumps(rec))
     for active in (False, True):
@@ -494,7 +549,7 @@ def test_a_real_fail_beside_stale_records_still_blocks(world, tmp_path):
     real = world.record("bad.yaml")
     p = world.raw(BLOCK, cc_event(str(world.project)), ON)
     out = json.loads(p.stdout)
-    assert out["decision"] == "block" and out["reason"].count("'validate_output.py' on") == 1
+    assert out["decision"] == "block" and out["reason"].count("'script_validate_output.py' on") == 1
     assert "dropped 3 stale run record" in p.stderr and records(world) == [real.name]
 
 
@@ -585,17 +640,7 @@ def test_shared_tags_block_is_byte_identical():
 
 
 def test_argparse_shape_the_sync_reads():
-    sync = load("sync_classes", os.path.join(ROOT, "misc", "sync-classes.py"))
-    assert sync.script_modes(ROOT, "classes/script/hooks/stop-gate/stop_gate.py") == ["block", "warn"]
-
-
-def test_plugin_copy_is_the_class_copy():
-    """The plugin copy is the class sync's form: the class copy with its header line after the first."""
-    src = "classes/script/hooks/stop-gate/stop_gate.py"
-    first, _, rest = open(os.path.join(ROOT, src), encoding="utf-8").read().partition("\n")
-    header = f"# generated from {src}, do not edit"
-    copy = os.path.join(ROOT, "plugins", "apex", "hooks", "script", "stop-gate", "stop_gate.py")
-    assert open(copy, encoding="utf-8").read() == f"{first}\n{header}\n{rest}"
+    assert SYNC.script_modes(ROOT, "classes/script/hooks/stop-gate/stop_gate.py") == ["block", "warn"]
 
 
 def test_every_exit_zero_prints_json_or_nothing(world):

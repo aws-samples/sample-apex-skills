@@ -1,0 +1,10 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "permission_mode": "default",
+  "hook_event_name": "Stop",
+  "stop_hook_active": true,
+  "last_assistant_message": "Done.",
+  "background_tasks": [],
+  "session_crons": []
+}

@@ -12,11 +12,13 @@ feeding fixture events to the gate; no model ran.
 |---|---|---|
 | Claude Code | common fields include `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`; Stop adds `stop_hook_active`, `last_assistant_message`, `background_tasks`, `session_crons` | no |
 | Codex | common fields include `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, `permission_mode`; Stop adds `turn_id`, `stop_hook_active`, `last_assistant_message` | no |
-| Kiro CLI | `hook_event_name`, `cwd`, `session_id` | no |
+| Kiro CLI V3 | `hook_event_name` (`Stop`), `cwd`, `session_id` | no |
 
 Sources: the Claude Code hooks reference (code.claude.com/docs/en/hooks.md, Stop
 input), the Codex hooks page (developers.openai.com/codex/hooks, Stop), and the
-Kiro hook types page (kiro.dev/docs/hooks/types, Agent Stop, CLI tab).
+Kiro hook types page (kiro.dev/docs/hooks/types, Agent Stop, CLI tab). Kiro
+CLI 2.x names the trigger `stop`, which the gate does not take: it reads only
+V3's `Stop`.
 
 ## Routes
 
@@ -63,26 +65,34 @@ only when this user owns it and no one else can write to it:
 ```
 
 The gate deletes records older than 24 hours, keeps the newest per (tool,
-skill_dir, files), drops any whose skill folder has no SKILL.md or whose tool
-is gone, and runs a tool only when its real path is the skill's own synced copy
+skill_dir, files), drops any whose skill folder has no SKILL.md or whose tool,
+named like one of the four check tools, is gone, and runs a tool only when its
+real path is the skill's own synced copy
 (`<skill_dir>/scripts/script_validate_output.py` or
 `operator_run_artifact_checks.py`) and the skill folder's real path is a folder
-directly in the skills root. The gate takes that root from its own file's
-location, never from the record or the event: `<plugin>/skills` for the
-plugin's copy, the repo's `skills/` for the classes/ copy. The classes/ copy
-also runs this repo's `classes/script/scripts/validate_output.py` and
-`classes/operator/scripts/run_artifact_checks.py`; the plugin's copy never runs
-those two, and drops a record that names one, with one stderr line, as it drops
-a stale record. It runs a tool with its own interpreter (for the repo's two it
-sets `PYTHONPATH` to `classes/apex-base/scripts`; the skill copies import their
-flat copy), so the plugin's copy of stop_gate.py is one file and imports
-nothing outside the standard library, and a record cannot choose the
-interpreter or the import path. The record, like the output, is within the
-agent's reach and can name any skill in the skills root and any files, and the
-classes/ copy's skills root is in the checkout, which the agent can write, so
-the gate stops an honest agent skipping a failed check, not a hostile one. The gate sets `APEX_STOP_GATE_RUN=1` for its re-run,
-and a tool that sees it writes no record, so the gate's own run does not leave
-a new one.
+directly in the skills root. A gone tool with any other name, or a record with
+no tool, is not dropped: it is no verdict and blocks once. The gate takes the
+skills root from its own file's location, never from the record or the event:
+the repo's `skills/` for the classes/ copy, `<plugin>/skills` for the plugin
+copy a later change writes from it. No install puts member skills in the
+plugin copy's root (the Claude Code plugin has no skills/; Kiro links skills
+into .kiro/skills and their real paths lie outside it), so until its root is
+fixed the plugin copy runs no member skill's check: every such record is no
+verdict and blocks once. Neither copy runs this repo's
+`classes/script/scripts/validate_output.py` or
+`classes/operator/scripts/run_artifact_checks.py`: the plugin copy drops a
+record that names one, with one stderr line, as it drops a stale record, and
+the classes/ copy gives it no verdict. The gate runs a tool with its own
+interpreter and `-B` (the skill copies import their flat copy of
+`schema_check`), so stop_gate.py is one file that imports nothing outside the
+standard library, a record cannot choose the interpreter or the import path,
+and the re-run writes no `__pycache__` into the skill folder. Both copies run,
+unsandboxed and with the hook's full environment, the checks a record names on
+the files and folder the record names, and the record is agent-written (a
+cloned repo can ship one). Turning the switch on lets a sandboxed agent choose
+what runs outside its sandbox. The gate sets `APEX_STOP_GATE_RUN=1` for its
+re-run, and a tool that sees it writes no record, so the gate's own run does
+not leave a new one.
 
 A pass deletes its record. A blocked fail keeps it, so the retry is checked
 again. A warn, or a fail with the reentry guard spent, deletes it, so the
@@ -106,17 +116,26 @@ turn with no decision.
   folder, an undeclared schema, a missing artifact), so such a run is not
   checked at Stop.
 - Records are per project, not per session: two sessions in one project see
-  each other's records. That can cost a retry; the guard keeps it to one.
+  each other's records. That can cost a retry; the guard keeps it to one. A
+  warn, or a Stop with the guard spent, deletes every record under the root,
+  another session's included, so that session's failed check is no longer
+  checked at its own Stop.
+- The writer walks from the check's working folder and the gate from the Stop
+  event's `cwd`. A check run whose folder resolves to another root (a nested
+  repo, a submodule, another worktree, a folder outside the project) leaves a
+  record this Stop never reads.
 - Stop fires for the main agent only, so a skill run inside a subagent is
   checked only when its tool run leaves a record in the main agent's project
   and the main agent then stops.
-- The state is under the working folder because Claude Code's sandbox gives
+- The state is under the project root (the nearest folder holding .git)
+  because Claude Code's sandbox gives
   sandboxed commands their own `$TMPDIR` while hooks run unsandboxed, so a
-  record in the temp folder would land where the gate does not read. Under the
-  sandbox a command can write only in the working folder and below, so a
-  session started in a subfolder of a repo cannot write the record at the repo
-  root, and that run is not checked.
-- The writer cannot read the gate's switch (Claude Code exports
+  record in the temp folder would land where the gate does not read. The
+  sandbox by default writes the working folder and below, the per-user temp
+  folder and added directories, so a session started in a subfolder of a repo
+  cannot write the record at the repo root, and that run is not checked.
+- The gate's switch variable does not reach the agent's commands, where the
+  writer runs (Claude Code exports
   `CLAUDE_PLUGIN_OPTION_<KEY>` to hook processes, not to the agent's commands),
   so the state folder stands in for it: the first turn after the switch goes on
   leaves no record until a Stop has made the folder, and a folder left after
@@ -124,26 +143,50 @@ turn with no decision.
 - Every record left is run again at the next Stop, and all runs share one 25 s
   budget; the newest-per-key rule keeps a fix-and-revalidate loop to one run,
   but many distinct files can still run past it, and a run past it is no
-  verdict, which blocks once. 25 s is under the lower of Kiro's two documented
-  defaults (60 s for a hook file's `timeout`, 30 s on the CLI actions page).
-  One validator run on an eks-recon output took about 2.5 s on the build host,
-  and the gate with that one record about 2.5 s in all (most of it the
-  jsonschema import). An Operator artifact check that runs terraform or
-  checkov can take longer (a one-resource project took about 18.6 s warm).
-- A record it cannot read, and a state folder others can write, are skipped
-  without a message; skipped records stay until removed; a Kiro guard left
-  behind spends the next block in that folder.
+  verdict, which blocks once. The 25 s holds on every harness, and 25 s is
+  under the lower of Kiro's two documented defaults (60 s for a hook file's
+  `timeout`, 30 s on the CLI actions page). One validator run on an eks-recon
+  output took about 2.5 s on the build host, and the gate with that one record
+  about 2.5 s in all (most of it the jsonschema import). An Operator artifact
+  check that runs terraform or checkov can take longer (a one-resource project
+  took about 18.6 s warm): a declared check set slower than 25 s gets no
+  verdict, so the gate does not yet back operator.artifact-checks for
+  eks-build. On timeout only the check tool itself is killed; any process it
+  started keeps running (a leftover terraform can hold the state lock on the
+  retry).
+- Skipped without a message, with exit 0: a record that is not valid JSON, is
+  not a JSON object, cannot be read or is not a regular file; a record whose
+  `time` is missing, not a number, not finite or later than now; and a state
+  folder that is a link, not a folder, not this user's or writable by others.
+  Skipped records stay until removed; a Kiro guard left behind spends the next
+  block in that folder.
+- A `stop_hook_active` that is not the boolean true (such as the string
+  `"true"`) does not spend the guard, so the gate blocks again at that Stop.
+- The plugin copy drops a record by its tool's file name only: a tool named
+  `validate_output.py` or `run_artifact_checks.py` is dropped wherever it is.
+- The newest-per-key rule reads `files` in the order the record lists them, so
+  the same files in another order are two keys.
+- Records given in `APEX_STOP_GATE_RECORDS` get the current time at every read
+  and are never deleted, so they are checked at every Stop while the variable
+  is set. A value that is not valid JSON is the gate's own error: exit 3 at
+  each Stop.
+- Under a read-only project root the gate cannot make the state folder, so each
+  Stop with the switch on is the gate's own error (exit 3).
 - Kiro's Agent Stop page documents no surface for a hook's stderr, so a Kiro
-  user may see no warning and no bad-switch line. Not run on Kiro, as of
-  2026-11-19: no model runs on the build host until DECISION R-20261116-B-39
-  is answered.
-- The hook-test runner's run-record fixture (`claude-code-g-block-record`)
-  gives its record through `APEX_STOP_GATE_RECORDS`. The runner runs every
-  fixture from the repo root, so each fixture with the switch on makes the
-  state folder `.apex-stop-gate` in the checkout and checks any record left
-  there. The fixture's record names an output file that does not exist, so the
-  check gives no verdict whether or not jsonschema is installed.
-- The plugin's copy, plugins/apex/hooks/script/stop-gate/stop_gate.py, carries
-  the class sync's header line, but the sync checks it only once a class.yaml
-  hooks entry names the gate; until then a test checks that it is the class
-  copy plus that line.
+  user may see no warning and no bad-switch line. Not yet run on Kiro, as of
+  2026-11-19: that run waits on a maintainer's eval-account sign-in and a
+  one-time eval role step.
+- The hook-test runner's three run-record fixtures
+  (`claude-code-g-block-record`, `claude-code-g-warn-record` and
+  `claude-code-g-guard-spent-record`) give their record through
+  `APEX_STOP_GATE_RECORDS`. The runner runs every fixture from the repo root
+  with no `cwd`, so these three are the fixtures that make the state folder
+  `.apex-stop-gate` in the checkout, and they check any record left there and
+  delete the developer's passing, stale and old records in it (the warn and
+  spent ones delete every record there). The other switch-on fixtures name a
+  `cwd` that does not exist and stop before the state folder. The fixtures'
+  record names this repo's `classes/` validator, which the classes/ copy does
+  not run, so it is no verdict whether or not jsonschema is installed.
+- This change ships no plugin copy of the gate. The class sync writes
+  plugins/apex/hooks/script/stop-gate/stop_gate.py once a class.yaml `hooks:`
+  entry names the gate, in the change that lands that entry.

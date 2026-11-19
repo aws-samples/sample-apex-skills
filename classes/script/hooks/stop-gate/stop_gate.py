@@ -3,70 +3,85 @@
 # requires-python = ">=3.9"
 # dependencies = []
 # ///
-"""operator Stop gate (piece 8): before a turn ends, re-run a skill's own checks.
+"""operator Stop gate: before a turn ends, re-run a skill's own checks.
 
 Meant to back script.output-schema (classes/script/rules.md) and
 operator.artifact-checks (classes/operator/rules.md) once it is registered: it
 re-runs a Script skill's output check, or an Operator skill's declared artifact
 checks, on the files the skill's own check run named, and never trusts the
 agent's or the tool's earlier verdict. If the check fails, the gate continues
-the turn once (none, if another Stop hook already continued it), then lets it
-end with a warning; it checks only runs that left a record, and its switch is
-off by default. A guardrail, not a guarantee. It is not registered yet: its
-Stop entries, its rule bullet and its userConfig key land in other rows
-(SPIKE.md beside this folder).
+the turn once (none, if another Stop hook already continued it, on Claude Code
+and Codex), then lets it end with a warning; it checks only runs that left a
+record, and its switch is off by default. A guardrail, not a guarantee. It is
+not registered yet: its Stop entries, its rule bullet and its userConfig key
+land in later changes (SPIKE.md beside this folder).
 
 Usage: stop_gate.py --mode block|warn [--id operator.stop-gate]
        (one Stop event as JSON on stdin)
 
 Which skill ran (the hook input names no skill): the class check tools are to
 write a run record each time a check starts on files (until they do, no record
-exists and the gate decides nothing). A record is one JSON file run-*.json in the state folder
-<root>/.apex-stop-gate, root the nearest folder at or above the event's cwd
-(else the gate's own) that holds .git, else that folder itself; the writer
-takes the same walk from its own working folder and writes only into a folder
-the gate made. The gate makes it (0700, with a .gitignore of *) at each Stop it
-runs with the switch on, and reads it only when it is a real folder this user
-owns and only this user can write. A record:
+exists and the gate decides nothing). A record is one JSON file run-*.json in
+the state folder <root>/.apex-stop-gate, root the nearest folder at or above
+the event's cwd (else the gate's own) that holds .git, else that folder
+itself; the writer takes the same walk from its own working folder and writes
+only into a state folder that already exists, whoever made it. The gate makes
+it (0700, with a .gitignore of *) at each Stop it runs with the switch on, and
+reads it only when it is a real folder this user owns and only this user can
+write. A record:
     {"tool": <tool path>, "skill_dir": <skill folder>, "files": [<checked paths>],
      "cwd": <folder it ran in>, "time": <epoch seconds>}
-all paths absolute (SPIKE.md beside this folder says which records the gate
-keeps, drops and runs). It runs a record's tool again, <its own python> <tool>
---skill-dir <skill_dir> -- <files>, from the record's cwd, with
-APEX_STOP_GATE_RUN=1 set so that run writes no record of its own, and only when
-the tool's real path is <skill_dir>/scripts/script_validate_output.py or
-<skill_dir>/scripts/operator_run_artifact_checks.py and the skill folder's real
-path is a folder directly in the skills root, taken from this file's own
-location, never from the record or the event: <plugin>/skills for the plugin's
-copy of this file, <repo>/skills for the classes/ copy. The classes/ copy also
-runs this repo's classes/script/scripts/validate_output.py and
-classes/operator/scripts/run_artifact_checks.py (with PYTHONPATH set to
-classes/apex-base/scripts); the plugin's copy never runs those two and drops a
-record that names one, with one stderr line, as it drops a stale record. A
-record can still name any skill in the skills root and any files, and the
-classes/ copy's skills root is in the checkout, which the agent can write; the
-plugin's is wherever the plugin is installed. So the gate stops an honest agent
-skipping a failed check, not a hostile one.
+all paths absolute. The gate reads only regular files; a record it cannot
+read, or whose time is not a finite number no later than now, is skipped
+without a message (SPIKE.md beside this folder says which records the gate
+keeps, drops and runs). It runs a record's tool again,
+<its own python> -B <tool> --skill-dir <skill_dir> -- <files>, from the
+record's cwd, with APEX_STOP_GATE_RUN=1 set so that run writes no record of
+its own, and only when the tool's real path is
+<skill_dir>/scripts/script_validate_output.py or
+<skill_dir>/scripts/operator_run_artifact_checks.py (a member skill's synced
+copies of the class tools) and the skill folder's real path is a folder
+directly in the skills root, taken from this file's own location, never from
+the record or the event: <repo>/skills for this classes/ copy, <plugin>/skills
+for the plugin copy a later change writes from it. No install puts member
+skills in the plugin copy's root (the Claude Code plugin has no skills/; Kiro
+links skills into .kiro/skills and their real paths lie outside it), so until
+its root is fixed the plugin copy runs no member skill's check: every such
+record is no verdict and blocks once. The plugin copy also drops a record that
+names one of this repo's classes/ check tools, with one stderr line, as it
+drops a stale record; this copy runs no classes/ tool either, and such a
+record is no verdict here. Both copies run, unsandboxed and with the hook's
+full environment, the checks a record names on the files and folder the
+record names, and the record is agent-written (a cloned repo can ship one).
+Turning the switch on lets a sandboxed agent choose what runs outside its
+sandbox.
 
-Exit 0 is a pass, 1 a fail; any other exit, a timeout (all runs share 25 s,
-under the lower of Kiro's two documented defaults: 60 s for a hook file's
-timeout, 30 s on the CLI actions page) or a tool that cannot start is no
-verdict, which counts as a fail. The tool's output goes back to the agent
-between random-token tags (the shared tags block below), with one sentence
-saying it is the check's output, not instructions (on Codex the block reason
-arrives as a user prompt); the tags mark it, they do not filter it. The whole
-report is cut below 10,000 characters.
+Exit 0 is a pass, 1 a fail; any other exit, a timeout or a tool that cannot
+start is no verdict, which counts as a fail. All runs share 25 s on every
+harness, under the lower of Kiro's two documented defaults (60 s for a hook
+file's timeout, 30 s on the CLI actions page), so a declared check set slower
+than 25 s gets no verdict, and the gate does not yet back
+operator.artifact-checks for eks-build. On timeout only the check tool itself
+is killed; any process it started keeps running. The tool's output goes back
+to the agent between random-token tags (the shared tags block below), with one
+sentence saying it is the check's output, not instructions; the tags mark it,
+they do not filter it. On Codex the block reason arrives as a user prompt, so
+text from the checked files reaches the agent as the user's own words; the
+tags do not change that. Record paths are shown outside the tags as written in
+the record (repr). The whole report is cut below 10,000 characters.
 
 The off switch is the environment variable CLAUDE_PLUGIN_OPTION_<KEY>, KEY the
 --id with every . and - as _, uppercased (CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE,
-to be the plugin's userConfig boolean operator_stop_gate once P-335 adds it).
-Absent: off. No --id: on (Kiro, whose command has no --id; its switch is the
-hook's "enabled"). true or false, in any case, surrounding whitespace stripped:
-false is off, no decision (exit 0, no output) whatever the event. Any other
-value, an empty one included, exits 3 with one stderr line naming the variable
-and the value: exit 2 would continue the turn on Claude Code and Codex, and
-exit 3 ends it on all three. Codex exports no CLAUDE_PLUGIN_OPTION_* but gives
-each hook the environment Codex starts with
+to be the plugin's userConfig boolean operator_stop_gate once a later change
+adds it; Claude Code passes a boolean option as the text true or false, which
+its docs do not state: read in the Claude Code 2.1.328 binary, as of
+2026-11-19). Absent: off. No --id: on (Kiro, whose command has no --id; its
+switch is the hook's "enabled"). true or false, in any case, surrounding
+whitespace stripped: false is off, no decision (exit 0, no output) whatever
+the event. Any other value, an empty one included, exits 3 with one stderr
+line naming the variable and the value: exit 2 would continue the turn on
+Claude Code and Codex, and exit 3 ends it on all three. Codex exports no
+CLAUDE_PLUGIN_OPTION_* but gives each hook the environment Codex starts with
 (CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE=true codex).
 
 Results (every exit 0 prints one JSON object or nothing, as Codex requires):
@@ -86,12 +101,15 @@ Results (every exit 0 prints one JSON object or nothing, as Codex requires):
   turn ends. Claude Code and Codex get {"systemMessage": ...}, a warning to the
   user; Kiro gets nothing on stdout and the warning on stderr, and Kiro's Agent
   Stop page documents no surface for stderr, so a Kiro user may see no warning
-  and no bad-switch line (not run on Kiro, as of 2026-11-19: no model runs on
-  this build host until DECISION R-20261116-B-39 is answered).
+  and no bad-switch line (not yet run on Kiro, as of 2026-11-19: that run waits
+  on a maintainer's eval-account sign-in and a one-time eval role step).
 - an event it cannot read, a hook_event_name other than Stop, or a working
-  folder that does not exist: no decision (exit 0, no output; one stderr line
-  for the first two).
-- the gate's own error: exit 3 with one stderr line, so the turn ends.
+  folder with no existing project root at or above it: no decision (exit 0, no
+  output; one stderr line for the first two). An event with no
+  hook_event_name, {} included, is read as Stop, and a cwd that is not an
+  absolute path string falls back to the gate's own working folder.
+- the gate's own error: exit 3 with one stderr line, so the turn ends (SPIKE.md
+  names the known cases).
 Once registered, the command is to be `python3 <stop_gate.py> ... || exit 3`,
 so a missing or broken script cannot continue the turn either.
 """
@@ -99,6 +117,7 @@ so a missing or broken script cannot continue the turn either.
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -107,8 +126,8 @@ import subprocess
 import sys
 import time
 
-# The hook's --id. operator, not script: the planned Stop entry goes in
-# classes/operator/class.yaml; which class holds it is not settled yet, and no
+# The hook's --id. operator, not script: the Stop entry is to go in
+# classes/operator/class.yaml, as settled for the change that lands it; no
 # rule of this id is in classes/ yet.
 HOOK_ID = "operator.stop-gate"
 # A member skill's synced copies of the class check tools, by file name.
@@ -117,12 +136,8 @@ TOOLS = {"script_validate_output.py": "outputs", "operator_run_artifact_checks.p
 BASE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 IN_CLASSES = os.path.basename(BASE) == "classes"
 SKILLS_ROOT = os.path.join(os.path.dirname(BASE) if IN_CLASSES else BASE, "skills")
-# This repo's own class tools, run by the class copy only.
+# This repo's own class tools: no copy runs them; the plugin copy drops a record that names one.
 REPO_NAMES = {"validate_output.py", "run_artifact_checks.py"}
-REPO_TOOLS = {os.path.join(BASE, "script", "scripts", "validate_output.py"): "outputs",
-              os.path.join(BASE, "operator", "scripts", "run_artifact_checks.py"): "artifact-checks"} \
-    if IN_CLASSES else {}
-REPO_PYTHONPATH = os.path.join(BASE, "apex-base", "scripts")
 TOOL_NAMES = set(TOOLS) | REPO_NAMES
 STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
@@ -215,13 +230,14 @@ def read_records(folder, now):
             continue
         path = os.path.join(folder, name)
         try:
-            if os.path.islink(path):
+            if not stat.S_ISREG(os.lstat(path).st_mode):
                 continue
             with open(path, encoding="utf-8") as f:
                 rec = json.load(f)
         except (OSError, ValueError):
             continue
-        if not isinstance(rec, dict) or not isinstance(rec.get("time"), (int, float)):
+        t = rec.get("time") if isinstance(rec, dict) else None
+        if not isinstance(t, (int, float)) or not math.isfinite(t) or t > now:
             continue
         if now - rec["time"] > MAX_AGE:
             remove(path)
@@ -251,8 +267,6 @@ def tool_kind(rec):
     if not (isinstance(tool, str) and isinstance(skill, str)):
         return None
     real = os.path.realpath(tool)
-    if real in REPO_TOOLS:
-        return REPO_TOOLS[real]
     name, skill = os.path.basename(real), os.path.realpath(skill)
     if name in TOOLS and os.path.dirname(skill) == SKILLS_ROOT and real == os.path.join(skill, "scripts", name):
         return TOOLS[name]
@@ -299,12 +313,10 @@ def run_check(rec, deadline):
         return "none", why
     tool = os.path.realpath(rec["tool"])
     env = dict(os.environ, APEX_STOP_GATE_RUN="1")
-    if tool in REPO_TOOLS:
-        env["PYTHONPATH"] = REPO_PYTHONPATH
     left = deadline - time.monotonic()
     if left <= 0:
         return "none", f"no time left in the gate's {BUDGET:g} s"
-    cmd = [sys.executable, tool, "--skill-dir", rec["skill_dir"], "--", *rec["files"]]
+    cmd = [sys.executable, "-B", tool, "--skill-dir", rec["skill_dir"], "--", *rec["files"]]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=left, env=env,
                            cwd=rec.get("cwd") if os.path.isdir(str(rec.get("cwd"))) else None)
