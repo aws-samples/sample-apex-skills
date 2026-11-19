@@ -1379,8 +1379,6 @@ for s in $MAINT_SKILLS; do
 done
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Claude skill links, got $(count_resolving_links "$H/.claude/skills")"
 [ "$(count_resolving_links "$H/.kiro/skills")" -eq "$LATEST_COUNT" ] || err "expected $LATEST_COUNT Kiro skill links, got $(count_resolving_links "$H/.kiro/skills")"
-expect_stdout "Maintainer skills not linked"
-expect_stdout "npx apex-skills --maintainer"
 for s in $MAINT_SKILLS; do
   if /usr/bin/grep '  Skills: ' "$OUT_STDOUT" | /usr/bin/grep -q -w -- "$s"; then err "the Skills: line of a default install lists $s"; fi
 done
@@ -1390,7 +1388,6 @@ expect_rc 0
 [ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "--maintainer linked $(maint_links "$H/.claude/skills") of $MAINT_COUNT maintainer skills into ~/.claude/skills"
 [ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "--maintainer linked $(maint_links "$H/.kiro/skills") of $MAINT_COUNT maintainer skills into ~/.kiro/skills"
 [ "$(count_resolving_links "$H/.claude/skills")" -eq "$((LATEST_COUNT + MAINT_COUNT))" ] || err "--maintainer: expected $((LATEST_COUNT + MAINT_COUNT)) Claude skill links"
-expect_no_out "Maintainer skills not linked"
 [ "$(maint_choice)" = true ] || err "--maintainer did not record the choice in the manifest"
 [ "$(mfq "$(manifest_of)" 'Object.keys(m.bases[b].areas["claude-skills"]).filter((p) => p.endsWith("/skill-creator")).length')" = 1 ] || err "the record lacks the skill-creator link"
 finish_case
@@ -1403,7 +1400,6 @@ for mt_args in "-y" "--update" "--claude-only" "--kiro-only"; do
   read -r -a mt_argv <<< "$mt_args"
   run_cli "${mt_argv[@]}"
   expect_rc 0
-  expect_no_out "Maintainer skills not linked"
   expect_no_out "Removed .* links"
   [ "$(maint_links "$H/.claude/skills")" -eq "$MAINT_COUNT" ] || err "'$mt_args' left $(maint_links "$H/.claude/skills") of $MAINT_COUNT maintainer links in ~/.claude/skills"
   [ "$(maint_links "$H/.kiro/skills")" -eq "$MAINT_COUNT" ] || err "'$mt_args' left $(maint_links "$H/.kiro/skills") of $MAINT_COUNT maintainer links in ~/.kiro/skills"
@@ -1497,8 +1493,6 @@ rm "$H/.claude/skills/update-docs" 2>/dev/null
 ln -s "$H/my-skill-creator" "$H/.claude/skills/update-docs"
 run_cli --update --claude-only
 expect_rc 0
-expect_stdout "Maintainer skills not linked"
-expect_stdout "npx apex-skills --maintainer"
 expect_stdout "Removed $((MAINT_COUNT - 1)) maintainer skill links"
 expect_no_out "links to skills that are not in this version"
 for s in $MAINT_SKILLS; do

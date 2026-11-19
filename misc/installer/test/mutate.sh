@@ -24,8 +24,8 @@
 # per mutant. One pass took 99 to 135 s with 113 cases (119 at this head) on
 # one 16-CPU Linux machine on 2026-10-20 (the harness runs its cases one at a
 # time; a pass takes longer when a mutant makes an installer run hang until
-# its 60 s limit). With 129 mutants and the baseline, the 130 passes take
-# about 215 to 293 minutes there, so the weekly job may stop at its
+# its 60 s limit). With 128 mutants and the baseline, the 129 passes take
+# about 213 to 290 minutes there, so the weekly job may stop at its
 # 240-minute cap (timeout-minutes in installer-mutation.yml) on a
 # GitHub-hosted runner, where a pass has not been timed. A job stopped at the
 # cap is a timeout, not a surviving mutant: rerun each mutant it did not
@@ -300,8 +300,6 @@ module.exports = [
     'if (run.maintainer) rec.maintainer = true;', 'if (false) rec.maintainer = true;'],
   ['maintainer-record-ignored', 'a later run ignores the saved --maintainer choice',
     'run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);', 'run.maintainer = flags.maintainer;'],
-  ['maintainer-held-back-silent', 'a default run does not say how to link the maintainer skills',
-    'if (heldBack.length > 0) info(`Maintainer skills not linked', 'if (false) info(`Maintainer skills not linked'],
   ['maintainer-skills-line-lists-all', 'the Skills: line lists the skills the run did not link',
     '`${c.dim}  Skills: ${linkSkills.join', '`${c.dim}  Skills: ${skills.join'],
   ['maintainer-drop-off', 'an older install\'s maintainer links stay on a default run with no record of them',

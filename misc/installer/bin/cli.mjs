@@ -1461,7 +1461,6 @@ async function main() {
   run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);
   const linkSkills = getSkills(run.maintainer);
   const heldBack = skills.filter((name) => !linkSkills.includes(name));
-  if (heldBack.length > 0) info(`Maintainer skills not linked (${heldBack.join(', ')}); to link them, run npx apex-skills --maintainer`);
 
   // Determine skill target directories
   const claudeSkillsDir = join(installBase, '.claude', 'skills');
