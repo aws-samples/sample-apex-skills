@@ -148,9 +148,10 @@ def check_schema(schema):
 def validate(instance, schema):
     """Return a list of 'path: fails <keyword> <schema value>' errors; empty means valid.
 
-    Only schema text is printed, never the document's values or the keys it
-    chose (see _path): the document may be hostile, and only validate_output.py
-    wraps its stdout. A required failure names the missing schema keys. An
+    Only schema text is printed, never the document's values or the string
+    keys it chose: a string key the document chose reads [key], and an int or
+    bool key prints as [n] (see _path). The document may be hostile, and only
+    validate_output.py wraps its stdout. A required failure names the missing schema keys. An
     anyOf or oneOf failure reports only the keyword, not the branch errors; no
     shipped schema uses either."""
     jsonschema, ref_errors = _jsonschema()
@@ -164,13 +165,14 @@ def validate(instance, schema):
         want = e.validator_value
         if e.validator == "required":
             want = [k for k in want if k not in e.instance]
-        lines.add(f"{_path(e)}: fails {e.validator} {json.dumps(want)}{_quote_hint(e)}")
+        lines.add(f"{_path(e)}: fails {e.validator} {json.dumps(want, default=str)}{_quote_hint(e)}")
     return sorted(lines)
 
 
 def _path(e):
     """Where the error is: $, then a key the schema declares under properties, an
-    array index as [n], and [key] for a key the document chose, never its name."""
+    array index as [n], and [key] for a string key the document chose, never its
+    name (an int or bool key prints as [n])."""
     names, steps = [], iter(list(e.absolute_schema_path)[:-1])
     for kw in steps:
         if kw == "properties":
@@ -180,7 +182,7 @@ def _path(e):
             names.append(None)
         elif kw in ("additionalProperties", "unevaluatedProperties", "items", "unevaluatedItems"):
             names.append(None)
-        elif kw in ("allOf", "anyOf", "oneOf", "dependentSchemas"):
+        elif kw == "dependentSchemas":
             next(steps, None)
     where = list(e.absolute_path)
     if len(names) != len(where):
