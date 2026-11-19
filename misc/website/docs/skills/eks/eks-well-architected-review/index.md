@@ -177,6 +177,22 @@ before it collects anything, and refuses with the exact list of what is missing.
 Before Step 2, read [references/workflow.md](references/workflow.md) §*Permission preflight and the read-only IAM policy*: how each half is probed, the five cases it refuses
 on, the Kubernetes RBAC the built-in `view` role does not cover, and the 23-action read-only policy.
 
+### Getting Started
+
+Invoke the skill: `/eks-well-architected-review`
+
+Or ask explicitly for a Well-Architected review, naming the cluster and region:
+
+> "Run a Well-Architected review of EKS cluster `my-cluster` in `us-west-2`"
+>
+> "Do a WAFR of my EKS cluster `my-cluster` in `us-west-2` using profile `my-profile`"
+
+The skill binds to that one cluster, collects live data once, scores the five pillars and writes the
+report to `eks-war-<CLUSTER>/report.html` in the current directory. The whole `eks-war-<CLUSTER>/`
+work directory, not just the report, holds the raw JSON of every workload, with each container's literal
+env values, command and args, plus a kubeconfig: treat it as credential material, keep it out of version
+control and delete it after the review.
+
 ## Workflow
 
 Every command below passes its parameters as arguments, and that is a security property, not a style
