@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy the shared class files in classes/ into each member skill.
+"""Copy the shared class files in classes/ into each member skill, and write the plugin hook files under plugins/apex/.
 
 A skill joins classes through its own SKILL.md frontmatter:
 
@@ -56,9 +56,18 @@ python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 --id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
 __APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). A Stop command
 ends ` || exit 3` and has no matcher. Entries go in class folder order, then
-file order. An entry with a missing or malformed field, differing claude-code
-and codex matchers, an id given twice or two ids with one userConfig key
-stops the sync. With no entry, none of these files is written.
+file order, so a new class that sorts earlier shifts a Codex user's saved
+per-hook disables and trust, which Codex keys by position. An entry with a
+missing or malformed field, a mode its script does not accept (the choices
+of the script's one add_argument("--mode", choices=[...]) call, read from
+its source; a script where they cannot be read is refused too), differing
+claude-code and codex matchers, an id given twice, two ids with one
+userConfig key (compared in upper case) or two entries with one event,
+script and mode stops the sync. With no entry, none of these files is
+written, and the sync does not delete the ones there: when the last hooks
+entry goes, delete them by hand. plugins/apex/.claude-plugin/plugin.json
+userConfig is kept by hand, and --check does not compare it with the
+entries.
 
 Usage (from anywhere; paths are relative to the repo root):
 
@@ -723,6 +732,26 @@ HOOK_SCRIPT = re.compile(rf"(?:\.\./{PART}/)?hooks/{PART}/{PART}\.py\Z")
 STOP_TAIL = " || exit 3"
 
 
+def script_modes(root, src):
+    """The choices of the hook script's one add_argument("--mode", choices=[...]) call."""
+    try:
+        tree = ast.parse(read_text(os.path.join(root, src)))
+    except SyntaxError as exc:
+        raise SyncError(f"{src}: not valid Python ({exc.msg})") from exc
+    calls = [c for c in ast.walk(tree) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+             and c.func.attr == "add_argument" and c.args and isinstance(c.args[0], ast.Constant)
+             and c.args[0].value == "--mode"]
+    kws = [k.value for c in calls for k in c.keywords if k.arg == "choices"]
+    try:
+        modes = ast.literal_eval(kws[0]) if len(calls) == 1 and len(kws) == 1 else None
+    except ValueError:
+        modes = None
+    if not isinstance(modes, (list, tuple)) or not all(isinstance(m, str) for m in modes):
+        raise SyncError(f"{src}: its --mode choices cannot be read; it needs one "
+                        "add_argument(\"--mode\", choices=[...]) call with a literal list")
+    return list(modes)
+
+
 def hook_entries(raw, classes, root):
     """Every class.yaml hooks: entry, by class folder name, then file order."""
     entries, ids, keys, forms = [], {}, {}, {}
@@ -760,7 +789,10 @@ def hook_entries(raw, classes, root):
             src = f"classes/{rc}/hooks/{hook}/{fname}"
             if rc not in classes or not os.path.isfile(os.path.join(root, src)):
                 raise SyncError(f"{who}: script {src} not found")
-            hid, key = h["id"], re.sub(r"[.-]", "_", h["id"])
+            modes = script_modes(root, src)
+            if h["mode"] not in modes:
+                raise SyncError(f"{who}: mode {h['mode']} is not one of {src}'s --mode choices {modes}")
+            hid, key = h["id"], re.sub(r"[.-]", "_", h["id"]).upper()
             if hid in ids:
                 raise SyncError(f"duplicate hooks entry id {hid} from classes/{ids[hid]} and classes/{cls}")
             if key in keys:
@@ -925,7 +957,7 @@ def check(root, expected, entries):
         want_header = e["text"].splitlines()[1 if e["text"].startswith("#!") else 0]
         disk_lines = disk.splitlines()
         got_header = disk_lines[1 if disk.startswith("#!") else 0] if disk_lines else ""
-        if got_header != want_header:
+        if got_header != want_header and e["path"] not in (HOOKS_JSON, KIRO_JSON):
             why = f"header missing or wrong; expected: {want_header}"
             if not any("generated from classes/" in h for h in disk_lines[:2]):
                 why += ("; if this is the skill's own file, not a class copy, rename or move it "
@@ -977,7 +1009,8 @@ def write(root, expected):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Copy class files into member skills.")
+    ap = argparse.ArgumentParser(description="Copy class files into member skills, and write the "
+                                 "plugin hook files under plugins/apex/.")
     ap.add_argument("--check", action="store_true", help="write nothing; exit 1 on any difference")
     ap.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     help="repository root (default: this script's repo)")
@@ -996,7 +1029,8 @@ def main(argv=None):
             print(f"sync-classes: {p}", file=sys.stderr)
         if problems:
             print(f"sync-classes: --check failed ({len(problems)} difference(s)); "
-                  "run python3 misc/sync-classes.py and commit the copies", file=sys.stderr)
+                  "run python3 misc/sync-classes.py and commit the copies; when the last hooks "
+                  "entry goes, delete the plugin hook files by hand", file=sys.stderr)
             return 1
         print(f"sync-classes: --check OK: {len(members)} member skill(s) ({names}), "
               f"{len(expected)} file(s) in sync")

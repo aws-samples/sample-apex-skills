@@ -1501,7 +1501,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "run": [
@@ -1531,7 +1531,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1559,10 +1559,10 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
     "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
     "classes/advisor/class.yaml": "name: advisor\nparents: []\nhooks:\n  - id: advisor.no-side-effects\n    event: PreToolUse\n    script: ../operator/hooks/mutation-guard/mutation_guard.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
-    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\n"
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1590,7 +1590,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1618,7 +1618,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
     "plugins/apex/hooks/hooks.json": "{\"description\": \"generated from classes/*/class.yaml, do not edit\", \"hooks\": {\"PreToolUse\": [{\"matcher\": \"^(Bash|mcp__.*)$\", \"hooks\": [{\"type\": \"command\", \"command\": \"python3 \\\"${CLAUDE_PLUGIN_ROOT}/hooks/apex-base/secret-deny/secret_deny.py\\\" --mode block\"}]}]}}",
     "plugins/apex/kiro/apex-hooks.json": "{\"version\": \"v1\", \"hooks\": [{\"name\": \"apex.no-secrets\", \"description\": \"generated from classes/apex-base/class.yaml, do not edit\", \"trigger\": \"PreToolUse\", \"matcher\": \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\", \"action\": {\"type\": \"command\", \"command\": \"python3 \\\"__APEX_HOOKS_DIR__/apex-base/secret-deny/secret_deny.py\\\" --mode block\"}, \"enabled\": true}]}"
    },
@@ -1639,10 +1639,10 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
     "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
     "classes/advisor/class.yaml": "name: advisor\nparents: []\nhooks:\n  - id: advisor.no-side-effects\n    event: PreToolUse\n    script: ../operator/hooks/mutation-guard/mutation_guard.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
-    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\n"
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1671,7 +1671,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1699,7 +1699,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
     "plugins/apex/.codex-plugin/plugin.json": "{\"name\": \"apex\", \"hooks\": \"./hooks/hooks.json\"}"
    },
    "presync": true,
@@ -1719,7 +1719,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1748,7 +1748,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1776,7 +1776,7 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n"
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "mutate": [
@@ -1801,10 +1801,10 @@
    "base": "std",
    "files": {
     "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
-    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
     "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n  - id: operator.stop-test\n    event: Stop\n    script: hooks/stop-test/stop_test.py\n    mode: block\n    enabled: false\n",
-    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\n",
-    "classes/operator/hooks/stop-test/stop_test.py": "#!/usr/bin/env python3\n"
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\n",
+    "classes/operator/hooks/stop-test/stop_test.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
    },
    "presync": true,
    "run": [
@@ -1828,6 +1828,128 @@
      "text": "\"matcher\"",
      "n": 2
     }
+   }
+  },
+  {
+   "id": "P344-mode-rejected",
+   "about": "A mode the script's --mode choices do not hold stops the sync, since that hook would exit 2 (a block) with its option unset",
+   "base": "std",
+   "files": {
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: warn\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry operator.confirm-before-change: mode warn is not one of classes/operator/hooks/mutation-guard/mutation_guard.py's --mode choices ['ask', 'block']"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-key-case",
+   "about": "Two ids whose userConfig keys differ only in case stop the sync: the scripts upper-case the key, so they share one switch",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: APEX.no-secrets\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry APEX.no-secrets: its userConfig key APEX_NO_SECRETS is also apex.no-secrets's"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-same-form",
+   "about": "Two entries with one event, script and mode stop the sync, since --check could not tell their commands apart",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n  - id: apex.no-secrets-2\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets-2: same event, script and mode as apex.no-secrets"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-script-not-py",
+   "about": "A hooks script that is not a .py file stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.sh\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets: script must be hooks/<hook>/<file>.py"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-enabled-not-bool",
+   "about": "A hooks entry whose enabled is not true or false stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: \"yes\"\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets: enabled must be true or false, found 'yes'"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-not-word",
+   "about": "A hooks id that is not a plain word stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex no-secrets: id must be a word of letters, digits, '.', '_' or '-', found 'apex no-secrets'"
+    ],
+    "unchanged": true
    }
   }
  ]
