@@ -28,6 +28,7 @@ schema or document nested too deep). Nothing ever exits 0 on absent input.
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -57,9 +58,24 @@ def _no_dup_pairs(pairs):
     out = {}
     for k, v in pairs:
         if k in out:
-            raise CheckError(f"duplicate key {k!r}")
+            raise CheckError("duplicate key in a JSON object")
         out[k] = v
     return out
+
+
+def _yaml_problem(e):
+    """Where the YAML fails to parse and why, without the document text PyYAML's
+    message quotes: its snippet is dropped, and each quoted span (a tag or alias
+    name) becomes '...'. The document may be hostile, and stderr is not wrapped."""
+    parts = []
+    for what, mark in ((getattr(e, "context", None), getattr(e, "context_mark", None)),
+                       (getattr(e, "problem", None), getattr(e, "problem_mark", None))):
+        what = re.sub(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"", "'...'", what or "")
+        if mark is not None:
+            what = f"{what} at line {mark.line + 1}, column {mark.column + 1}".strip()
+        if what:
+            parts.append(what)
+    return ": ".join(parts) or type(e).__name__
 
 
 def loads(text, name="<input>", fmt=None):
@@ -90,7 +106,7 @@ def loads(text, name="<input>", fmt=None):
             except TypeError:
                 raise CheckError(f"unhashable key at line {knode.start_mark.line + 1}")
             if key in out:
-                raise CheckError(f"duplicate key {key!r} at line {knode.start_mark.line + 1}")
+                raise CheckError(f"duplicate key at line {knode.start_mark.line + 1}, column {knode.start_mark.column + 1}")
             out[key] = loader.construct_object(vnode, deep=deep)
         return out
 
@@ -100,7 +116,7 @@ def loads(text, name="<input>", fmt=None):
     except CheckError as e:
         raise CheckError(f"{name}: {e}")
     except yaml.YAMLError as e:
-        raise CheckError(f"{name}: not valid YAML: {e}")
+        raise CheckError(f"{name}: not valid YAML: {_yaml_problem(e)}")
     if doc is None:
         raise CheckError(f"{name}: empty document")
     return doc

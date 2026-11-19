@@ -1032,7 +1032,7 @@
    "what": "a duplicate key",
    "text": "report: {}\nreport: {}\n",
    "expect": 2,
-   "message": "duplicate key 'report'"
+   "message": "duplicate key at line 2, column 1"
   },
   {
    "id": "V6e",
