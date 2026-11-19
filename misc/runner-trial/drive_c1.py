@@ -368,7 +368,7 @@ LIVE_SESSION_SECONDS = 3600
 
 
 class LiveSessionError(RuntimeError):
-    """The driver could not mint the live run's read-only cluster session."""
+    """The driver could not mint the live run's cluster session."""
 
 
 def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> dict:

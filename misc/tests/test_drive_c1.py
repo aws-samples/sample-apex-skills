@@ -332,7 +332,7 @@ def session():
 
 
 class LiveSession(unittest.TestCase):
-    """T7: the subject gets a short read-only cluster session, never the host's profile path."""
+    """T7: the subject gets a short cluster session, never the host's profile path."""
 
     def run_t7(self, assume):
         seen, calls = [], []
@@ -344,7 +344,8 @@ class LiveSession(unittest.TestCase):
             kc = Path(extra["KUBECONFIG"])
             shim = kc.parent / "bin" / "aws"
             ran = subprocess.run([str(shim), "eks", "list-clusters"], capture_output=True, text=True, env={
-                "PATH": extra["PATH"], "AWS_ACCESS_KEY_ID": "AKIAEVALROLE", "AWS_PROFILE": "host-admin"}).stdout \
+                "PATH": extra["PATH"], "AWS_ACCESS_KEY_ID": "AKIAEVALROLE", "AWS_PROFILE": "host-admin",
+                "AWS_DEFAULT_PROFILE": "host-admin"}).stdout \
                 if shim.exists() else None
             seen.append(SimpleNamespace(
                 kc=kc, text=kc.read_text(), mode=kc.stat().st_mode & 0o777, dir_mode=kc.parent.stat().st_mode & 0o777,
@@ -359,7 +360,7 @@ class LiveSession(unittest.TestCase):
             kc.write_text(HOST_KUBECONFIG % host_cfg)
             fake = Path(k) / "fakebin"
             fake.mkdir()
-            (fake / "aws").write_text('#!/bin/sh\necho "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} '
+            (fake / "aws").write_text('#!/bin/sh\necho "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} default=${AWS_DEFAULT_PROFILE-unset} '
                                       'cfg=$AWS_CONFIG_FILE args=$*"\n')
             (fake / "aws").chmod(0o700)
             path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
@@ -387,7 +388,7 @@ class LiveSession(unittest.TestCase):
             for bad in (".aws", host_cfg, "cluster-ro"):
                 self.assertNotIn(bad, s.shim_text)
             # the shim replaces the subject's eval-role keys and drops its profile, for aws only
-            self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset cfg={os.devnull} args=eks list-clusters")
+            self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset default=unset cfg={os.devnull} args=eks list-clusters")
             self.assertFalse(s.kc.parent.exists())   # removed when the run ended
         self.assertTrue(all(r["status"] == "ran" for r in recs))
 
