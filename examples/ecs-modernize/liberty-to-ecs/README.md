@@ -114,7 +114,7 @@ The exercise needs a container that actually starts, so two blockers are declawe
   npx apex-skills@1.3.0 --update # already installed
   ```
 
-  See [Quick Start](../../../README.md#quick-start) for the other install options. The installer clones the repo to `~/.apex-skills/` and symlinks every skill into place except the maintainer skills (only `--maintainer` links those); confirm `ecs-modernize` landed with:
+  See [Quick Start](../../../README.md#quick-start) for the other install options. The installer clones the repo to `~/.apex-skills/` and symlinks every skill into place; confirm `ecs-modernize` landed with:
 
   ```bash
   ls ~/.claude/skills/ecs-modernize   # Claude Code
