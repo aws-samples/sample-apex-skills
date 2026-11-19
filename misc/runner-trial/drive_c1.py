@@ -35,12 +35,14 @@ tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
 (pass count per case and arm, for score-sheet.md S1 and S2, plus a T6
 "both_queries" cell counting runs k where both query arms passed at run k,
 and runner_head, the git HEAD of the checkout whose runner ran), and each
-run's runner files under <case>/<arm>/run-<k>/. S2 reads `pass` over the runs
+run's runner files under <case>/<arm>/run-<k>/. runner_head is HEAD only;
+uncommitted changes are not recorded. S2 reads `pass` over the runs
 whose status is 'ran' or 'error' (an 'error' run counts as a failed run, as
 the shipped runner does); 'cannot run' and 'not run' runs are left out, and
-S2 is n/a when none is left. An error the driver does not
-catch (an OSError, an unreadable timing.json) ends the invocation:
-runs.jsonl holds the runs before it and summary.json is not written.
+S2 is n/a when none is left. Any error during the runs ends the invocation:
+runs.jsonl holds the runs that finished and summary.json is not written. A
+failed subject or grader call is not such an error: it is recorded as an
+'error' run.
 
 events_to_spans converts one run's events.jsonl into the span input of the
 AgentCore Evaluations Evaluate API, for C3; it is a pure function and no
@@ -203,7 +205,8 @@ def check_commits() -> str | None:
 
 
 def runner_head() -> str:
-    """git rev-parse HEAD of the checkout this driver and its runner run from."""
+    """git rev-parse HEAD of the checkout this driver and its runner run from.
+    runner_head is HEAD only; uncommitted changes are not recorded."""
     r = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"], capture_output=True, text=True)
     if r.returncode != 0:
         raise GitError(f"git rev-parse HEAD failed: {r.stderr.strip()}")
@@ -252,7 +255,7 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     AgentCore Evaluations Evaluate API: evaluationInput={"sessionSpans": spans}.
     Pure function: no AWS call, no file read.
 
-    Only what C3's evaluators read (cost-estimate.md, C3) is converted.
+    The AGENT and TOOL attributes the Claude Agent SDK page lists are converted.
     Builtin.GoalSuccessRate (session) and Builtin.Correctness (trace) read the
     user prompt and agent response of each turn; Builtin.TrajectoryAnyOrderMatch
     reads the tool names. Each turn, the events up to and including a result
@@ -262,7 +265,11 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     matching tool_result content, paired by tool_use_id). Tool calls after the
     last result event are a turn that did not finish: its AGENT span has no
     output.value and status ERROR. A line that is not a JSON object is skipped.
-    IDs are derived from session_id, so the output is deterministic.
+    IDs are derived from session_id, so the output is deterministic. No start
+    or end times are emitted and tool spans share the turn's trace; the docs'
+    examples omit them, so whether Evaluate needs them is untested. A session
+    with no result event and no tool call gives no spans, and a text-only turn
+    after the last result event is dropped.
 
     Shape and attributes from the Claude Agent SDK page, unified telemetry
     (https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/supported-frameworks-claude-agent-sdk.html,

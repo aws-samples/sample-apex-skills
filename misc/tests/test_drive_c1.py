@@ -212,6 +212,21 @@ class FixedBranches(unittest.TestCase):
         self.assertEqual((t6["with_skill_q3"]["pass"], t6["with_skill_q18"]["pass"]), (2, 2))
         self.assertEqual(t6["both_queries"], {"pass": 1, "ran": 3, "runs": 3})
 
+    def test_t6_both_queries_ran_needs_both_arms(self):
+        runner, seen = fake_runner([]), {}
+        queries = json.loads((ROOT / "misc/evals/eks-mcp-server/triggering.json").read_text())
+
+        def run_single_query(query, name, skill_dir, model, timeout):
+            idx = next(i for i, q in enumerate(queries) if q["query"] == query)
+            seen[idx] = seen.get(idx, 0) + 1
+            if idx == 18 and seen[idx] == 1:   # q18 run 1 is invalid, so run 1 did not run for both
+                return {"invalid": True, "invalid_reason": "no init"}
+            return {"triggered": idx == 3, "invalid": False}
+        runner.run_single_query = run_single_query
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, _, summary = paid(d, ["T6"], runner)
+        self.assertEqual((rc, summary["cases"]["T6"]["both_queries"]["ran"]), (0, 2))
+
     def test_kubeconfig_is_resolved_or_refused(self):
         calls = []
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as out:
@@ -365,6 +380,8 @@ class RunRecord(unittest.TestCase):
             rc, _, _, summary = paid(d, ["T4"], fake_runner([]))
         self.assertEqual(rc, 0)
         self.assertEqual(summary["runner_head"], head)
+        with tempfile.TemporaryDirectory() as nd, mock.patch.object(drive_c1, "REPO_ROOT", Path(nd)):
+            self.assertRaises(drive_c1.GitError, drive_c1.runner_head)
 
     def test_missing_old_commit_is_refused_before_the_session(self):
         calls = []
