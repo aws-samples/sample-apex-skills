@@ -1,0 +1,13 @@
+{
+  "exit": 3,
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "operator.stop-gate"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE": ""
+  },
+  "stderr_contains": "CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE must be true or false, got ''"
+}

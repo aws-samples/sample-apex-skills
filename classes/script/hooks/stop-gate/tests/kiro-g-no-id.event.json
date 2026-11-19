@@ -1,0 +1,5 @@
+{
+  "hook_event_name": "Stop",
+  "cwd": "/apex-stop-gate-fixture",
+  "session_id": "abc123-def456-789"
+}

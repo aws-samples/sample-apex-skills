@@ -184,6 +184,17 @@ def test_static_fixture(world, name):
     assert world.run(name, event, expected) == ("PASS", "ok")
 
 
+def test_static_files_match_static():
+    """The fixture files the runner reads in CI are STATIC, byte for byte, and no others."""
+    for name, (event, expected) in STATIC.items():
+        for suffix, obj in ((".event.json", event), (".expected.json", expected)):
+            with open(os.path.join(HERE, name + suffix)) as f:
+                assert f.read() == json.dumps(obj, indent=2) + "\n", name + suffix
+    names = {f[:-len(".event.json")] for f in os.listdir(HERE) if f.endswith(".event.json")}
+    names |= {f[:-len(".expected.json")] for f in os.listdir(HERE) if f.endswith(".expected.json")}
+    assert names == set(STATIC)
+
+
 # ------------------------------------------------------------------ the gate
 
 def test_valid_output_ends_the_turn_and_drops_the_record(world):
