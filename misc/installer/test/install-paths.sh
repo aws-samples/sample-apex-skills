@@ -2572,9 +2572,10 @@ expect_rc 0
 for f in --claude-only --kiro-only --project --no-steering --maintainer --update "--version <tag>" "--branch <name>" --uninstall "-y, --yes" "-h, --help"; do
   expect_stdout "^  $f "
 done
+expect_stdout "skill-creator, steering-workflow-creator,"
 expect_stdout "update-docs, apex-new-skill), which a default install leaves out"
 expect_stdout "a full --uninstall removes them and clears the choice, while --uninstall"
-expect_stdout "with --claude-only or --kiro-only keeps it while the other tool's install stays"
+expect_stdout "with --claude-only or --kiro-only keeps it$"
 expect_stdout "Exit codes:"
 expect_stdout "3  done"
 expect_stdout "run it again to finish before --uninstall: links a stopped"

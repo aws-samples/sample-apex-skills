@@ -1321,7 +1321,7 @@ function showHelp() {
   log(`                       update-docs, apex-new-skill), which a default install leaves out. The choice`);
   log(`                       is saved for this install: later runs, --update included, keep the links;`);
   log(`                       a full --uninstall removes them and clears the choice, while --uninstall`);
-  log(`                       with --claude-only or --kiro-only keeps it while the other tool's install stays`);
+  log(`                       with --claude-only or --kiro-only keeps it`);
   log(`  --update             Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
   log(`                       links and steering copies (non-interactive; a branch chosen with --branch is`);
   log(`                       followed). It keeps a saved no-steering choice (--no-steering or n), as`);
@@ -1456,8 +1456,8 @@ async function main() {
   run.prev = run.manifest.bases[installBase] || null;
   run.source = cloneSource(sourceRef);
   // Maintainer skills: linked on --maintainer, and on every later run while the
-  // record holds that choice (--update included); without it the prune removes
-  // the links an earlier install made. --uninstall clears the choice.
+  // record holds that choice (--update included); without it the drop loop removes
+  // the installer links an earlier install made. A full --uninstall clears the choice.
   run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);
   const linkSkills = getSkills(run.maintainer);
   const heldBack = skills.filter((name) => !linkSkills.includes(name));
