@@ -436,7 +436,8 @@ def acp_update(evt: dict) -> dict | None:
 def kiro_usage(evt: dict) -> dict | None:
     """A kiro runFinished record's token counts in USAGE_TOKEN_KEYS names,
     from its "usage" or "data.usage", or None when neither carries
-    input_tokens/inputTokens or output_tokens/outputTokens."""
+    input_tokens/inputTokens or output_tokens/outputTokens, or when a count
+    it carries is not an int (read as missing, never as 0)."""
     pairs = {"input_tokens": ("input_tokens", "inputTokens"),
              "output_tokens": ("output_tokens", "outputTokens")}
     data = evt.get("data") if isinstance(evt.get("data"), dict) else {}
@@ -447,7 +448,10 @@ def kiro_usage(evt: dict) -> dict | None:
         for key, names in pairs.items():
             for n in names:
                 if n in obj:
-                    out[key] = token_count(obj.get(n))
+                    value = obj.get(n)
+                    if not isinstance(value, int) or isinstance(value, bool):
+                        return None
+                    out[key] = value
         return out
     return None
 

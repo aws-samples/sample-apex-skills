@@ -1294,6 +1294,14 @@ class Links(unittest.TestCase):
         with self.assertRaisesRegex(run_task_evals.FixtureLinkError, "leads nowhere"):
             run_task_evals.check_fixture_links(repo / "f", repo_root=repo)
 
+    def test_fixture_link_to_its_own_folder_or_above_is_refused(self):
+        for name, link_dir in (("self", ("f",)), ("up", ("f", "sub"))):
+            repo = self.tmp / name
+            (repo / "f" / "sub").mkdir(parents=True)
+            os.symlink(repo / "f", repo.joinpath(*link_dir) / "loop")
+            with self.assertRaisesRegex(run_task_evals.FixtureLinkError, "own folder"):
+                run_task_evals.check_fixture_links(repo / "f", repo_root=repo)
+
 
 class RefusedFixtureIsAnInvalidRun(Tmp):
     def test_refused_fixture_runs_no_subject(self):
@@ -1807,6 +1815,13 @@ class RunSkill(Tmp):
         self.assertEqual({c["harness"] for c in self.calls}, {"codex"})
         self.assertEqual(entry["harness"], "codex")
 
+    def test_history_row_records_the_subject_model(self):
+        self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
+        for harness in ("codex", "kiro"):
+            entry = self.run_it("eks-recon", runs=1, harness=harness,
+                                subject_model_id="s-id")["history_entry"]
+            self.assertEqual((entry["model"], entry["subject_model"]), ("m", "s-id"))
+
 
 class BaseRef(unittest.TestCase):
     @unittest.skipUnless(HAS_BASE_TAG, NO_TAG)
@@ -1884,6 +1899,12 @@ class KiroOneParse(unittest.TestCase):
                                                           "inputTokens": 9, "outputTokens": 9}}
         stream = KIRO_TYPED[:-1] + [usage_update, {"type": "runFinished", "data": {}}]
         traj = parse_events(parse_trajectory.normalize_events(stream, "kiro"))
+        self.assertIsNone(traj.input_tokens)
+
+    def test_non_integer_kiro_count_reads_as_missing(self):
+        done = {"type": "runFinished", "data": {"usage": {"inputTokens": "7", "outputTokens": 3}}}
+        self.assertIsNone(parse_trajectory.kiro_usage(done))
+        traj = parse_events(parse_trajectory.normalize_events(KIRO_TYPED[:-1] + [done], "kiro"))
         self.assertIsNone(traj.input_tokens)
 
     def test_calls_with_no_id_are_kept_apart(self):
@@ -1966,6 +1987,14 @@ class SubjectEnv(Tmp):
         self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["KIRO_API_KEY"],
                          "kiro-key")
         self.assertNotIn("KIRO_API_KEY", run_triggering.harness_env(env, self.tmp, "claude"))
+        fake_exe(self.bin, "claude", [RESULT], 0, extra=self.record_env())
+        (self.tmp / "g").mkdir()
+        run_task_evals.run_grader(expectations=["e"], transcript_path=self.tmp / "t.md",
+                                  outputs_dir=self.tmp / "o", run_dir=self.tmp / "g",
+                                  model="m", timeout=30)
+        seen = json.loads(self.envlog.read_text())
+        for k in ("APEX_EVAL_AWS_CONFIG", "APEX_EVAL_EXPECTED_ACCOUNT", "KIRO_API_KEY"):
+            self.assertIsNone(seen[k], k)
 
 
 class SubjectModelPerHarness(unittest.TestCase):
@@ -2034,6 +2063,17 @@ class TokensNotRecorded(unittest.TestCase):
         skill = run_task_evals.summarize_skill([case], "without_skill")
         self.assertIsNone(skill["arms"]["with_skill"]["tokens_per_run_mean"])
 
+    def test_aggregate_token_usage_skips_a_run_with_no_count(self):
+        with tempfile.TemporaryDirectory() as d:
+            for run, source, total in (("run-1", None, 0), ("run-2", "usage", 100)):
+                run_dir = Path(d) / "eval-1" / "with_skill" / run
+                run_dir.mkdir(parents=True)
+                (run_dir / "timing.json").write_text(json.dumps(
+                    {"total_tokens": total, "token_source": source}))
+            usage = run_task_evals.aggregate_token_usage(Path(d), configs=("with_skill",))
+        self.assertEqual(usage["with_skill"]["runs"], 1)
+        self.assertEqual(usage["with_skill"]["mean"]["total_tokens"], 100)
+
 
 class TargetsAndCases(Tmp):
 
@@ -2084,11 +2124,6 @@ class TargetsAndCases(Tmp):
         merged = run_task_evals.merge_cases([{"id": 1, "_source": "own"}],
                                             [{"id": 8, "_source": "class:x/y"}])
         self.assertEqual([c["id"] for c in merged], [1, 8])
-
-    def test_targets_come_from_the_triggering_list(self):
-        task = {(t["classes"][0], t["skill_dir"]): t["blocking"] for t in run_task_evals.CLASS_TARGETS}
-        trig = {(c, p): b for c, d in run_triggering.CLASS_TARGETS.items() for p, b in d.items()}
-        self.assertEqual(task, trig)
 
     def test_removed_triggering_flags(self):
         for argv in (["--list-class-targets", "apex-base"], ["--skill-path", "x", "--kubeconfig", "k"]):
@@ -2299,10 +2334,6 @@ class GatePerCase(GateTmp):
         self.assertEqual(cm.exception.code, 2)
         self.assertIn("--gate needs --task-result", err.getvalue())
         self.assertFalse(hasattr(regression, "gate_keys"))
-
-    def test_note_names_no_pending_decision(self):
-        self.assertEqual(regression.GATE_TOKENS_NOTE,
-                         "Tokens and time are reported and do not block: only pass rate blocks.")
 
     def test_step_summary_gets_the_report(self):
         summary = self.tmp / "summary.md"

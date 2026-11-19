@@ -21,9 +21,10 @@ on:
 permissions:
   contents: read
 
-# A dispatched run has its own group and is never cancelled, so a push to
-# main does not stop a running gate; a newer push or pull request run still
-# cancels the older one.
+# A dispatched run has its own group, so a push to main does not stop a
+# running gate: a running dispatched run is never cancelled; a newer dispatch
+# replaces one still pending. A newer push or pull request run still cancels
+# the older one.
 concurrency:
   group: evals-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
@@ -223,9 +224,9 @@ jobs:
   # The model-backed merge gate: `make -C misc/evals gate` or
   # `gate-all` runs the deterministic stages, then with_skill against the
   # skill at v1.3.0, scored per case on Pass@k; it exits 2 on a regression.
-  # It runs once per harness in the matrix (kiro is not in it: its model
-  # calls go to Kiro's own service, not to Bedrock in the eval account, and
-  # that is not yet approved). It has no pass path without its secrets: the
+  # It runs once per harness in the matrix. CI does not run kiro: its model
+  # calls go to Kiro's own service, not to Bedrock in the eval account. It
+  # has no pass path without its secrets: the
   # first step fails when any is absent, and a fork pull request gets none
   # (GitHub passes no secret but GITHUB_TOKEN to a fork's run). Until a
   # maintainer configures CI credentials it runs only by hand
@@ -294,6 +295,9 @@ jobs:
           GATE_SKILL: ${{ inputs.skill }}
         run: |
           if [ -n "$GATE_SKILL" ]; then
+            # Checked here, before make expands it (a $(...) in SKILL runs
+            # during make's own expansion, before the Makefile's check).
+            [[ "$GATE_SKILL" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "::error::skill must match [A-Za-z0-9_.-]+"; exit 1; }
             make -C misc/evals gate SKILL="$GATE_SKILL" HARNESS="$HARNESS"
           else
             make -C misc/evals gate-all HARNESS="$HARNESS"

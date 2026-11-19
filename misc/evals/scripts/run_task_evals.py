@@ -13,7 +13,10 @@ absent there or --base-ref is none. Step 2's subject is the --harness
 wall time go to run-result.json, cases.json and the history row. An
 invalid run scores grader pass rate 0 and counts in the pooled grader pass
 rate (the history row's means and delta); a run with no token count
-records tokens None, and token means cover only the runs that have one:
+records tokens None, and token means cover only the runs that have one
+(the scorecard reads the history row's
+skill_summary.arms.with_skill.tokens_per_run_mean; its token_usage has no
+reader):
 
   1. Stage a sandbox (stage_skill_sandbox or stage_empty_sandbox) with a
      clean HOME, plus an optional KUBECONFIG. The only AWS credentials the
@@ -395,12 +398,15 @@ def aggregate_token_usage(
 
     The skill-creator benchmark.json carries one `tokens` value per run (usually `output_chars`);
     this keeps the cache categories visible across a whole run directory.
+    It fills the history row's token_usage, which nothing reads; the
+    scorecard reads skill_summary.arms.with_skill.tokens_per_run_mean.
 
-    A timed-out or failed run still writes timing.json (with zero or
-    partial counts), so it counts in `runs` and in the mean. A timing.json
-    that is unreadable or not a JSON object is skipped.
+    A timing.json whose token_source is None (no token count recorded), or
+    that is unreadable or not a JSON object, is skipped, so `runs` and the
+    mean cover only runs with a count. One with no token_source key (written
+    before the key existed) still counts.
 
-    A missing key, or a value that is not an int, reads as 0. That
+    In a counted run, a missing key, or a value that is not an int, reads as 0. That
     fallback is defensive: run_skill calls
     this only on the fresh runs/<ts> directory it just created, so old and
     new timing.json files are not mixed here.
@@ -415,7 +421,7 @@ def aggregate_token_usage(
                 timing = json.loads(timing_file.read_text())
             except (OSError, json.JSONDecodeError):
                 continue
-            if not isinstance(timing, dict):
+            if not isinstance(timing, dict) or timing.get("token_source", "") is None:
                 continue
             n += 1
             for key in keys:
@@ -523,6 +529,9 @@ def check_fixture_links(source: Path, repo_root: Path | None = None) -> None:
             if target == root or target == git_dir or target.startswith(git_dir + os.sep):
                 raise FixtureLinkError(
                     f"fixture link {path} -> {os.readlink(path)} reaches the repo root or .git")
+            if real_dir == target or real_dir.startswith(target + os.sep):
+                raise FixtureLinkError(
+                    f"fixture link {path} -> {os.readlink(path)} points to its own folder or above it")
             if not inside or not os.path.exists(target):
                 raise FixtureLinkError(
                     f"fixture link {path} -> {os.readlink(path)} "
@@ -1652,6 +1661,7 @@ def _run_cases(
         "kind": "task",
         "ts": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model": model,
+        "subject_model": subject_model_id or model,
         "runs_per_prompt": runs,
         "with_skill_mean": with_pr.get("mean", 0),
         "with_skill_stddev": with_pr.get("stddev", 0),

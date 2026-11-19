@@ -84,7 +84,10 @@ TASK_BASE          = $(if $(strip $(BASE_REF)),--base-ref $(BASE_REF))
 # size check); the first that exits non-zero stops the gate before any model
 # call. Empty here: the changes that own those checks set it.
 GATE_STAGES       ?=
-# SKILL reaches recipe shells as text, so a target that takes it checks it first.
+# SKILL reaches recipe shells as text, so a target that takes it checks the
+# shell's value first. This is no guard against make itself: a $(shell ...) or
+# other make function inside SKILL runs while make expands the recipe, before
+# this check (even under make -n); evals.yml checks the dispatched name before make.
 skill_ok = @[[ "$$SKILL" =~ ^[A-Za-z0-9_.-]+$$ ]] || { echo "SKILL must match [A-Za-z0-9_.-]+"; exit 1; }
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
@@ -270,7 +273,7 @@ init-evals-finalize:
 	python3 $(EVALS_ROOT)/scripts/check_hygiene.py --skill $(SKILL)
 
 # ---------- H  run_task_evals (LIVE; subject + grader per prompt × config) ----
-# Executes evals.json prompts under with_skill / without_skill, grades each run,
+# Executes evals.json prompts under with_skill / the base arm (base_skill, or without_skill), grades each run,
 # aggregates via aggregate_benchmark. Results land under <skill>/workspace/runs/
 # and the workspace/latest symlink is updated. Appends a kind="task" row to
 # misc/evals/history/<skill>.jsonl.
