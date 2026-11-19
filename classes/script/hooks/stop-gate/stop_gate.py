@@ -43,29 +43,46 @@ its own, and only when the tool's real path is
 copies of the class tools) and the skill folder's real path is a folder
 directly in the skills root, never taken from the record or the event:
 <repo>/skills for this classes/ copy (from this file's own location), and for
-every installed copy (the Claude Code plugin cache, Kiro's .kiro/apex-hooks)
-the real path of ~/.apex-skills/skills, the clone the installer links each
-harness's .claude/skills and .kiro/skills entries to (misc/installer/bin/cli.mjs).
-A skill folder in the project, a project .claude/skills or .kiro/skills
-entry that is not such a link included, is never run: the agent can write
-there (and can write the clone too when it works in ~/.apex-skills). With no absolute home folder an installed copy runs no check. An
-installed copy also drops a record that
-names one of this repo's classes/ check tools, with one stderr line, as it
-drops a stale record; this copy runs no classes/ tool either, and such a
-record is no verdict here. Both copies run, unsandboxed and with the hook's
-full environment, the checks a record names on the files and folder the
-record names, and the record is agent-written (a cloned repo can ship one).
+an installed copy (the Claude Code plugin cache, Kiro's .kiro/apex-hooks) the
+real path of ~/.apex-skills/skills, the clone the installer
+(misc/installer/bin/cli.mjs) links Claude Code's and Kiro's .claude/skills and
+.kiro/skills entries to. A skill folder in the project, a project
+.claude/skills or .kiro/skills entry that is not such a link included, is
+never run. With no ~/.apex-skills clone (a marketplace-only plugin install,
+and Codex, which the installer does not set up) every record is no verdict
+and blocks once. The root is not a boundary against an agent that can write
+the user's home folder (one with no sandbox, or one working in the home
+folder): it can make or relink ~/.apex-skills and add a check the gate runs.
+A --project --kiro-hooks install copies the gate itself into the project,
+where the agent can edit it. With an empty or relative HOME (which the
+installer refuses) an installed copy runs no check. An installed copy also
+drops a record that names one of this repo's classes/ check tools, with one
+stderr line, as it drops a stale record; this copy runs no classes/ tool
+either, and such a record is no verdict here. Both copies run, unsandboxed and
+with the hook's full environment, the checks a record names on the files and
+folder the record names, and the record is agent-written (a cloned repo can
+ship one).
 Turning the switch on lets a sandboxed agent choose what runs outside its
 sandbox.
 
 Exit 0 is a pass, 1 a fail; any other exit, a timeout or a tool that cannot
-start is no verdict, which counts as a fail. All runs share one budget: 570 s
-on Claude Code and Codex (under their 600 s command-hook default, as of
-2026-11-19), 25 s on Kiro (no --id; under the Kiro CLI's 30 s default) until
-the Kiro Stop entry sets a longer timeout_ms, so on Kiro a declared check set
-slower than 25 s still gets no verdict. Each check runs in its own process
-group, and a timeout kills the whole group. The tool's output goes back
-to the agent between random-token tags (the shared tags block below), with one
+start is no verdict, which counts as a fail. All runs share one budget, set
+by the --id: with one, 570 s (Claude Code and Codex, under their 600 s
+command-hook default, as of 2026-11-19); with none, 25 s (Kiro, under the Kiro
+CLI's 30 s default). The output shape is set by the event instead (no
+stop_hook_active: Kiro's), so a hand run with no --id and a Claude Code event
+gets Claude Code's output and Kiro's budget. No Kiro Stop entry exists yet, and
+the Kiro hook file the class sync writes has no documented timeout field
+(SPIKE.md), so on Kiro a check slower than 25 s gets no verdict and the gate
+does not yet back operator.artifact-checks for eks-build. Each check runs in
+its own process group. A timeout of the gate's budget kills the whole group,
+so no terraform or provider it started keeps running, and so does a SIGTERM
+or SIGINT to the gate (an interrupt, or the harness stopping the hook) or an
+error while a check runs. A SIGKILL to the gate cannot be caught: the check and
+what it started then keep running. A process that leaves the group (its own
+setsid) is not killed, and a tool that exits but leaves a child holding its
+output open waits out the budget, which is no verdict. The tool's output goes
+back to the agent between random-token tags (the shared tags block below), with one
 sentence saying it is the check's output, not instructions; the tags mark it,
 they do not filter it. On Codex the block reason arrives as a user prompt, so
 text from the checked files reaches the agent as the user's own words; the
@@ -103,8 +120,8 @@ Results (every exit 0 prints one JSON object or nothing, as Codex requires):
   turn ends. Claude Code and Codex get {"systemMessage": ...}, a warning to the
   user; Kiro gets nothing on stdout and the warning on stderr, and Kiro's Agent
   Stop page documents no surface for stderr, so a Kiro user may see no warning
-  and no bad-switch line (not yet run on Kiro, as of 2026-11-19: that run waits
-  on a maintainer's eval-account sign-in and a one-time eval role step).
+  and no bad-switch line (not yet run on Kiro, as of 2026-11-19; that run uses
+  Kiro's own login and needs no eval account).
 - an event it cannot read, a hook_event_name other than Stop, or a working
   folder with no existing project root at or above it: no decision (exit 0, no
   output; one stderr line for the first two). An event with no
@@ -138,18 +155,19 @@ TOOLS = {"script_validate_output.py": "outputs", "operator_run_artifact_checks.p
 # This file's tree: <repo>/classes for the class copy, else an installed copy.
 BASE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 IN_CLASSES = os.path.basename(BASE) == "classes"
-# Installed copies: the clone the installer links every harness's skills from (cli.mjs INSTALL_DIR).
-_CLONE = os.path.expanduser(os.path.join("~", ".apex-skills", "skills"))
+# Installed copies: the clone the installer links Claude Code's and Kiro's skills from (cli.mjs INSTALL_DIR).
+_HOME = os.path.expanduser("~")  # an empty HOME gives "", no root, as cli.mjs refuses one
 SKILLS_ROOT = (os.path.join(os.path.dirname(BASE), "skills") if IN_CLASSES
-               else os.path.realpath(_CLONE) if os.path.isabs(_CLONE) else None)
-# This repo's own class tools: no copy runs them; the plugin copy drops a record that names one.
+               else os.path.realpath(os.path.join(_HOME, ".apex-skills", "skills")) if os.path.isabs(_HOME)
+               else None)
+# This repo's own class tools: no copy runs them; an installed copy drops a record that names one.
 REPO_NAMES = {"validate_output.py", "run_artifact_checks.py"}
 TOOL_NAMES = set(TOOLS) | REPO_NAMES
 STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 # Seconds for all runs: under Claude Code's and Codex's 600 s command-hook default.
 BUDGET = 570.0
-# Kiro (no --id): under the Kiro CLI's 30 s default, until the Kiro Stop entry sets timeout_ms.
+# Kiro (no --id): under the Kiro CLI's 30 s default, which its hook file documents no field to raise.
 KIRO_BUDGET = 25.0
 MAX_AGE = 24 * 3600
 MAX_DETAIL = 4000
@@ -288,7 +306,8 @@ def problem(rec):
     kind = tool_kind(rec)
     if kind is None or not os.path.isfile(rec["tool"]):
         return (f"the check tool {rec.get('tool')!r} is not one the gate runs "
-                f"(a scripts/ copy in a skill folder directly in {SKILLS_ROOT or '~/.apex-skills/skills'!r})")
+                + (f"(a scripts/ copy in a skill folder directly in {SKILLS_ROOT!r})" if SKILLS_ROOT
+                   else "(no skills root: HOME is empty or relative)"))
     files = rec.get("files")
     if not os.path.isabs(rec["skill_dir"]):
         return f"the skill folder {rec['skill_dir']!r} is not an absolute path"
@@ -307,7 +326,7 @@ def stale(rec):
     not counted as a fail. A present skill whose check fails still blocks."""
     tool, skill = rec.get("tool"), rec.get("skill_dir")
     if not IN_CLASSES and isinstance(tool, str) and os.path.basename(tool) in REPO_NAMES:
-        return f"its check tool {tool!r} is a classes/ tool, which the plugin's copy does not run"
+        return f"its check tool {tool!r} is a classes/ tool, which an installed copy does not run"
     if isinstance(skill, str) and os.path.isabs(skill) and not os.path.isfile(os.path.join(skill, "SKILL.md")):
         return f"its skill folder {skill!r} has no SKILL.md"
     if isinstance(tool, str) and os.path.isabs(tool) and os.path.basename(tool) in TOOL_NAMES \
@@ -316,7 +335,7 @@ def stale(rec):
     return None
 
 
-def run_check(rec, deadline, budget):
+def run_check(rec, deadline):
     """Return (verdict, detail): verdict 'pass', 'fail' or 'none' (no verdict)."""
     why = problem(rec)
     if why:
@@ -325,7 +344,7 @@ def run_check(rec, deadline, budget):
     env = dict(os.environ, APEX_STOP_GATE_RUN="1")
     left = deadline - time.monotonic()
     if left <= 0:
-        return "none", f"no time left in the gate's {budget:g} s"
+        return "none", "no time left in the gate's budget"
     cmd = [sys.executable, "-B", tool, "--skill-dir", rec["skill_dir"], "--", *rec["files"]]
     try:
         # Its own process group, so a timeout kills what the tool started too.
@@ -337,14 +356,14 @@ def run_check(rec, deadline, budget):
     try:
         out, err = p.communicate(timeout=left)
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(p.pid, signal.SIGKILL)
-        except (AttributeError, OSError):  # no process groups (Windows), or the group is gone
-            p.kill()
-        p.wait()  # not communicate: a process that left the group could hold the pipes open
-        p.stdout.close()
-        p.stderr.close()
-        return "none", f"the check did not finish within the gate's {budget:g} s"
+        return "none", "the check did not finish within the gate's budget"
+    finally:
+        if p.returncode is None:  # a timeout, or the gate stopped (SIGTERM, SIGINT, an error) mid-check
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                p.kill()
+            p.wait()  # not communicate: a process that left the group could hold the pipes open
     detail = (out + err).strip()
     if len(detail) > MAX_DETAIL:
         detail = detail[:MAX_DETAIL] + f"\n[cut at {MAX_DETAIL} characters]"
@@ -404,8 +423,7 @@ def gate(args, event):
     guard = guard_path(folder, work_dir)
     if not records:
         return 0
-    budget = KIRO_BUDGET if args.id is None else BUDGET
-    deadline = time.monotonic() + budget
+    deadline = time.monotonic() + (KIRO_BUDGET if args.id is None else BUDGET)
     failed, dropped = [], []
     for path, rec in records:
         why = stale(rec)
@@ -413,7 +431,7 @@ def gate(args, event):
             remove(path)
             dropped.append(why)
             continue
-        verdict, detail = run_check(rec, deadline, budget)
+        verdict, detail = run_check(rec, deadline)
         if verdict == "pass":
             remove(path)
         else:
@@ -450,7 +468,14 @@ def gate(args, event):
     return 0
 
 
+def stopped(signum, frame):
+    """SIGTERM or SIGINT: raise, so run_check's finally kills a running check's group before the gate exits."""
+    raise SystemExit(3)
+
+
 def main(argv):
+    signal.signal(signal.SIGTERM, stopped)
+    signal.signal(signal.SIGINT, stopped)
     parser = argparse.ArgumentParser(description="Re-run a skill's output and artifact checks before a turn ends (Stop).")
     parser.add_argument("--mode", choices=["block", "warn"], required=True)
     parser.add_argument("--id")

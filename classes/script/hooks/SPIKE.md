@@ -73,18 +73,24 @@ real path is the skill's own synced copy
 directly in the skills root. A gone tool with any other name, or a record with
 no tool, is not dropped: it is no verdict and blocks once. The gate never
 takes the skills root from the record or the event: it is the repo's `skills/`
-for the classes/ copy (from the gate's own location), and for every installed
+for the classes/ copy (from the gate's own location), and for an installed
 copy (the Claude Code plugin cache, Kiro's `.kiro/apex-hooks`) the real path of
-`~/.apex-skills/skills`, the clone the installer links each harness's
-`.claude/skills` and `.kiro/skills` entries to
+`~/.apex-skills/skills`, the clone the installer links Claude Code's and
+Kiro's `.claude/skills` and `.kiro/skills` entries to
 (misc/installer/bin/cli.mjs, `INSTALL_DIR` and `symlinkSkills`). So a record
 may name a skill by its link or by its real path, and a skill folder the
 agent makes in the project (a real folder in a project `.claude/skills` or
-`.kiro/skills` included) is never run; the agent can write the clone only
-when it works in `~/.apex-skills` itself. With no absolute home folder an
-installed copy runs no check. Neither copy runs this repo's
-`classes/script/scripts/validate_output.py` or
-`classes/operator/scripts/run_artifact_checks.py`: the plugin copy drops a
+`.kiro/skills` included) is never run. With no `~/.apex-skills` clone (a
+marketplace-only plugin install, and Codex, which the installer does not set
+up) every record is no verdict and blocks once. The root is not a boundary
+against an agent that can write the user's home folder (one with no sandbox,
+or one working in the home folder): it can make or relink `~/.apex-skills`
+and add a check the gate runs; the root keeps out a skill planted in the
+project. A `--project --kiro-hooks` install copies the gate itself into the
+project, where the agent can edit it. With an empty or relative HOME (which
+the installer refuses) an installed copy runs no check. Neither copy runs
+this repo's `classes/script/scripts/validate_output.py` or
+`classes/operator/scripts/run_artifact_checks.py`: an installed copy drops a
 record that names one, with one stderr line, as it drops a stale record, and
 the classes/ copy gives it no verdict. The gate runs a tool with its own
 interpreter and `-B` (the skill copies import their flat copy of
@@ -147,22 +153,33 @@ turn with no decision.
 - Every record left is run again at the next Stop, and all runs share one
   budget; the newest-per-key rule keeps a fix-and-revalidate loop to one run,
   but many distinct files can still run past it, and a run past it is no
-  verdict, which blocks once. The budget is 570 s on Claude Code and Codex,
-  under their 600 s command-hook default (code.claude.com/docs/en/hooks.md,
-  `timeout`; developers.openai.com/codex/hooks, `timeout`; both read
-  2026-11-19), and 25 s on Kiro (the command with no `--id`), under the Kiro
-  CLI's 30 s default (kiro.dev/docs/hooks/actions, CLI tab: "Default timeout
+  verdict, which blocks once. The budget is set by the `--id`: with one,
+  570 s (Claude Code and Codex, under their 600 s command-hook default:
+  code.claude.com/docs/en/hooks.md, `timeout`; developers.openai.com/codex/hooks,
+  `timeout`; both read 2026-11-19); with none, 25 s (Kiro, under the Kiro
+  CLI's 30 s default: kiro.dev/docs/hooks/actions, CLI tab, "Default timeout
   is 30 seconds (30,000ms). Configure with the `timeout_ms` field"; the IDE
-  tab says 60 s; read 2026-11-19). The Kiro Stop entry the class sync writes
-  sets no `timeout_ms` yet, so on Kiro a declared check set slower than 25 s
-  still gets no verdict. One validator run on an eks-recon output took about
-  2.5 s on the build host, and the gate with that one record about 2.5 s in
-  all (most of it the jsonschema import). An Operator artifact check that runs
+  tab says 60 s; read 2026-11-19). The output shape is set by the event
+  (no `stop_hook_active`: Kiro's), so a hand run with no `--id` and a Claude
+  Code event gets Claude Code's output and Kiro's budget. No Kiro Stop entry
+  exists yet. The documented `timeout_ms` is a field of a hook in a Kiro
+  agent config (kiro.dev/docs/hooks/management, CLI: "Modify the hook
+  definition in the agent configuration file"; read 2026-11-19), not of the
+  `.kiro/hooks` file the class sync writes, whose Kiro CLI 3.4.0 struct shows
+  no timeout field (read from the binary's strings, not run). So on Kiro a
+  check slower than 25 s gets no verdict, and the gate does not yet back
+  operator.artifact-checks for eks-build. One validator run on an eks-recon
+  output took about 2.5 s on the build host, and the gate with that one
+  record about 2.5 s in all (most of it the jsonschema import). An Operator artifact check that runs
   terraform or checkov can take longer (a one-resource project took about
-  18.6 s warm). Each check runs in its own process group (a new session), and
-  a timeout kills the whole group, so a terraform it started does not keep
-  the state lock for the retry; a process that leaves the group itself is not
-  killed.
+  18.6 s warm). Each check runs in its own process group (a new session). A
+  timeout of the gate's budget kills the whole group, so no terraform or
+  provider it started keeps running, and so does a SIGTERM or SIGINT to the
+  gate (an interrupt, or the harness stopping the hook) or an error while a
+  check runs. A SIGKILL to the gate cannot be caught: the check and what it
+  started then keep running. A process that leaves the group itself is not
+  killed, and a tool that exits but leaves a child holding its output open
+  waits out the budget, which is no verdict.
 - Skipped without a message, with exit 0: a record that is not valid JSON, is
   not a JSON object, cannot be read or is not a regular file; a record whose
   `time` is missing, not a number, not finite or later than now; and a state
@@ -171,7 +188,7 @@ turn with no decision.
   block in that folder.
 - A `stop_hook_active` that is not the boolean true (such as the string
   `"true"`) does not spend the guard, so the gate blocks again at that Stop.
-- The plugin copy drops a record by its tool's file name only: a tool named
+- An installed copy drops a record by its tool's file name only: a tool named
   `validate_output.py` or `run_artifact_checks.py` is dropped wherever it is.
 - The newest-per-key rule reads `files` in the order the record lists them, so
   the same files in another order are two keys.
@@ -183,8 +200,7 @@ turn with no decision.
   Stop with the switch on is the gate's own error (exit 3).
 - Kiro's Agent Stop page documents no surface for a hook's stderr, so a Kiro
   user may see no warning and no bad-switch line. Not yet run on Kiro, as of
-  2026-11-19: that run waits on a maintainer's eval-account sign-in and a
-  one-time eval role step.
+  2026-11-19; that run uses Kiro's own login and needs no eval account.
 - The hook-test runner's three run-record fixtures
   (`claude-code-g-block-record`, `claude-code-g-warn-record` and
   `claude-code-g-guard-spent-record`) give their record through

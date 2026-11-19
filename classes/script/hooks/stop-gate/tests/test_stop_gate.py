@@ -16,9 +16,11 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
+import uuid
 
 import pytest
 
@@ -192,10 +194,10 @@ def guards(w):
     return sorted(p.name for p in w.state.glob("guard-*")) if w.state.is_dir() else []
 
 
-def in_process(world, monkeypatch, capsys, event, mode="block"):
+def in_process(world, monkeypatch, capsys, event, mode="block", hook_id=None):
     """Run gate() in this process, with the scratch repo's skills root; return its JSON stdout (or None) and stderr."""
     monkeypatch.setattr(GATE, "SKILLS_ROOT", os.path.realpath(world.repo / "skills"))
-    assert GATE.gate(GATE.argparse.Namespace(mode=mode, id=None), event) == 0
+    assert GATE.gate(GATE.argparse.Namespace(mode=mode, id=hook_id), event) == 0
     out = capsys.readouterr()
     return (json.loads(out.out) if out.out else None), out.err
 
@@ -424,7 +426,7 @@ def test_the_plugin_copy_drops_a_classes_record(world, tmp_path):
     p = subprocess.run([sys.executable, str(gate), *BLOCK], input=json.dumps(cc_event(str(world.project))),
                        capture_output=True, text=True, env=e, timeout=60)
     assert (p.returncode, p.stdout) == (0, "")
-    assert "the plugin's copy does not run" in p.stderr and not path.exists()
+    assert "an installed copy does not run" in p.stderr and not path.exists()
 
 
 def installed(world, tmp_path, harness):
@@ -436,9 +438,10 @@ def installed(world, tmp_path, harness):
     if harness == "claude-code":
         hook_dir = home / ".claude" / "plugins" / "cache" / "apex-skills" / "apex" / "1.0.0" / "hooks" / "script" / "stop-gate"
         links, args, event = home / ".claude" / "skills", BLOCK, cc_event(str(world.project))
-    else:
-        hook_dir = world.project / ".kiro" / "apex-hooks" / "script" / "stop-gate"
-        links, args, event = world.project / ".kiro" / "skills", ["--mode", "block"], kiro_event(str(world.project))
+    else:  # kiro: a --project install; kiro-home: the global one under ~/.kiro (cli.mjs installKiroHooks)
+        base = world.project / ".kiro" if harness == "kiro" else home / ".kiro"
+        hook_dir = base / "apex-hooks" / "script" / "stop-gate"
+        links, args, event = base / "skills", ["--mode", "block"], kiro_event(str(world.project))
     hook_dir.mkdir(parents=True)
     shutil.copy(HOOK, hook_dir)
     links.mkdir(parents=True)
@@ -451,7 +454,7 @@ def installed(world, tmp_path, harness):
     return run, skill, links / "demo"
 
 
-@pytest.mark.parametrize("harness", ["claude-code", "kiro"])
+@pytest.mark.parametrize("harness", ["claude-code", "kiro", "kiro-home"])
 @pytest.mark.parametrize("by", ["link", "real path"])
 def test_an_installed_copy_runs_a_skill_from_the_clone(world, tmp_path, harness, by):
     # A: the skills root is the ~/.apex-skills/skills clone, reached by the harness's link or by its real path.
@@ -466,10 +469,9 @@ def test_an_installed_copy_runs_a_skill_from_the_clone(world, tmp_path, harness,
     assert seen.exists()
 
 
-@pytest.mark.parametrize("harness", ["claude-code", "kiro"])
-def test_an_installed_copy_never_runs_a_skill_planted_in_the_project(world, tmp_path, harness):
-    # M1 kept: a real skill folder the agent made in the project's skills folder is not run.
-    run, _, link = installed(world, tmp_path, harness)
+def test_an_installed_copy_never_runs_a_skill_planted_in_the_project(world, tmp_path):
+    # M1 kept: a real skill folder the agent made in the project's .claude/skills or .kiro/skills is not run.
+    run, _, link = installed(world, tmp_path, "kiro")
     marker = tmp_path / "ran"
     folders = [world.project / ".claude" / "skills" / "evil", link.parent / "evil"]
     for evil in folders:
@@ -485,6 +487,19 @@ def test_an_installed_copy_never_runs_a_skill_planted_in_the_project(world, tmp_
         path.unlink()
         for g in world.state.glob("guard-*"):
             g.unlink()
+
+
+def test_a_skill_planted_in_the_clone_itself_is_run(world, tmp_path):
+    # The limit the docstring states: an agent that can write the home folder can add a skill the gate runs.
+    run, skill, _ = installed(world, tmp_path, "claude-code")
+    marker = tmp_path / "ran"
+    evil = skill.parent / "evil"
+    (evil / "scripts").mkdir(parents=True)
+    (evil / "SKILL.md").write_text("---\nname: evil\ndescription: x\n---\n", encoding="utf-8")
+    (evil / "scripts" / "script_validate_output.py").write_text(f"open({str(marker)!r}, 'w').close()\n",
+                                                                 encoding="utf-8")
+    world.record("good.yaml", tool=str(evil / "scripts" / "script_validate_output.py"), skill_dir=str(evil))
+    assert run().returncode == 0 and marker.exists()
 
 
 def test_the_record_cannot_pick_the_interpreter_or_pythonpath(world, tmp_path):
@@ -618,35 +633,87 @@ def test_timeout_is_no_verdict(world, monkeypatch, capsys):
     assert out["decision"] == "block" and "did not finish" in out["reason"]
 
 
+def gone(pid, wait=3.0):
+    """True once pid is no longer a running process (a zombie counts as gone)."""
+    stop = time.monotonic() + wait
+    while time.monotonic() < stop:
+        try:
+            with open(f"/proc/{pid}/stat", encoding="utf-8") as f:
+                if f.read().rsplit(")", 1)[1].split()[0] == "Z":
+                    return True
+        except (FileNotFoundError, ProcessLookupError):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def check_with_a_child(world, pids):
+    """A check tool that starts a child, writes '<its pid> <child pid>' to pids once both run, then sleeps."""
+    return world.skill_tool("script_validate_output.py",
+                            "import os, subprocess, sys, time\n"
+                            "c = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
+                            f"open({str(pids)!r} + '.tmp', 'w').write(f'{{os.getpid()}} {{c.pid}}')\n"
+                            f"os.replace({str(pids)!r} + '.tmp', {str(pids)!r})\n"
+                            "time.sleep(120)\n")
+
+
+def kill_all(pids):
+    for pid in (int(x) for x in pids.read_text().split()) if pids.exists() else ():
+        try:
+            os.kill(pid, 9)
+        except ProcessLookupError:
+            pass
+
+
 def test_a_timeout_kills_what_the_check_started(world, monkeypatch, capsys, tmp_path):
     # F: the check's whole process group goes, so no child it started is left running.
-    token = f"apex-gate-child-{tmp_path.name}"
-    slow = world.skill_tool("script_validate_output.py",
-                            "import subprocess, sys, time\n"
-                            f"subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)', {token!r}])\n"
-                            "time.sleep(30)\n")
-    world.record("good.yaml", tool=str(slow))
-    monkeypatch.setattr(GATE, "KIRO_BUDGET", 2.0)
+    pids = tmp_path / f"pids-{uuid.uuid4().hex}"
+    world.record("good.yaml", tool=str(check_with_a_child(world, pids)))
+    monkeypatch.setattr(GATE, "BUDGET", 3.0)
+    monkeypatch.setattr(GATE, "KIRO_BUDGET", 3.0, raising=False)  # raising=False: fb950593 has only BUDGET
     try:
         out, _ = in_process(world, monkeypatch, capsys, cc_event(str(world.project)))
         assert out["decision"] == "block" and "did not finish" in out["reason"]
-        for _ in range(30):
-            left = subprocess.run(["pgrep", "-f", token], capture_output=True, text=True).stdout.split()
-            if not left:
-                break
-            time.sleep(0.1)
-        assert not left, f"the check's child is still running: {left}"
+        assert pids.exists(), "the check's child never started"
+        child = int(pids.read_text().split()[1])
+        assert gone(child), f"the check's child {child} is still running"
     finally:
-        subprocess.run(["pkill", "-f", token])
+        kill_all(pids)
 
 
-def test_a_check_slower_than_25_s_gets_a_verdict_on_claude_code(world):
-    # E: Claude Code's budget sits under its 600 s command-hook default, not Kiro's 25 s.
-    slow = world.skill_tool("script_validate_output.py", "import time\ntime.sleep(26)\n")
-    world.record("good.yaml", tool=str(slow))
-    p = world.raw(BLOCK, cc_event(str(world.project)), ON)
-    assert (p.returncode, p.stdout) == (0, "")
+def test_stopping_the_gate_kills_the_running_check(world, tmp_path):
+    # F-1: a SIGTERM to the gate while a check runs leaves no check process (a SIGKILL cannot be caught).
+    pids = tmp_path / f"pids-{uuid.uuid4().hex}"
+    world.record("good.yaml", tool=str(check_with_a_child(world, pids)))
+    e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON)
+    gate = subprocess.Popen([sys.executable, str(world.hook_dir / "stop_gate.py"), *BLOCK], stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=e)
+    try:
+        gate.stdin.write(json.dumps(cc_event(str(world.project))))
+        gate.stdin.close()
+        stop = time.monotonic() + 30
+        while not pids.exists() and time.monotonic() < stop:
+            time.sleep(0.05)
+        assert pids.exists(), "the check never started"
+        gate.send_signal(signal.SIGTERM)
+        gate.wait(timeout=30)
+        left = [pid for pid in (int(x) for x in pids.read_text().split()) if not gone(pid)]
+        assert not left, f"still running after the gate stopped: {left}"
+    finally:
+        gate.kill()
+        gate.wait()
+        kill_all(pids)
+
+
+def test_a_check_slower_than_the_kiro_budget_gets_a_verdict_with_an_id(world, monkeypatch, capsys):
+    # E: with an --id (Claude Code, Codex) the budget is BUDGET, not Kiro's.
     assert GATE.KIRO_BUDGET < 30 <= GATE.BUDGET < 600
+    slow = world.skill_tool("script_validate_output.py", "import time\ntime.sleep(2)\n")
+    world.record("good.yaml", tool=str(slow))
+    monkeypatch.setattr(GATE, "KIRO_BUDGET", 1.0)
+    monkeypatch.setattr(GATE, "BUDGET", 3.0)
+    out, _ = in_process(world, monkeypatch, capsys, cc_event(str(world.project)), hook_id=GATE.HOOK_ID)
+    assert out is None and records(world) == []
 
 
 def test_no_time_left_is_no_verdict(world, monkeypatch, capsys):
