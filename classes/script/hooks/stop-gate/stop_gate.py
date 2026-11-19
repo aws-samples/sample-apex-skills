@@ -20,9 +20,8 @@ Usage: stop_gate.py --mode block|warn [--id operator.stop-gate]
        (one Stop event as JSON on stdin)
 
 Which skill ran (the hook input names no skill): the class check tools are to
-write a run record each time a check starts on files (P-311's validators; the
-patch is in P-318's carry, and until it lands no record exists and the gate
-decides nothing). A record is one JSON file run-*.json in the state folder
+write a run record each time a check starts on files (until they do, no record
+exists and the gate decides nothing). A record is one JSON file run-*.json in the state folder
 <root>/.apex-stop-gate, root the nearest folder at or above the event's cwd
 (else the gate's own) that holds .git, else that folder itself; the writer
 takes the same walk from its own working folder and writes only into a folder
@@ -31,23 +30,23 @@ runs with the switch on, and reads it only when it is a real folder this user
 owns and only this user can write. A record:
     {"tool": <tool path>, "skill_dir": <skill folder>, "files": [<checked paths>],
      "cwd": <folder it ran in>, "time": <epoch seconds>}
-all paths absolute. The gate deletes records older than 24 hours, keeps the
-newest per (tool, skill_dir, files) and deletes the rest, drops (with one
-stderr line) any whose skill folder has no SKILL.md or whose tool is gone,
-since no run of those could give a verdict, and runs each other record's tool
-again: <its own python> <tool> --skill-dir <skill_dir> -- <files>, from the
-record's cwd, with APEX_STOP_GATE_RUN=1 set so that run writes no record of its
-own. It runs a tool only when the tool's real path is a member skill's synced
-copy, <skill_dir>/scripts/script_validate_output.py or
-<skill_dir>/scripts/operator_run_artifact_checks.py, or this repo's own
-classes/script/scripts/validate_output.py or
-classes/operator/scripts/run_artifact_checks.py beside this file (for those two
-it sets PYTHONPATH to classes/apex-base/scripts). The record, like the output,
-is within the agent's reach, and it can name a made-up skill folder, so the
-gate stops an honest agent skipping a failed check, not a hostile one.
-APEX_STOP_GATE_RECORDS, a JSON list of records whose paths are relative to the
-gate's working folder, adds records for fixture runs (it comes from the hook's
-environment, which the agent does not set); those are never deleted.
+all paths absolute (SPIKE.md beside this folder says which records the gate
+keeps, drops and runs). It runs a record's tool again, <its own python> <tool>
+--skill-dir <skill_dir> -- <files>, from the record's cwd, with
+APEX_STOP_GATE_RUN=1 set so that run writes no record of its own, and only when
+the tool's real path is <skill_dir>/scripts/script_validate_output.py or
+<skill_dir>/scripts/operator_run_artifact_checks.py and the skill folder's real
+path is a folder directly in the skills root, taken from this file's own
+location, never from the record or the event: <plugin>/skills for the plugin's
+copy of this file, <repo>/skills for the classes/ copy. The classes/ copy also
+runs this repo's classes/script/scripts/validate_output.py and
+classes/operator/scripts/run_artifact_checks.py (with PYTHONPATH set to
+classes/apex-base/scripts); the plugin's copy never runs those two and drops a
+record that names one, with one stderr line, as it drops a stale record. A
+record can still name any skill in the skills root and any files, and the
+classes/ copy's skills root is in the checkout, which the agent can write; the
+plugin's is wherever the plugin is installed. So the gate stops an honest agent
+skipping a failed check, not a hostile one.
 
 Exit 0 is a pass, 1 a fail; any other exit, a timeout (all runs share 25 s,
 under the lower of Kiro's two documented defaults: 60 s for a hook file's
@@ -108,15 +107,23 @@ import subprocess
 import sys
 import time
 
-HOOK_ID = "operator.stop-gate"  # the hook's --id; no rule of this id is in classes/ yet
+# The hook's --id. operator, not script: the planned Stop entry goes in
+# classes/operator/class.yaml; which class holds it is not settled yet, and no
+# rule of this id is in classes/ yet.
+HOOK_ID = "operator.stop-gate"
 # A member skill's synced copies of the class check tools, by file name.
 TOOLS = {"script_validate_output.py": "outputs", "operator_run_artifact_checks.py": "artifact-checks"}
-# This repo's own class copies, beside this file's class copy.
-CLASSES = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
-REPO_TOOLS = {os.path.join(CLASSES, "script", "scripts", "validate_output.py"): "outputs",
-              os.path.join(CLASSES, "operator", "scripts", "run_artifact_checks.py"): "artifact-checks"}
-REPO_PYTHONPATH = os.path.join(CLASSES, "apex-base", "scripts")
-TOOL_NAMES = set(TOOLS) | {os.path.basename(p) for p in REPO_TOOLS}
+# This file's tree: <repo>/classes for the class copy, <plugin> for the plugin copy.
+BASE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+IN_CLASSES = os.path.basename(BASE) == "classes"
+SKILLS_ROOT = os.path.join(os.path.dirname(BASE) if IN_CLASSES else BASE, "skills")
+# This repo's own class tools, run by the class copy only.
+REPO_NAMES = {"validate_output.py", "run_artifact_checks.py"}
+REPO_TOOLS = {os.path.join(BASE, "script", "scripts", "validate_output.py"): "outputs",
+              os.path.join(BASE, "operator", "scripts", "run_artifact_checks.py"): "artifact-checks"} \
+    if IN_CLASSES else {}
+REPO_PYTHONPATH = os.path.join(BASE, "apex-base", "scripts")
+TOOL_NAMES = set(TOOLS) | REPO_NAMES
 STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 BUDGET = 25.0
@@ -246,8 +253,8 @@ def tool_kind(rec):
     real = os.path.realpath(tool)
     if real in REPO_TOOLS:
         return REPO_TOOLS[real]
-    name = os.path.basename(real)
-    if name in TOOLS and real == os.path.join(os.path.realpath(skill), "scripts", name):
+    name, skill = os.path.basename(real), os.path.realpath(skill)
+    if name in TOOLS and os.path.dirname(skill) == SKILLS_ROOT and real == os.path.join(skill, "scripts", name):
         return TOOLS[name]
     return None
 
@@ -257,7 +264,7 @@ def problem(rec):
     kind = tool_kind(rec)
     if kind is None or not os.path.isfile(rec["tool"]):
         return (f"the check tool {rec.get('tool')!r} is not one the gate runs "
-                "(a skill's scripts/ copy, or this repo's classes/ copy)")
+                f"(a scripts/ copy in a skill folder directly in {SKILLS_ROOT!r})")
     files = rec.get("files")
     if not os.path.isabs(rec["skill_dir"]):
         return f"the skill folder {rec['skill_dir']!r} is not an absolute path"
@@ -275,6 +282,8 @@ def stale(rec):
     to find its schema or checks, and a gone tool cannot run. So it is dropped,
     not counted as a fail. A present skill whose check fails still blocks."""
     tool, skill = rec.get("tool"), rec.get("skill_dir")
+    if not IN_CLASSES and isinstance(tool, str) and os.path.basename(tool) in REPO_NAMES:
+        return f"its check tool {tool!r} is a classes/ tool, which the plugin's copy does not run"
     if isinstance(skill, str) and os.path.isabs(skill) and not os.path.isfile(os.path.join(skill, "SKILL.md")):
         return f"its skill folder {skill!r} has no SKILL.md"
     if isinstance(tool, str) and os.path.isabs(tool) and os.path.basename(tool) in TOOL_NAMES \

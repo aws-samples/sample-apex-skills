@@ -6,8 +6,8 @@
 """script random-token tags (piece 4): mark a script's output with tags no output can forge.
 
 A stdin filter tool, not a hook: nothing registers or runs it yet, and the rule
-it is meant to back, script.token-tags, is not in classes/script/rules.md yet
-(its bullet is in P-318's carry, for P-321's rules.md change). Taken from the
+it is meant to back, script.token-tags, is not in classes/script/rules.md yet.
+Taken from the
 four google/skills cloud-trace-querying scripts (secrets.token_hex(8) per run,
 a tag line before the output and one after it, and a flag to leave the tags
 off). The tags mark the output; they do not filter it. TOKEN is 16 random hex

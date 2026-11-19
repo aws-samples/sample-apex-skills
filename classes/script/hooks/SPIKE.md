@@ -66,16 +66,21 @@ The gate deletes records older than 24 hours, keeps the newest per (tool,
 skill_dir, files), drops any whose skill folder has no SKILL.md or whose tool
 is gone, and runs a tool only when its real path is the skill's own synced copy
 (`<skill_dir>/scripts/script_validate_output.py` or
-`operator_run_artifact_checks.py`) or this repo's
-`classes/script/scripts/validate_output.py` or
-`classes/operator/scripts/run_artifact_checks.py`. It runs it with its own
-interpreter (for the repo's two it sets `PYTHONPATH` to
-`classes/apex-base/scripts`; the skill copies import their flat copy), so the
-plugin's copy of stop_gate.py is one file and imports nothing outside the
-standard library, and a record cannot choose the interpreter or the import
-path. The record, like the output, is within the agent's reach and can name a
-made-up skill folder, so the gate stops an honest agent skipping a failed
-check, not a hostile one. The gate sets `APEX_STOP_GATE_RUN=1` for its re-run,
+`operator_run_artifact_checks.py`) and the skill folder's real path is a folder
+directly in the skills root. The gate takes that root from its own file's
+location, never from the record or the event: `<plugin>/skills` for the
+plugin's copy, the repo's `skills/` for the classes/ copy. The classes/ copy
+also runs this repo's `classes/script/scripts/validate_output.py` and
+`classes/operator/scripts/run_artifact_checks.py`; the plugin's copy never runs
+those two, and drops a record that names one, with one stderr line, as it drops
+a stale record. It runs a tool with its own interpreter (for the repo's two it
+sets `PYTHONPATH` to `classes/apex-base/scripts`; the skill copies import their
+flat copy), so the plugin's copy of stop_gate.py is one file and imports
+nothing outside the standard library, and a record cannot choose the
+interpreter or the import path. The record, like the output, is within the
+agent's reach and can name any skill in the skills root and any files, and the
+classes/ copy's skills root is in the checkout, which the agent can write, so
+the gate stops an honest agent skipping a failed check, not a hostile one. The gate sets `APEX_STOP_GATE_RUN=1` for its re-run,
 and a tool that sees it writes no record, so the gate's own run does not leave
 a new one.
 
@@ -88,10 +93,8 @@ next turn starts clean.
 The two class tools, classes/script/scripts/validate_output.py (with
 classes/apex-base/scripts/schema_check.py) and
 classes/operator/scripts/run_artifact_checks.py, are to write a record each
-time a check starts on files, unless `APEX_STOP_GATE_RUN` is set: P-318's
-validator part, built by team C on P-311's files
-(carry/step3-p318-build-prep-20261116/, the validators patch and the record
-contract delta). Until they write it, the gate finds no record and ends every
+time a check starts on files, unless `APEX_STOP_GATE_RUN` is set, in a
+separate change to those tools. Until they write it, the gate finds no record and ends every
 turn with no decision.
 
 ## Limits found
@@ -134,9 +137,13 @@ turn with no decision.
   user may see no warning and no bad-switch line. Not run on Kiro, as of
   2026-11-19: no model runs on the build host until DECISION R-20261116-B-39
   is answered.
-- The hook-test runner's three run-record fixtures (`claude-code-g-block-record`,
-  `kiro-g-a-block`, `kiro-g-b-pass`) give their record through
-  `APEX_STOP_GATE_RECORDS`; they run from the repo root, so `kiro-g-a-block`
-  leaves a guard in the repo's `.apex-stop-gate` that `kiro-g-b-pass` then
-  removes. Their record names an output file that does not exist, so the check
-  gives no verdict whether or not jsonschema is installed.
+- The hook-test runner's run-record fixture (`claude-code-g-block-record`)
+  gives its record through `APEX_STOP_GATE_RECORDS`. The runner runs every
+  fixture from the repo root, so each fixture with the switch on makes the
+  state folder `.apex-stop-gate` in the checkout and checks any record left
+  there. The fixture's record names an output file that does not exist, so the
+  check gives no verdict whether or not jsonschema is installed.
+- The plugin's copy, plugins/apex/hooks/script/stop-gate/stop_gate.py, carries
+  the class sync's header line, but the sync checks it only once a class.yaml
+  hooks entry names the gate; until then a test checks that it is the class
+  copy plus that line.

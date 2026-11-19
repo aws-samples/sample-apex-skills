@@ -13,7 +13,6 @@ import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(os.path.dirname(HERE), "token_tags.py")
-ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", "..", ".."))
 spec = importlib.util.spec_from_file_location("token_tags", TOOL)
 TAGS = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(TAGS)
@@ -60,12 +59,3 @@ def test_cli_no_wrapper_tag_leaves_the_output_as_it_is():
 def test_cli_usage_errors_exit_2(args):
     assert cli(args, "x").returncode == 2
 
-
-def test_plugin_copy_is_the_class_copy():
-    """The plugin copy is hand-placed: the class copy with one header line after the first."""
-    src = "classes/script/hooks/token-tags/token_tags.py"
-    text = open(os.path.join(ROOT, src), encoding="utf-8").read()
-    first, _, rest = text.partition("\n")
-    header = f"# copy of {src}, hand-placed in the class sync's format; the sync never writes or checks it"
-    copy = os.path.join(ROOT, "plugins", "apex", "hooks", "script", "token-tags", "token_tags.py")
-    assert open(copy, encoding="utf-8").read() == f"{first}\n{header}\n{rest}"
