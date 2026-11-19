@@ -10,7 +10,7 @@ Candidates C1 to C3: README.md. C1's extension is sized, not built, in this tria
 
 ## Grid
 
-Every C1, C2 and C3 cell not filled below waits on a subject credential limited to the model calls and one proven end-to-end run. The remaining cells read "pending".
+Every C1, C2 and C3 cell not filled below waits on the eval role in the separate eval account, which does not exist yet, and one proven end-to-end run. The remaining cells read "pending".
 
 | Row | Measured | Cell values | How it is filled | C1 | C2 | C3 |
 |---|---|---|---|---|---|---|
@@ -22,7 +22,7 @@ Every C1, C2 and C3 cell not filled below waits on a subject credential limited 
 | S6 | tokens and wall time recorded per case | yes (field name) / no | the field in the runner's output that holds each | yes (`token_usage` misc/evals/scripts/run_task_evals.py:972, `duration_ms` :302) | pending | pending |
 | S7 | a nonzero exit on a failed case, usable as a CI gate | yes (flag) / no | run a case set where one case fails, read the exit code | no as shipped (exit 1 only on a suite error, not a failed case, misc/evals/scripts/run_task_evals.py:1080), to be confirmed at run | yes (`--threshold`, exit 1 below threshold), to be confirmed at run | pending |
 | S8 | what leaves the host (reports, traces, published pages) | list | read the runner's output and network targets during T1 and T7 | pending | pending | pending |
-| S9 | setup needed before the first run (accounts, services, mocks) | list | everything done before S1's first run | the read-only kubeconfig for T7 (cases.md, T7); Kiro CLI and Codex CLI installed and signed in for the hand-driven T1 runs; a subject credential limited to the model calls (cases.md, Credentials and permissions) | a plugin wrapper per skill outside the repo and a `case.yaml` per case (C2 cases, below); the read-only kubeconfig for T7; the same subject credential as C1 | the on-demand Evaluate API in us-west-2; a converter from C1's events.jsonl to OpenInference spans (results.md, Spans for C3); a subject runner, C1 or C2 |
+| S9 | setup needed before the first run (accounts, services, mocks) | list | everything done before S1's first run | the read-only kubeconfig for T7 (cases.md, T7); Kiro CLI and Codex CLI installed and signed in for the hand-driven T1 runs; the eval role `apex-eval-bedrock-invoke` in the eval account and `~/.apex-eval/aws-config` and `expected-account` (cases.md, Credentials and permissions; misc/evals/README.md, Eval-role setup) | a plugin wrapper per skill outside the repo and a `case.yaml` per case (C2 cases, below); the read-only kubeconfig for T7; the same eval-role session as C1, in the environment of the `claude plugin eval` call | the on-demand Evaluate API in us-west-2; a converter from C1's events.jsonl to OpenInference spans (results.md, Spans for C3); a subject runner, C1 or C2 |
 | S10 | the trial's own cost, estimated before it is spent | (runs plus judge calls) x a per-run figure | cost-estimate.md | $26.21 to $58.80 (claude harness), plus Kiro $0.30 to $1.20 and Codex $1.80 to $9.12 | $11.01 to $25.58 | $3.80 to $46.43 |
 
 S10 is the trial's own cost only. The eval gate's cost per pull request is worked out in results.md from S2, S6 and S10.

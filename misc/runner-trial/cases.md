@@ -61,15 +61,15 @@ Only T4's pass condition rests on an EKS fact (below); the others use fixture da
 
 ## Credentials and permissions per case
 
-The runner links the host ~/.aws into every sandbox HOME (misc/evals/scripts/run_triggering.py:92-94 and :112-114) and passes the parent environment through, `AWS_PROFILE` included (`build_subprocess_env`, :126). The subject runs with `--permission-mode bypassPermissions` (misc/evals/scripts/run_task_evals.py:480), so a Bash call in any case can use whatever AWS credentials the host holds. A case is safe to run only when those credentials allow nothing beyond what the case needs (below).
+Cites in this section are at main 528dde41. The runner gives the subject and the grader an empty HOME, with no link to the host's ~/.aws, and drops every AWS_* variable of the parent (misc/evals/scripts/run_triggering.py:92 `stage_skill_sandbox`, :117 `stage_empty_sandbox`, :132 `build_subprocess_env`). The only AWS credentials they get are a session of role `apex-eval-bedrock-invoke` in a separate eval account. Before the first run the runner assumes that role through profile `apex-eval-admin` of `~/.apex-eval/aws-config` and checks the session with `sts get-caller-identity` against `~/.apex-eval/expected-account`; it refuses to start, with no fallback, when any of that is missing or wrong (run_triggering.py:270 `mint_eval_role_credentials`; misc/evals/README.md:218, Eval-role setup). The C1 driver makes the same check before its first paid run. The subject runs with `--permission-mode bypassPermissions` (misc/evals/scripts/run_task_evals.py:498 and :517) as your OS user, so it can still read your files by path; misc/evals/README.md:220 names another OS user or a container as the hard fence.
 
-| Case | What the case needs from AWS | What the subject can reach | Safe to run |
-|---|---|---|---|
-| T1, T2, T3, T4, T6 | Model calls on Bedrock only; the prompts are offline (T1 and T4 say not to run aws or kubectl) | Whatever the host's AWS credentials allow | Only with credentials limited to that need |
-| T5 | Model calls on Bedrock only | Whatever the host's AWS credentials allow | Only with credentials limited to that need |
-| T7 | Model calls on Bedrock, plus read-only cluster and EKS API reads through the read-only kubeconfig | Whatever the host's AWS credentials allow (and the read-only kubeconfig, whose role those credentials may reach) | Only with credentials limited to that need |
+The eval role does not exist yet, so no case can run until it is created in the eval account.
 
-No read-only path the runner already has removes the host's credentials from the subject's reach. The runner's one scoped mode, `--aws-session-policy` (run_task_evals.py:1034-1047), mints a federation token per run, and it still leaves the ~/.aws link and `AWS_PROFILE` in place, where `--profile` in a Bash call outranks the session's environment variables. So every case, T1 to T7, is "not shown safe to run as written" until the subject and the grader get a HOME with no ~/.aws link and an environment holding only credentials limited to the model calls (and, for T7, the cluster reads). That runner change is sized in results.md (Clean credentials per run); the credential itself is for the maintainers to provide.
+| Case | What the case needs from AWS | What the subject gets |
+|---|---|---|
+| T1, T2, T3, T4, T6 | Model calls on Bedrock only; the prompts are offline (T1 and T4 say not to run aws or kubectl) | The eval-role session |
+| T5 | Model calls on Bedrock only | The eval-role session |
+| T7 | Model calls on Bedrock, plus read-only cluster and EKS API reads | The eval-role session, whose AWS reads for live evals are the read set in misc/evals/setup/readonly-session-policy.json (misc/evals/README.md:224), and the existing read-only kubeconfig (T7, above) |
 
 ## Run count
 

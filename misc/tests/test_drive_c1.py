@@ -60,7 +60,12 @@ def fake_runner(calls):
     return SimpleNamespace(run_subject=run_subject, run_grader=run_grader, validate_run=validate_run,
                            evaluate_knowledge=evaluate_knowledge, run_single_query=run_single_query,
                            read_skill_meta=lambda d: (Path(d).name, "desc"), subject_timeout=lambda s: 600,
-                           default_model=lambda: "test-model")
+                           default_model=lambda: "test-model", EvalCredentialError=EvalCredentialError,
+                           start_eval_session=lambda timeout, source: calls.append(("session", timeout)))
+
+
+class EvalCredentialError(RuntimeError):
+    """Stands in for run_triggering.EvalCredentialError."""
 
 
 @contextlib.contextmanager
@@ -107,13 +112,11 @@ class PaidRefusal(unittest.TestCase):
         calls = []
         with tempfile.TemporaryDirectory() as d:
             for argv, want in (
-                (["--paid", "--out", d], "needs --spend-limit-usd, --credential-note"),
-                (["--paid", "--out", d, "--spend-limit-usd", "50"], "needs --credential-note"),
-                (["--paid", "--spend-limit-usd", "50", "--credential-note", "c"], "needs --out"),
-                (["--paid", "--out", d, "--spend-limit-usd", "0", "--credential-note", "c"], "above 0"),
-                (["--paid", "--out", d, "--spend-limit-usd", "nan", "--credential-note", "c"], "finite"),
-                (["--paid", "--out", d, "--spend-limit-usd", "inf", "--credential-note", "c"], "finite"),
-                (["--paid", "--out", d, "--spend-limit-usd", "50", "--credential-note", "  "], "needs --credential-note"),
+                (["--paid", "--out", d], "needs --spend-limit-usd"),
+                (["--paid", "--spend-limit-usd", "50"], "needs --out"),
+                (["--paid", "--out", d, "--spend-limit-usd", "0"], "above 0"),
+                (["--paid", "--out", d, "--spend-limit-usd", "nan"], "finite"),
+                (["--paid", "--out", d, "--spend-limit-usd", "inf"], "finite"),
             ):
                 rc, _, err = run_main(argv, runner=fake_runner(calls))
                 self.assertEqual(rc, 2, argv)
@@ -121,11 +124,25 @@ class PaidRefusal(unittest.TestCase):
             self.assertEqual(list(Path(d).iterdir()), [])
         self.assertEqual(calls, [])
 
-    def test_help_says_not_on_this_host(self):
+    def test_help_names_the_eval_role_session(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
             drive_c1.main(["--help"])
-        self.assertIn("Do not run --paid on the trial host", " ".join(out.getvalue().split()))
+        self.assertIn("--paid needs the eval-role session", " ".join(out.getvalue().split()))
+
+    def test_refused_eval_role_session_runs_nothing(self):
+        calls = []
+        runner = fake_runner(calls)
+
+        def refuse(timeout, source):
+            raise EvalCredentialError("no eval role")
+        runner.start_eval_session = refuse
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, err = run_main(["--paid", "--out", d, "--spend-limit-usd", "50", "--case", "T4"], runner=runner)
+            self.assertEqual(list(Path(d).iterdir()), [])
+        self.assertEqual(rc, 2)
+        self.assertIn("eval-role session refused", err)
+        self.assertEqual(calls, [])
 
 
 class OutputShape(unittest.TestCase):
@@ -134,7 +151,7 @@ class OutputShape(unittest.TestCase):
     def test_runs_and_summary(self):
         calls = []
         with tempfile.TemporaryDirectory() as d:
-            argv = ["--paid", "--out", d, "--spend-limit-usd", "100", "--credential-note", "model-only test credential"]
+            argv = ["--paid", "--out", d, "--spend-limit-usd", "100"]
             for c in ("T1", "T3", "T5", "T6", "T7"):
                 argv += ["--case", c]
             rc, _, _ = run_main(argv, runner=fake_runner(calls))
@@ -153,7 +170,8 @@ class OutputShape(unittest.TestCase):
         self.assertTrue(all(r["status"] == "cannot run" for r in recs if r["case"] == "T7"))
         self.assertEqual(summary["cases"]["T1"]["old_skill"], {"pass": 3, "ran": 3, "runs": 3, "statuses": ["ran"] * 3})
         self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)
-        self.assertEqual(summary["credential_note"], "model-only test credential")
+        self.assertEqual(calls[0], ("session", 600), "one eval-role session, minted first, for the longest timeout")
+        self.assertEqual(sum(1 for name, _ in calls if name == "session"), 1)
         self.assertNotIn("grader_cost_usd", summary)
         graded = [kw["expectations"] for name, kw in calls if name == "run_grader"]
         self.assertTrue(all(len(e) == 1 and "verdict exposed for both" in e[0] for e in graded))
@@ -163,7 +181,7 @@ class OutputShape(unittest.TestCase):
     def test_spend_limit_stops_the_next_run(self):
         calls = []
         with tempfile.TemporaryDirectory() as d:
-            rc, _, _ = run_main(["--paid", "--out", d, "--spend-limit-usd", "0.5", "--credential-note", "c",
+            rc, _, _ = run_main(["--paid", "--out", d, "--spend-limit-usd", "0.5",
                                  "--case", "T4"], runner=fake_runner(calls))
             recs = [json.loads(l) for l in (Path(d) / "runs.jsonl").read_text().splitlines()]
         self.assertEqual(rc, 0)
@@ -172,7 +190,7 @@ class OutputShape(unittest.TestCase):
 
 
 def paid(d, cases, runner, *extra):
-    argv = ["--paid", "--out", d, "--spend-limit-usd", "100", "--credential-note", "c", *extra]
+    argv = ["--paid", "--out", d, "--spend-limit-usd", "100", *extra]
     for c in cases:
         argv += ["--case", c]
     rc, _, err = run_main(argv, runner=runner)

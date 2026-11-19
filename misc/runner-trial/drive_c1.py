@@ -5,23 +5,27 @@ misc/evals/scripts/ on the claude harness, one case and one arm at a time.
 It calls the runner's own functions (run_task_evals.run_subject,
 run_task_evals.run_grader, run_task_evals._resolve_makefile_default,
 artifact_validation.validate_run, run_triggering.run_single_query,
-run_triggering.read_skill_meta, knowledge_assertions.evaluate,
+run_triggering.read_skill_meta, run_triggering.mint_eval_role_credentials,
+run_triggering.set_eval_credentials, knowledge_assertions.evaluate,
 skilleval_config.load_config, elicitation.ElicitationConfig.from_dict) for the
 seven cases in cases.md. Each case is scored on its single pass condition
 (cases.md); the source suites' other expectations are not.
 
 Default: a dry run that prints the planned runs and makes no model call.
---paid starts the runs. It refuses to start without --out (empty or new),
---spend-limit-usd (finite, above 0) and --credential-note (recorded, not
-enforced), and stops before the next run once the subjects' recorded cost
-reaches the limit. The stop counts only the subjects' recorded cost: grader
+--paid starts the runs. It refuses to start without --out (empty or new)
+and --spend-limit-usd (finite, above 0), or when the eval-role session the
+runner mints (run_triggering.mint_eval_role_credentials) is refused, and
+stops before the next run once the subjects' recorded cost reaches the limit. The stop counts only the subjects' recorded cost: grader
 calls, T6 query runs and a run that times out or crashes before its first
 result event add nothing; on Claude Code older than 2.1.277, or after an
 earlier turn that exited abnormally, T5's earlier turns add nothing; and the
 run that crosses the limit completes. The limit is per invocation.
 
-Do not run --paid on the trial host: every subject can reach the host's AWS
-credentials (cases.md, Credentials and permissions).
+Paid runs use a separate eval account through the eval role
+apex-eval-bedrock-invoke (misc/evals/README.md, Eval-role setup). That role
+does not exist yet, so --paid cannot run until it is created. The subject
+still runs as your OS user and can read your files by path (cases.md,
+Credentials and permissions).
 
 Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
@@ -110,6 +114,9 @@ def load_runner() -> SimpleNamespace:
         evaluate_knowledge=knowledge_assertions.evaluate,
         run_single_query=run_triggering.run_single_query,
         read_skill_meta=run_triggering.read_skill_meta,
+        start_eval_session=lambda timeout, source: run_triggering.set_eval_credentials(
+            run_triggering.mint_eval_role_credentials(timeout=timeout, source=source)),
+        EvalCredentialError=run_triggering.EvalCredentialError,
         subject_timeout=lambda skill: skilleval_config.load_config(skill).timeout,
         default_model=lambda: (run_task_evals._resolve_makefile_default("MODEL")
                                or "global.anthropic.claude-opus-4-6-v1"),  # run_task_evals.py:1025
@@ -339,7 +346,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
 
 
 def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit: float,
-            credential_note: str, kubeconfig: str | None) -> dict:
+            kubeconfig: str | None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in cases}
     specs = check_specs(cases)
@@ -359,7 +366,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
             log.flush()
             print(f"[c1] {rec['case']} {rec['arm']} run-{rec['run']}: {rec['status']} pass={rec['pass']} "
                   f"subject spend ${spent:.2f} of ${spend_limit}", file=sys.stderr)
-    summary = {"model": model, "pin": PIN, "old": OLD, "credential_note": credential_note,
+    summary = {"model": model, "pin": PIN, "old": OLD,
                "spend_limit_usd": spend_limit, "subject_cost_usd": round(spent, 4), "cases": {}}
     for rec in records:
         cell = summary["cases"].setdefault(rec["case"], {}).setdefault(
@@ -385,15 +392,14 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
 def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Drive runner-trial candidate C1 (misc/runner-trial/cases.md). Dry run by default: "
-                    "prints the planned runs and makes no model call. Do not run --paid on the trial host: "
-                    "every subject can reach the host's AWS credentials (cases.md, Credentials and permissions).")
+                    "prints the planned runs and makes no model call. --paid needs the eval-role session the "
+                    "runner mints (misc/evals/README.md, Eval-role setup); the subject still runs as your OS "
+                    "user and can read your files by path (cases.md, Credentials and permissions).")
     p.add_argument("--out", type=Path, help="output dir, empty or new (required with --paid)")
     p.add_argument("--case", action="append", help="case id, repeatable (default: T1 to T7)")
     p.add_argument("--paid", action="store_true", help="start the runs (model calls, billed)")
     p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1, per invocation "
                                                          "(required with --paid)")
-    p.add_argument("--credential-note", help="which subject credential, limited to the model calls, "
-                                             "the maintainers provided; recorded, not enforced (required with --paid)")
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
     p.add_argument("--model", help="subject and grader model (default: the runner's)")
     args = p.parse_args(argv)
@@ -425,9 +431,7 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         print(f"dry run: {len(plan)} runs planned, no model call made")
         return 0
 
-    note = (args.credential_note or "").strip()
-    missing = [f for f, v in (("--out", args.out), ("--spend-limit-usd", args.spend_limit_usd),
-                              ("--credential-note", note)) if v in (None, "")]
+    missing = [f for f, v in (("--out", args.out), ("--spend-limit-usd", args.spend_limit_usd)) if v is None]
     limit = args.spend_limit_usd
     if missing or (limit is not None and not (math.isfinite(limit) and limit > 0)):
         print(f"--paid refused: needs {', '.join(missing) or 'a finite --spend-limit-usd above 0'}", file=sys.stderr)
@@ -443,8 +447,16 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
             return 2
         kubeconfig = str(kcp)
     runner = runner or load_runner()
-    summary = execute(runner, cases, args.out, model=args.model or runner.default_model(),
-                      spend_limit=limit, credential_note=note, kubeconfig=kubeconfig)
+    # The session must outlast the longest subprocess, as run_task_evals.py main checks.
+    timeouts = [(GRADER_TIMEOUT, "the grader timeout"), (TRIGGER_TIMEOUT, "the triggering timeout")] + [
+        (runner.subject_timeout(c["skill"]), f"{c['skill']}/.skilleval.yaml") for c in cases if c["grade"][0] != "trigger"]
+    try:
+        runner.start_eval_session(*max(timeouts, key=lambda t: t[0]))
+        summary = execute(runner, cases, args.out, model=args.model or runner.default_model(),
+                          spend_limit=limit, kubeconfig=kubeconfig)
+    except runner.EvalCredentialError as e:
+        print(f"eval-role session refused or failed to refresh, stopping: {e}", file=sys.stderr)
+        return 2
     print(json.dumps(summary, indent=2))
     return 0
 
