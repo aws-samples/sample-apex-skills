@@ -72,7 +72,9 @@ userConfig key (compared in upper case) or two entries with one event,
 script and mode stops the sync. With no entry, none of these files is
 written, and the sync does not delete the ones there: when the last hooks
 entry goes, delete them by hand. plugins/apex/.claude-plugin/plugin.json
-userConfig is kept by hand, and --check does not compare it with the
+userConfig is kept by hand: a new entry needs its userConfig boolean (the
+id with . and - as _, such as apex_no_secrets) added there, or Claude Code
+shows no switch for it, and --check does not compare it with the
 entries.
 
 Usage (from anywhere; paths are relative to the repo root):
