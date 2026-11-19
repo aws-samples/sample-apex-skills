@@ -71,14 +71,18 @@ real path is the skill's own synced copy
 (`<skill_dir>/scripts/script_validate_output.py` or
 `operator_run_artifact_checks.py`) and the skill folder's real path is a folder
 directly in the skills root. A gone tool with any other name, or a record with
-no tool, is not dropped: it is no verdict and blocks once. The gate takes the
-skills root from its own file's location, never from the record or the event:
-the repo's `skills/` for the classes/ copy, `<plugin>/skills` for the plugin
-copy a later change writes from it. No install puts member skills in the
-plugin copy's root (the Claude Code plugin has no skills/; Kiro links skills
-into .kiro/skills and their real paths lie outside it), so until its root is
-fixed the plugin copy runs no member skill's check: every such record is no
-verdict and blocks once. Neither copy runs this repo's
+no tool, is not dropped: it is no verdict and blocks once. The gate never
+takes the skills root from the record or the event: it is the repo's `skills/`
+for the classes/ copy (from the gate's own location), and for every installed
+copy (the Claude Code plugin cache, Kiro's `.kiro/apex-hooks`) the real path of
+`~/.apex-skills/skills`, the clone the installer links each harness's
+`.claude/skills` and `.kiro/skills` entries to
+(misc/installer/bin/cli.mjs, `INSTALL_DIR` and `symlinkSkills`). So a record
+may name a skill by its link or by its real path, and a skill folder the
+agent makes in the project (a real folder in a project `.claude/skills` or
+`.kiro/skills` included) is never run; the agent can write the clone only
+when it works in `~/.apex-skills` itself. With no absolute home folder an
+installed copy runs no check. Neither copy runs this repo's
 `classes/script/scripts/validate_output.py` or
 `classes/operator/scripts/run_artifact_checks.py`: the plugin copy drops a
 record that names one, with one stderr line, as it drops a stale record, and
@@ -140,20 +144,25 @@ turn with no decision.
   so the state folder stands in for it: the first turn after the switch goes on
   leaves no record until a Stop has made the folder, and a folder left after
   the switch goes off keeps taking records until removed.
-- Every record left is run again at the next Stop, and all runs share one 25 s
+- Every record left is run again at the next Stop, and all runs share one
   budget; the newest-per-key rule keeps a fix-and-revalidate loop to one run,
   but many distinct files can still run past it, and a run past it is no
-  verdict, which blocks once. The 25 s holds on every harness, and 25 s is
-  under the lower of Kiro's two documented defaults (60 s for a hook file's
-  `timeout`, 30 s on the CLI actions page). One validator run on an eks-recon
-  output took about 2.5 s on the build host, and the gate with that one record
-  about 2.5 s in all (most of it the jsonschema import). An Operator artifact
-  check that runs terraform or checkov can take longer (a one-resource project
-  took about 18.6 s warm): a declared check set slower than 25 s gets no
-  verdict, so the gate does not yet back operator.artifact-checks for
-  eks-build. On timeout only the check tool itself is killed; any process it
-  started keeps running (a leftover terraform can hold the state lock on the
-  retry).
+  verdict, which blocks once. The budget is 570 s on Claude Code and Codex,
+  under their 600 s command-hook default (code.claude.com/docs/en/hooks.md,
+  `timeout`; developers.openai.com/codex/hooks, `timeout`; both read
+  2026-11-19), and 25 s on Kiro (the command with no `--id`), under the Kiro
+  CLI's 30 s default (kiro.dev/docs/hooks/actions, CLI tab: "Default timeout
+  is 30 seconds (30,000ms). Configure with the `timeout_ms` field"; the IDE
+  tab says 60 s; read 2026-11-19). The Kiro Stop entry the class sync writes
+  sets no `timeout_ms` yet, so on Kiro a declared check set slower than 25 s
+  still gets no verdict. One validator run on an eks-recon output took about
+  2.5 s on the build host, and the gate with that one record about 2.5 s in
+  all (most of it the jsonschema import). An Operator artifact check that runs
+  terraform or checkov can take longer (a one-resource project took about
+  18.6 s warm). Each check runs in its own process group (a new session), and
+  a timeout kills the whole group, so a terraform it started does not keep
+  the state lock for the retry; a process that leaves the group itself is not
+  killed.
 - Skipped without a message, with exit 0: a record that is not valid JSON, is
   not a JSON object, cannot be read or is not a regular file; a record whose
   `time` is missing, not a number, not finite or later than now; and a state
