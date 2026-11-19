@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy the shared class files in classes/ into each member skill.
+"""Copy the shared class files in classes/ into each member skill, and write the plugin hook files under plugins/apex/.
 
 A skill joins classes through its own SKILL.md frontmatter:
 
@@ -43,8 +43,39 @@ member skill the script:
 A class script declares its packages in itself (PEP 723 `# /// script`
 metadata for Python, a `# requires: <command> ...` line for shell), so the
 copy carries the declaration with it. Copies are written without the
-execute bit; run a class script with `bash` or `python3`. checks/, evals/
-and hooks/ are not copied: CI runs them from classes/.
+execute bit; run a class script with `bash` or `python3`. checks/ and the
+hook tests under hooks/ are not copied into skills: CI runs them from
+classes/. evals/ are not copied either (class.yaml keeps them as a record).
+
+The plugin hooks, apart from the skills: the script each class.yaml
+`hooks:` entry names (`hooks/<hook>/<file>.py`, or
+`../<class>/hooks/<hook>/<file>.py` for another class's) is copied once,
+headed as above, to plugins/apex/hooks/<class>/<hook>/<file>.py, and every
+entry is written into plugins/apex/hooks/hooks.json (Claude Code and Codex:
+python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
+--id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
+__APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). A Stop command
+ends ` || exit 3` and has no matcher. Entries go in class folder order, then
+file order. Codex keys a user's saved per-hook disables by position, so a
+new class that sorts earlier shifts them onto other hooks, and a shifted
+hook's saved trust no longer matches it, so Codex reads it as modified, not
+trusted. An entry with a
+missing or malformed field, a mode its script does not accept (the choices
+of the script's one add_argument("--mode", choices=[...]) call, read from
+its source; a script where they cannot be read is refused too), a script
+without one add_argument("--id") call that is not required (the sync reads only
+the count of --id calls and a literal required= keyword, not the argument's
+other options or a ** keyword; hooks.json
+passes --id, the Kiro command does not), differing
+claude-code and codex matchers, an id given twice, two ids with one
+userConfig key (compared in upper case) or two entries with one event,
+script and mode stops the sync. With no entry, none of these files is
+written, and the sync does not delete the ones there: when the last hooks
+entry goes, delete them by hand. plugins/apex/.claude-plugin/plugin.json
+userConfig is kept by hand: a new entry needs its userConfig boolean (the
+id with . and - as _, such as apex_no_secrets) added there, or Claude Code
+shows no switch for it, and --check does not compare it with the
+entries.
 
 Usage (from anywhere; paths are relative to the repo root):
 
@@ -52,7 +83,12 @@ Usage (from anywhere; paths are relative to the repo root):
     python3 misc/sync-classes.py --check   # write nothing; exit 1 on any difference
 
 --check computes every expected file in memory, compares it with the files
-on disk, prints each difference and exits 1 on any. Every refusal (steps 2,
+on disk, prints each difference and exits 1 on any. On the plugin hook files
+on disk it also fails, byte diff or not, on a hooks.json command whose --id
+is not its entry's id, on a hooks.json command or a Kiro name that does not
+match exactly one entry (commands match by event, script and mode), on a
+Kiro `enabled` missing or not the entry's, and on a `hooks` key in
+plugins/apex/.claude-plugin/plugin.json or .codex-plugin/plugin.json. Every refusal (steps 2,
 5 and 7, an unreadable class file or SKILL.md) stops both modes, and write
 mode runs every check before it writes anything, so a refusal leaves the
 tree as it was; an OS error while writing can stop it part way. A class references/ folder, or a folder under it, that
@@ -62,7 +98,8 @@ skill-owned file there. Symlinks are followed on both sides; the repo has
 none. --root points the script at another tree (the tests use it).
 
 What --check does not find (the orphan scan was cut from the design): a copy
-whose class file was removed or renamed, a stray generated file at the top
+whose class file was removed or renamed, a plugin hook script copy no entry
+names any more, a stray generated file at the top
 level of a member's references/ or scripts/, and the copies and marker block
 left in a skill that drops metadata.apex-classes or sets it empty. A
 generated file one folder down is still reported, because copies are always
@@ -83,6 +120,7 @@ import argparse
 import ast
 import difflib
 import io
+import json
 import os
 import re
 import shlex
@@ -137,11 +175,11 @@ def header_line(src_rel, kind):
 
 
 def load_classes(root):
-    """Read every classes/<c>/class.yaml; return {name: parents}."""
+    """Read every classes/<c>/class.yaml; return ({name: parents}, {name: hooks value})."""
     cdir = os.path.join(root, "classes")
     if not os.path.isdir(cdir):
         raise SyncError("classes/ not found")
-    classes = {}
+    classes, hooks = {}, {}
     for name in sorted(os.listdir(cdir)):
         path = os.path.join(cdir, name)
         if not os.path.isdir(path) or name.startswith("."):
@@ -163,11 +201,12 @@ def load_classes(root):
         if not isinstance(parents, list) or not all(isinstance(p, str) for p in parents):
             raise SyncError(f"{rel}: parents must be a list of class names")
         classes[name] = parents
+        hooks[name] = data.get("hooks")
     for name, parents in classes.items():
         for p in parents:
             if p not in classes:
                 raise SyncError(f"classes/{name}/class.yaml: parent {p!r} is not under classes/")
-    return classes
+    return classes, hooks
 
 
 def linearize(name, classes, stack=()):
@@ -621,8 +660,8 @@ def chain_parts(chain, loaded, who):
 
 
 def build_plan(root):
-    """Return (members, expected files) or raise SyncError."""
-    classes = load_classes(root)
+    """Return (members, expected files, hooks entries) or raise SyncError."""
+    classes, raw_hooks = load_classes(root)
     # The class-text checks run on every class, member skill or not: each
     # class's files (the apex pointer rule) and its chain (rule id and target
     # clashes). They read only classes/.
@@ -665,7 +704,9 @@ def build_plan(root):
             "text": with_block(text, block, f"{who}/SKILL.md"),
             "decl": [], "mods": {},
         })
-    return members, expected
+    entries = hook_entries(raw_hooks, classes, root)
+    expected += hook_outputs(root, entries)
+    return members, expected, entries
 
 
 def with_block(text, block, rel):
@@ -687,10 +728,228 @@ def with_block(text, block, rel):
     return text[:body_at] + "\n" + block + "\n\n" + text[body_at:].lstrip("\n")
 
 
+# ----------------------------------------------------------- plugin hooks
+
+PLUGIN = "plugins/apex"
+HOOKS_JSON = f"{PLUGIN}/hooks/hooks.json"
+KIRO_JSON = f"{PLUGIN}/kiro/apex-hooks.json"
+MANIFESTS = (f"{PLUGIN}/.claude-plugin/plugin.json", f"{PLUGIN}/.codex-plugin/plugin.json")
+TOKEN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]*\Z")
+PART = r"([A-Za-z0-9_][A-Za-z0-9._-]*)"
+HOOK_SCRIPT = re.compile(rf"(?:\.\./{PART}/)?hooks/{PART}/{PART}\.py\Z")
+STOP_TAIL = " || exit 3"
+
+
+def script_modes(root, src):
+    """The choices of the hook script's one add_argument("--mode", choices=[...]) call.
+
+    The script must also have one add_argument("--id") call that is not required."""
+    try:
+        tree = ast.parse(read_text(os.path.join(root, src)))
+    except SyntaxError as exc:
+        raise SyncError(f"{src}: not valid Python ({exc.msg})") from exc
+    adds = [c for c in ast.walk(tree) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+            and c.func.attr == "add_argument" and c.args and isinstance(c.args[0], ast.Constant)]
+    ids = [c for c in adds if c.args[0].value == "--id"]
+    if len(ids) != 1 or any(k.arg == "required" and not (isinstance(k.value, ast.Constant)
+                                                         and k.value.value is False) for k in ids[0].keywords):
+        raise SyncError(f"{src}: it needs one add_argument(\"--id\") call that is not required, "
+                        "since hooks.json passes --id and the Kiro command does not")
+    calls = [c for c in adds if c.args[0].value == "--mode"]
+    kws = [k.value for c in calls for k in c.keywords if k.arg == "choices"]
+    try:
+        modes = ast.literal_eval(kws[0]) if len(calls) == 1 and len(kws) == 1 else None
+    except ValueError:
+        modes = None
+    if not isinstance(modes, (list, tuple)) or not all(isinstance(m, str) for m in modes):
+        raise SyncError(f"{src}: its --mode choices cannot be read; it needs one "
+                        "add_argument(\"--mode\", choices=[...]) call with a literal list")
+    return list(modes)
+
+
+def hook_entries(raw, classes, root):
+    """Every class.yaml hooks: entry, by class folder name, then file order."""
+    entries, ids, keys, forms = [], {}, {}, {}
+    for cls in sorted(raw):
+        rel = f"classes/{cls}/class.yaml"
+        if raw[cls] is None:
+            continue
+        if not isinstance(raw[cls], list):
+            raise SyncError(f"{rel}: hooks must be a list of entries")
+        for n, h in enumerate(raw[cls], 1):
+            if not isinstance(h, dict):
+                raise SyncError(f"{rel}: hooks entry {n} must be a mapping")
+            who = f"{rel}: hooks entry {h.get('id', n)}"
+            for f in ("id", "event", "mode"):
+                if not isinstance(h.get(f), str) or not TOKEN.match(h[f]):
+                    raise SyncError(f"{who}: {f} must be a word of letters, digits, '.', '_' or '-', "
+                                    f"found {h.get(f)!r}")
+            m = HOOK_SCRIPT.match(h.get("script")) if isinstance(h.get("script"), str) else None
+            if not m:
+                raise SyncError(f"{who}: script must be hooks/<hook>/<file>.py or "
+                                f"../<class>/hooks/<hook>/<file>.py, found {h.get('script')!r}")
+            if not isinstance(h.get("enabled"), bool):
+                raise SyncError(f"{who}: enabled must be true or false, found {h.get('enabled')!r}")
+            matcher = None
+            if h["event"] != "Stop":
+                ms = h.get("matchers")
+                if not isinstance(ms, dict) or not all(
+                        isinstance(ms.get(k), str) for k in ("claude-code", "codex", "kiro")):
+                    raise SyncError(f"{who}: matchers must hold a string for claude-code, codex and kiro")
+                if ms["claude-code"] != ms["codex"]:
+                    raise SyncError(f"{who}: the claude-code and codex matchers differ, "
+                                    "and one hooks.json serves both")
+                matcher = ms
+            rc, hook, fname = m.group(1) or cls, m.group(2), m.group(3) + ".py"
+            src = f"classes/{rc}/hooks/{hook}/{fname}"
+            if rc not in classes or not os.path.isfile(os.path.join(root, src)):
+                raise SyncError(f"{who}: script {src} not found")
+            modes = script_modes(root, src)
+            if h["mode"] not in modes:
+                raise SyncError(f"{who}: mode {h['mode']} is not one of {src}'s --mode choices {modes}")
+            hid, key = h["id"], re.sub(r"[.-]", "_", h["id"]).upper()
+            if hid in ids:
+                raise SyncError(f"duplicate hooks entry id {hid} from classes/{ids[hid]} and classes/{cls}")
+            if key in keys:
+                raise SyncError(f"{who}: its userConfig key {key} is also {keys[key]}'s")
+            form = (h["event"], src, h["mode"])
+            if form in forms:
+                raise SyncError(f"{who}: same event, script and mode as {forms[form]}, "
+                                "so --check cannot tell their commands apart")
+            ids[hid], keys[key], forms[form] = cls, hid, hid
+            entries.append({"id": hid, "class": cls, "event": h["event"], "mode": h["mode"],
+                            "enabled": h["enabled"], "matcher": matcher, "src": src,
+                            "path": f"{rc}/{hook}/{fname}"})
+    return entries
+
+
+def hook_outputs(root, entries):
+    """The expected plugin hook files: the script copies, hooks.json, the Kiro file."""
+    if not entries:
+        return []
+    out, events, kiro = [], {}, []
+    for src, path in sorted({(e["src"], e["path"]) for e in entries}):
+        text = read_text(os.path.join(root, src))
+        out.append({"skill": None, "path": f"{PLUGIN}/hooks/{path}", "src": src,
+                    "text": with_header(text, header_line(src, "py")),
+                    "decl": declarations(text), "mods": {}})
+    for e in entries:
+        tail = STOP_TAIL if e["event"] == "Stop" else ""
+        group = {"matcher": e["matcher"]["claude-code"]} if e["matcher"] else {}
+        group["hooks"] = [{"type": "command", "command":
+                           f'python3 "${{CLAUDE_PLUGIN_ROOT}}/hooks/{e["path"]}" '
+                           f'--mode {e["mode"]} --id {e["id"]}{tail}'}]
+        events.setdefault(e["event"], []).append(group)
+        k = {"name": e["id"], "description": f"generated from classes/{e['class']}/class.yaml, do not edit",
+             "trigger": e["event"]}
+        if e["matcher"]:
+            k["matcher"] = e["matcher"]["kiro"]
+        k["action"] = {"type": "command",
+                       "command": f'python3 "__APEX_HOOKS_DIR__/{e["path"]}" --mode {e["mode"]}{tail}'}
+        k["enabled"] = e["enabled"]
+        kiro.append(k)
+    for path, doc in ((HOOKS_JSON, {"description": "generated from classes/*/class.yaml, do not edit",
+                                    "hooks": events}),
+                      (KIRO_JSON, {"version": "v1", "hooks": kiro})):
+        out.append({"skill": None, "path": path, "src": "classes/*/class.yaml",
+                    "text": json.dumps(doc, indent=2) + "\n", "decl": [], "mods": {}})
+    return out
+
+
+def read_json(root, rel, want_hooks):
+    """A JSON object from disk; a malformed one (or one with no hooks key) is a SyncError."""
+    try:
+        doc = json.loads(read_text(os.path.join(root, rel)))
+    except json.JSONDecodeError as exc:
+        raise SyncError(f"{rel}: not valid JSON ({exc.msg}, line {exc.lineno})") from exc
+    if not isinstance(doc, dict):
+        raise SyncError(f"{rel}: must hold a JSON object")
+    if want_hooks and "hooks" not in doc:
+        raise SyncError(f"{rel}: no hooks key")
+    return doc
+
+
+def id_problem(tokens, want):
+    """Why the --id in `tokens` is not `want`, or None."""
+    if any(t.startswith("--i") and t != "--id" for t in tokens):
+        return "a token that starts with --i"
+    at = [i for i, t in enumerate(tokens) if t == "--id"]
+    if not at:
+        return "no --id"
+    if len(at) > 1:
+        return f"{len(at)} --id tokens"
+    got = tokens[at[0] + 1] if at[0] + 1 < len(tokens) else ""
+    return None if got == want else repr(got)
+
+
+def hook_problems(root, entries):
+    """The plugin hook rules --check adds to the byte diff: --id, the one-to-one match,
+    Kiro enabled, and no manifest hooks key."""
+    problems = []
+    if os.path.isfile(os.path.join(root, HOOKS_JSON)):
+        events = read_json(root, HOOKS_JSON, True)["hooks"]
+        if not isinstance(events, dict):
+            raise SyncError(f"{HOOKS_JSON}: hooks must be an object of events")
+        found = {e["id"]: 0 for e in entries}
+        for event, groups in events.items():
+            for g in groups if isinstance(groups, list) else [None]:
+                handlers = g.get("hooks") if isinstance(g, dict) else None
+                for hd in handlers if isinstance(handlers, list) else [None]:
+                    cmd = hd.get("command") if isinstance(hd, dict) else None
+                    if not isinstance(cmd, str):
+                        raise SyncError(f"{HOOKS_JSON}: {event} holds a matcher group or hook "
+                                        "that is not as the sync writes it")
+                    try:
+                        tokens = shlex.split(cmd)
+                    except ValueError as exc:
+                        raise SyncError(f"{HOOKS_JSON}: {event} command {cmd} cannot be parsed ({exc})") from exc
+                    # A Stop tail (|| exit 3) follows --id <id>, so it changes no token read here.
+                    modes = [tokens[i + 1] for i, t in enumerate(tokens[:-1]) if t == "--mode"]
+                    script = tokens[1] if len(tokens) > 1 else None
+                    hits = [e for e in entries if e["event"] == event and modes[-1:] == [e["mode"]]
+                            and script == "${CLAUDE_PLUGIN_ROOT}/hooks/" + e["path"]]
+                    for e in hits:
+                        found[e["id"]] += 1
+                    if len(hits) != 1:
+                        names = f" ({', '.join(e['id'] for e in hits)})" if hits else ""
+                        problems.append(f"{HOOKS_JSON}: {event} command {cmd} must match exactly one "
+                                        f"class.yaml hooks entry, found {len(hits)}{names}")
+                        continue
+                    why = id_problem(tokens, hits[0]["id"])
+                    if why:
+                        problems.append(f"{HOOKS_JSON}: {event} command for {hits[0]['id']} must carry "
+                                        f"--id {hits[0]['id']!r}, found {why}")
+        for hid, n in found.items():
+            if n != 1:
+                problems.append(f"{HOOKS_JSON}: entry {hid} must have exactly one command, found {n}")
+    if os.path.isfile(os.path.join(root, KIRO_JSON)):
+        hooks = read_json(root, KIRO_JSON, True)["hooks"]
+        if not isinstance(hooks, list) or not all(isinstance(h, dict) for h in hooks):
+            raise SyncError(f"{KIRO_JSON}: hooks must be a list of objects")
+        by_id = {e["id"]: e for e in entries}
+        names = [h.get("name") for h in hooks]
+        for hid in by_id:
+            if names.count(hid) != 1:
+                problems.append(f"{KIRO_JSON}: Kiro hook {hid!r} must appear once, found {names.count(hid)}")
+        for h in hooks:
+            e = by_id.get(h.get("name"))
+            if e is None:
+                problems.append(f"{KIRO_JSON}: Kiro hook {h.get('name')!r} must be a class.yaml hooks id, "
+                                "found no entry")
+            elif h.get("enabled", None) is not e["enabled"]:
+                got = json.dumps(h["enabled"]) if "enabled" in h else "no enabled key"
+                problems.append(f"{KIRO_JSON}: Kiro hook {e['id']!r} enabled must be "
+                                f"{json.dumps(e['enabled'])} as in classes/{e['class']}/class.yaml, found {got}")
+    for rel in MANIFESTS:
+        if os.path.isfile(os.path.join(root, rel)) and "hooks" in read_json(root, rel, False):
+            problems.append(f"{rel}: hooks key must be absent, found one")
+    return problems
+
+
 # ---------------------------------------------------------- check, write
 
 
-def check(root, expected):
+def check(root, expected, entries):
     problems = []
     importers = {}
     for e in expected:
@@ -713,7 +972,7 @@ def check(root, expected):
         want_header = e["text"].splitlines()[1 if e["text"].startswith("#!") else 0]
         disk_lines = disk.splitlines()
         got_header = disk_lines[1 if disk.startswith("#!") else 0] if disk_lines else ""
-        if got_header != want_header:
+        if got_header != want_header and e["path"] not in (HOOKS_JSON, KIRO_JSON):
             why = f"header missing or wrong; expected: {want_header}"
             if not any("generated from classes/" in h for h in disk_lines[:2]):
                 why += ("; if this is the skill's own file, not a class copy, rename or move it "
@@ -729,7 +988,9 @@ def check(root, expected):
             problems.append(f"{e['path']}: import of {', '.join(left)} not rewritten to the flat name")
             continue
         problems.append(f"{e['path']}: differs from {e['src']} (a hand edit, or a class change not synced)")
-    for skill in sorted({e["skill"] for e in expected}):
+    # Run even when the byte diff flagged the file: they catch a wrong generator.
+    problems += hook_problems(root, entries)
+    for skill in sorted({e["skill"] for e in expected if e["skill"]}):
         for sub in ("references", "scripts"):
             top = os.path.join(root, "skills", skill, sub)
             for dirpath, _, filenames in os.walk(top):
@@ -763,15 +1024,16 @@ def write(root, expected):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Copy class files into member skills.")
+    ap = argparse.ArgumentParser(description="Copy class files into member skills, and write the "
+                                 "plugin hook files under plugins/apex/.")
     ap.add_argument("--check", action="store_true", help="write nothing; exit 1 on any difference")
     ap.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     help="repository root (default: this script's repo)")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.root)
     try:
-        members, expected = build_plan(root)
-        problems = check(root, expected) if args.check else None
+        members, expected, entries = build_plan(root)
+        problems = check(root, expected, entries) if args.check else None
         changed = None if args.check else write(root, expected)
     except SyncError as exc:
         print(f"sync-classes: error: {exc}", file=sys.stderr)
@@ -782,7 +1044,8 @@ def main(argv=None):
             print(f"sync-classes: {p}", file=sys.stderr)
         if problems:
             print(f"sync-classes: --check failed ({len(problems)} difference(s)); "
-                  "run python3 misc/sync-classes.py and commit the copies", file=sys.stderr)
+                  "run python3 misc/sync-classes.py and commit the copies; when the last hooks "
+                  "entry goes, delete the plugin hook files by hand", file=sys.stderr)
             return 1
         print(f"sync-classes: --check OK: {len(members)} member skill(s) ({names}), "
               f"{len(expected)} file(s) in sync")
