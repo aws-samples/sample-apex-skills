@@ -15,7 +15,7 @@ npx apex-skills@1.3.0 --update   # update, with no questions
 
 Before upgrading from installer 1.2.0 or earlier, and before re-running after moving or renaming a home or project directory, copy out edited Kiro steering copies and remove or note links of your own into `~/.apex-skills`: with no install record the installer cannot tell them from its own.
 
-From installer 1.4.0, a default run removes the maintainer skill links (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`) that an older install made; run with `--maintainer` to keep them.
+On a default run, the installer on `main` (not yet released; run it from a clone with `node misc/installer/bin/cli.mjs`) removes the maintainer skill links (`skill-creator`, `steering-workflow-creator`, `update-docs`, `apex-new-skill`) that an older install made; run with `--maintainer` to keep them.
 
 ## Flags
 

@@ -292,7 +292,7 @@ For the interaction branch, put each piece of text where the table under [Where 
 
 Steps:
 
-1. Link the maintainer skills (apex-new-skill, skill-creator and update-docs), which a default install leaves out: `npx apex-skills@1.4.0 --maintainer --branch main`. It needs installer 1.4.0 or later (1.3.0 and earlier have no `--maintainer`), and `--branch main` because apex-new-skill is on `main` and not in v1.3.0 or any earlier release. Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
+1. Link the maintainer skills (apex-new-skill, skill-creator and update-docs), which a default install leaves out: from the root of a clone of `main`, run `node misc/installer/bin/cli.mjs --maintainer --branch main`. It runs the installer on `main`, since the one on npm (1.3.0 and earlier) has no `--maintainer`, and needs `--branch main` because apex-new-skill is on `main` and not in v1.3.0 or any earlier release. Understand the skill with concrete examples. A skill for an AWS service with no skills here yet: open an issue first; it needs maintainer changes to grouping and the docs sidebar.
 2. Plan reusable contents (scripts, references, assets).
 3. Hand-author `skills/<name>/SKILL.md` and any `references/` / `agents/` / `scripts/` / `assets/` subdirectories (no scaffolding script exists: see [`skills/skill-creator/SKILL.md`](skills/skill-creator/SKILL.md)).
 4. Scaffold `misc/evals/<name>/` with `cd misc/evals && make init-evals SKILL=<name> [SIBLINGS="a,b"]` (see misc/evals/README.md), then expand `triggering.json` to ≥16 prompts (≥8 positives, ≥8 near-miss negatives).
@@ -311,7 +311,7 @@ Verify each item before opening the PR.
 
 ### Keeping skill docs in sync after changes
 
-Adding, renaming, or removing a skill, or editing a SKILL.md frontmatter description, should be followed by running the `update-docs` skill (linked by `npx apex-skills@1.4.0 --maintainer --branch main`, step 1 above; a default install leaves it out) so wrappers, marker blocks, and prose references stay in sync; add or update the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters, and group: one of the README headings in `README_GROUPS` in `misc/update-skills-references.sh`) when you add a skill or change its description. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
+Adding, renaming, or removing a skill, or editing a SKILL.md frontmatter description, should be followed by running the `update-docs` skill (linked by `node misc/installer/bin/cli.mjs --maintainer --branch main` from a clone of `main`, step 1 above; a default install leaves it out) so wrappers, marker blocks, and prose references stay in sync; add or update the skill's `SKILL_META` line in `misc/update-pages.sh` (title, summary under 160 characters, and group: one of the README headings in `README_GROUPS` in `misc/update-skills-references.sh`) when you add a skill or change its description. The skill walks both script-managed surfaces (`update-all-references.sh`, `update-pages.sh`) and hand-written prose, proposing diffs for anything stale.
 
 ## Creating a New Runbook
 
