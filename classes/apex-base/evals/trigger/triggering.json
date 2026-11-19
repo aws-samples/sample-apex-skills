@@ -1,0 +1,50 @@
+[
+  {
+    "query": "Write a Python function that removes duplicate entries from a list while keeping their original order.",
+    "should_trigger": false
+  },
+  {
+    "query": "Why does this regex `^\\d{3}-\\d{4}$` not match phone numbers that have an area code in brackets?",
+    "should_trigger": false
+  },
+  {
+    "query": "Help me write a SQL query that joins orders to customers and returns each customer's three most recent orders.",
+    "should_trigger": false
+  },
+  {
+    "query": "My React component re-renders every time its parent updates. How do I stop that?",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I turn on the cluster autoscaler for a node pool on my GKE cluster?",
+    "should_trigger": false
+  },
+  {
+    "query": "Our AKS cluster's pods cannot pull images from Azure Container Registry. What should I check?",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a Cloud Run service on Google Cloud that scales to zero when it gets no traffic.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare Azure Functions and Google Cloud Functions on cold start time for a Node.js API.",
+    "should_trigger": false
+  },
+  {
+    "query": "My AWS Lambda function times out after 3 seconds when it calls DynamoDB. How do I fix it?",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I set up an S3 lifecycle rule that moves objects to Glacier after 30 days?",
+    "should_trigger": false
+  },
+  {
+    "query": "What is the difference between Multi-AZ and read replicas on Amazon RDS for PostgreSQL?",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a CloudFront function that adds security headers to every response.",
+    "should_trigger": false
+  }
+]

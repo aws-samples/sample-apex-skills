@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: orders-api-7d9f8c6b5-q2w4e
+  namespace: shop
+  labels:
+    app: orders-api
+spec:
+  containers:
+    - name: orders-api
+      image: public.ecr.aws/docker/library/python:3.12-slim
+      env:
+        - name: DB_HOST
+          value: orders-db.shop.svc.cluster.local
+        - name: DB_USER
+          value: orders
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: orders-db
+              key: password
+  nodeName: ip-10-0-3-17.us-west-2.compute.internal
+status:
+  phase: Running
+  containerStatuses:
+    - name: orders-api
+      ready: false
+      restartCount: 5
+      state:
+        waiting:
+          reason: CrashLoopBackOff
+          message: back-off 2m40s restarting failed container=orders-api pod=orders-api-7d9f8c6b5-q2w4e_shop
+      lastState:
+        terminated:
+          exitCode: 1
+          reason: Error
+          message: 'psycopg.OperationalError: connection to server at "orders-db.shop.svc.cluster.local" (10.100.42.7), port 5432 failed: FATAL:  password authentication failed for user "orders"'
