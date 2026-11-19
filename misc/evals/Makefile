@@ -25,9 +25,6 @@ SC_DIR         := $(REPO_ROOT)/skills/skill-creator
 # PROVIDER selects how `claude -p` reaches a model:
 #   bedrock    (default) — sets CLAUDE_CODE_USE_BEDROCK=1 and uses a Bedrock
 #                          inference-profile ID. Required on AWS-only setups.
-#   anthropic            : not supported: every eval run needs
-#                          CLAUDE_CODE_USE_BEDROCK=1 and goes to Bedrock in the
-#                          eval account (misc/evals/README.md, "Eval-role setup").
 # Override per invocation: `make triggering-all MODEL=<Bedrock model or inference-profile ID>`.
 # Defaults for MODEL are provider-aware; explicit MODEL= always wins.
 PROVIDER       ?= bedrock
@@ -35,10 +32,8 @@ PROVIDER       ?= bedrock
 ifeq ($(PROVIDER),bedrock)
   MODEL        ?= global.anthropic.claude-opus-4-6-v1
   export CLAUDE_CODE_USE_BEDROCK := 1
-else ifeq ($(PROVIDER),anthropic)
-  MODEL        ?= claude-opus-4-6-v1
 else
-  $(error PROVIDER must be 'bedrock' or 'anthropic', got '$(PROVIDER)')
+  $(error PROVIDER must be 'bedrock', got '$(PROVIDER)')
 endif
 
 NUM_WORKERS    ?= 10
@@ -59,15 +54,34 @@ PACKAGE_T    := $(addprefix package-,$(SKILLS))
 REVIEW_T     := $(addprefix review-,$(SKILLS))
 TASK_T       := $(addprefix task-,$(SKILLS))
 
-# Task-axis defaults (PLAN §2). RUNS_PER_PROMPT=1 is cheap dev; bump to 3
-# for stddev. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
+# Task-axis defaults (PLAN §2). RUNS_PER_PROMPT empty (the default) runs each
+# case the skill's regression.pass_k times (.skilleval.yaml, 3 when unset);
+# set it to override. INCLUDE_LIVE_ONLY=1 enables prompts that require a real
 # cluster (eks-recon, eks-operation-review). KUBECONFIG_RO feeds the sandbox a
 # read-only kubeconfig; the only AWS credentials handed to the subject are the
 # eval-role session.
-RUNS_PER_PROMPT   ?= 1
+RUNS_PER_PROMPT   ?=
 INCLUDE_LIVE_ONLY ?= 0
 READONLY_SECRETS  := $(EVALS_ROOT)/.secrets
 KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
+TASK_RUNS          = $(if $(strip $(RUNS_PER_PROMPT)),--runs $(RUNS_PER_PROMPT))
+TASK_LIVE          = $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only $(if $(wildcard $(KUBECONFIG_RO)),--kubeconfig $(KUBECONFIG_RO)))
+
+# Gate defaults (gate, gate-all). HARNESS is the subject: claude, kiro or
+# codex. BASE_REF is the git ref the old arm takes the skill from
+# (v1.3.0 first, then the skill's last released tag); a skill absent there
+# runs against without_skill.
+HARNESS           ?= claude
+BASE_REF          ?= v1.3.0
+# Deterministic stages the gate runs before any eval, in this order. Each
+# is a shell command; an empty one prints that the stage is not wired here.
+# Later changes own these checks and set the commands from
+# .github/workflows/evals.yml, so this file needs no change for it. A stage
+# that exits non-zero stops the gate before any model call.
+GATE_ADMISSION_CMD ?=
+GATE_SCHEMA_CMD    ?=
+GATE_LINK_CMD      ?=
+GATE_SIZE_CMD      ?=
 
 PROCESS_T    := $(addprefix process-,$(SKILLS))
 ARTIFACT_T   := $(addprefix artifact-,$(SKILLS))
@@ -79,6 +93,7 @@ COMPOSITE_T  := $(addprefix composite-,$(SKILLS))
 .PHONY: help list-skills validate-all triggering-all task-all task-all-parallel \
         init-evals init-evals-finalize check-evals-coverage hygiene \
         process-all artifact-all knowledge-all composite-all \
+        gate gate-all gate-stages eval-manifest eval-manifest-check \
         $(VALIDATE_T) $(TRIGGERING_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T) $(COMPOSITE_T)
 
@@ -99,6 +114,13 @@ help:
 	@echo "Meta targets:"
 	@echo "  validate-all, triggering-all, process-all, artifact-all, composite-all, task-all"
 	@echo ""
+	@echo "Merge gate (LIVE: subject + grader; exits 2 on a regression):"
+	@echo "  gate SKILL=<run key>   deterministic stages, then the task runner on with_skill"
+	@echo "                         against the skill at BASE_REF, scored per case on Pass@k"
+	@echo "  gate-all               the same for every run key with a runnable case"
+	@echo "  gate-stages            the deterministic stages only (no model call)"
+	@echo "  eval-manifest-check    compare the website evals.json with a fresh build (no write)"
+	@echo ""
 	@echo "New-skill onboarding:"
 	@echo "  init-evals SKILL=<name> [SIBLINGS=\"a,b,c\"]   scaffold misc/evals/<name>/ from _template/"
 	@echo "  init-evals-finalize SKILL=<name>              hygiene floor before PR (same checks CI runs)"
@@ -106,9 +128,12 @@ help:
 	@echo "  hygiene                                       pre-flight every misc/evals/*/ (no model calls)"
 	@echo ""
 	@echo "Overrides: PROVIDER (bedrock), MODEL, NUM_WORKERS, RUNS_PER_QUERY,"
-	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, WORKSPACE, BENCHMARK_DIR"
+	@echo "           RUNS_PER_PROMPT, INCLUDE_LIVE_ONLY, KUBECONFIG_RO, WORKSPACE, BENCHMARK_DIR,"
+	@echo "           HARNESS, BASE_REF, THRESHOLD, GATE_ADMISSION_CMD, GATE_SCHEMA_CMD,"
+	@echo "           GATE_LINK_CMD, GATE_SIZE_CMD"
 	@echo "Defaults : PROVIDER=$(PROVIDER) MODEL=$(MODEL) RUNS_PER_QUERY=$(RUNS_PER_QUERY) NUM_WORKERS=$(NUM_WORKERS)"
-	@echo "           RUNS_PER_PROMPT=$(RUNS_PER_PROMPT) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
+	@echo "           RUNS_PER_PROMPT=$(or $(RUNS_PER_PROMPT),the skill's regression.pass_k) INCLUDE_LIVE_ONLY=$(INCLUDE_LIVE_ONLY)"
+	@echo "           HARNESS=$(HARNESS) BASE_REF=$(BASE_REF) THRESHOLD=$(THRESHOLD)"
 	@echo "Eval runs need ~/.apex-eval (aws-config, expected-account) and the eval role: see README.md"
 
 list-skills:
@@ -252,24 +277,67 @@ init-evals-finalize:
 $(TASK_T): task-%:
 	@test -f $(call evals_json,$*) || \
 	  { echo "missing: $(call evals_json,$*)"; exit 1; }
-	@extra="" ; \
-	 if [ "$(INCLUDE_LIVE_ONLY)" = "1" ]; then \
-	   extra="$$extra --include-live-only" ; \
-	   if [ -f "$(KUBECONFIG_RO)" ]; then \
-	     extra="$$extra --kubeconfig $(KUBECONFIG_RO)" ; \
-	   fi ; \
-	 fi ; \
-	 python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
-	   --skill $* \
-	   --runs $(RUNS_PER_PROMPT) \
-	   --model $(MODEL) \
-	   $$extra
+	python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
+	  --skill $* \
+	  $(TASK_RUNS) \
+	  --model $(MODEL) \
+	  $(TASK_LIVE)
 
 task-all: $(TASK_T)
 
 task-all-parallel:
 	$(MAKE) -j10 $(TASK_T)
 
+# ---------- gate (LIVE; the merge gate) ---------------------------------------
+# gate SKILL=<run key>: the deterministic stages (gate-stages), then the task
+# runner on HARNESS with with_skill against the skill at BASE_REF, RUNS_PER_PROMPT
+# runs per case (default the skill's regression.pass_k), then
+# `regression.py --gate` on that run's own result. A case that fails Pass@k
+# fails the gate on its own; so does a pooled pass-rate drop past THRESHOLD.
+# Tokens and time are reported and do not block (until the maintainers decide
+# whether tokens or time may block a merge, only pass rate blocks). Exit 2 on a regression, 1 when the run gives nothing to score (a
+# runner error, a refused eval-role session, no runnable case): never 0.
+# SKILL takes any run key `run_task_evals.py --list-targets` prints.
+# Real runs wait on the decision on whether evals may run on a shared host
+# and on the dedicated eval role.
+define gate_one
+( out=$$(mktemp) || exit 1; \
+  python3 $(EVALS_ROOT)/scripts/run_task_evals.py --skill $(1) --harness $(HARNESS) \
+    --base-ref $(BASE_REF) $(TASK_RUNS) --model $(MODEL) $(TASK_LIVE) > "$$out"; rc=$$?; \
+  python3 $(EVALS_ROOT)/scripts/regression.py --gate --skill $(1) --task-result "$$out" \
+    --threshold $(THRESHOLD); grc=$$?; \
+  rm -f "$$out"; if [ $$grc -ne 0 ]; then exit $$grc; fi; exit $$rc )
+endef
+
+gate-stages:
+	@echo "[gate] deterministic stages"
+	$(if $(strip $(GATE_ADMISSION_CMD)),$(GATE_ADMISSION_CMD),@echo "[gate] 1 class admission checks: not wired (GATE_ADMISSION_CMD)")
+	$(if $(strip $(GATE_SCHEMA_CMD)),$(GATE_SCHEMA_CMD),@echo "[gate] 2 schema validation: not wired (GATE_SCHEMA_CMD)")
+	$(if $(strip $(GATE_LINK_CMD)),$(GATE_LINK_CMD),@echo "[gate] 3 link check: not wired (GATE_LINK_CMD)")
+	$(if $(strip $(GATE_SIZE_CMD)),$(GATE_SIZE_CMD),@echo "[gate] 4 size check: not wired (GATE_SIZE_CMD)")
+
+gate:
+	@if [ -z "$(SKILL)" ]; then \
+	  echo "usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] [BASE_REF=v1.3.0] [RUNS_PER_PROMPT=<n>]"; \
+	  exit 1; fi
+	@$(MAKE) --no-print-directory gate-stages
+	@echo "[gate] 5 evals: $(SKILL) on $(HARNESS) against $(BASE_REF)"
+	$(call gate_one,$(SKILL))
+
+gate-all: gate-stages
+	@set -o pipefail; \
+	 keys=$$(python3 $(EVALS_ROOT)/scripts/run_task_evals.py --list-targets \
+	   | python3 $(EVALS_ROOT)/scripts/regression.py --gate-keys $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only)) \
+	   || exit 1; \
+	 if [ -z "$$keys" ]; then echo "[gate] no run key has a runnable case"; exit 1; fi; \
+	 worst=0; failed=""; \
+	 for k in $$keys; do \
+	   echo "[gate] 5 evals: $$k on $(HARNESS) against $(BASE_REF)"; \
+	   $(call gate_one,$$k); rc=$$?; \
+	   if [ $$rc -ne 0 ]; then failed="$$failed $$k"; if [ $$rc -gt $$worst ]; then worst=$$rc; fi; fi; \
+	 done; \
+	 if [ -n "$$failed" ]; then echo "[gate] failed:$$failed"; fi; \
+	 exit $$worst
 # ---------- C  process assertions (deterministic; replay against existing runs) -
 # Runs process_assertions.py against the latest events.jsonl files for a skill.
 # No model calls — purely deterministic. Reads assertions from evals.json
@@ -377,3 +445,7 @@ check-evals-coverage:
 # ---------- eval-manifest (deterministic; generates website manifest) ---------
 eval-manifest:
 	python3 $(EVALS_ROOT)/scripts/generate_eval_manifest.py
+
+# Compare the committed evals.json with a fresh build; exit 1 on a difference, write nothing.
+eval-manifest-check:
+	python3 $(EVALS_ROOT)/scripts/generate_eval_manifest.py --check

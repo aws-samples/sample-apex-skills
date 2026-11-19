@@ -30,13 +30,21 @@ Design (PLAN §1.5.2):
   CLAUDE_CODE_USE_BEDROCK=1, and drops SUBJECT_DROPPED_VARS from the subject's
   env, so the model call goes through Bedrock on that session.
 
-  run_single_query(...) launches `claude -p` with `cwd=sandbox`, `HOME=home`,
-  `CLAUDECODE` stripped, streams stream-json, and watches for a Skill
-  tool_use whose input names the canonical skill. Kills the subprocess on
-  first match so negatives don't burn the full response-generation budget.
+  run_single_query(...) runs one query on the `--harness` adapter (claude,
+  kiro or codex; one function each: run_claude, run_kiro, run_codex) with
+  `cwd=sandbox`, `HOME=home`, the eval-role env and a per-run kubeconfig
+  copy, and watches its JSON Lines output for the skill load: for claude a
+  Skill tool_use naming the canonical skill, for kiro and codex a tool call
+  that reads the staged SKILL.md. Kills the subprocess on first match so
+  negatives don't burn the full response-generation budget. A run that
+  times out, shows no start event, exits non-zero or shows no end event
+  (without a seen trigger) is invalid; invalid runs count in neither the
+  trigger count nor the run count, and a case with no valid run fails.
 
   main() mirrors run_eval.py's CLI and output schema so misc/evals/
-  run_all_evals.py keeps parsing the stdout JSON blob without changes.
+  run_all_evals.py keeps parsing the stdout JSON blob; the fields it adds
+  are listed at score_case and run_eval. `--class` merges a class's shared
+  trigger cases with the skill's own (targets: CLASS_TARGETS).
   It exits 2 when the eval-role session is refused at start or a refresh
   fails mid-run.
 
@@ -404,79 +412,173 @@ def _match_skill_in_input(raw_json: str, skill_name: str) -> bool:
     )
 
 
+HARNESSES = ("claude", "kiro", "codex")
+
+
+def new_run_record(harness: str) -> dict:
+    """The per-run record every harness adapter returns.
+
+    triggered       True only on a valid run whose output showed the skill load
+    trigger_seen    the output showed the skill load (kept on an invalid run)
+    invalid         the run cannot count: invalid_reason says why
+    init_seen       the harness's start event was read (claude system/init,
+                    kiro runStarted, codex thread.started)
+    end_seen        the harness's end event was read (claude result, kiro
+                    runFinished, codex turn.completed)
+    returncode      the harness's exit code (negative: killed by a signal,
+                    such as the kill on a seen trigger)
+    timed_out       the run hit --timeout
+    tokens          token counts when the output carries them, else None
+    """
+    return {
+        "harness": harness,
+        "triggered": False,
+        "trigger_seen": False,
+        "invalid": False,
+        "invalid_reason": None,
+        "init_skills": None,
+        "init_seen": False,
+        "end_seen": False,
+        "returncode": None,
+        "timed_out": False,
+        "tokens": None,
+    }
+
+
+def _mark_invalid(out: dict, reason: str) -> None:
+    """First reason wins."""
+    if not out["invalid"]:
+        out["invalid"] = True
+        out["invalid_reason"] = reason
+
+
+def read_stream_lines(process: subprocess.Popen, timeout: float, on_line) -> str:
+    """Feed each stdout line to on_line(line) until on_line returns True or
+    the stream ends. Returns "stopped" (on_line asked to stop), "exited" (the
+    process exited), "eof" (stdout closed and the process did not exit
+    within the time left) or "timeout". Never kills the process."""
+    buffer = ""
+    start = time.time()
+
+    def feed(text: str) -> bool:
+        nonlocal buffer
+        buffer += text
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            if on_line(line):
+                return True
+        return False
+
+    while True:
+        remaining = timeout - (time.time() - start)
+        if remaining <= 0:
+            return "timeout"
+        if process.poll() is not None:
+            rest = process.stdout.read() if process.stdout else b""
+            # The trailing "\n" flushes a last line printed with no newline.
+            return "stopped" if feed((rest or b"").decode("utf-8", errors="replace") + "\n") else "exited"
+        ready, _, _ = select.select([process.stdout], [], [], min(1.0, remaining))
+        if not ready:
+            continue
+        chunk = os.read(process.stdout.fileno(), 8192)
+        if not chunk:
+            try:
+                process.wait(timeout=max(0.1, min(10.0, timeout - (time.time() - start))))
+            except subprocess.TimeoutExpired:
+                return "eof"
+            return "stopped" if feed("\n") else "exited"
+        if feed(chunk.decode("utf-8", errors="replace")):
+            return "stopped"
+
+
+def finish_run(out: dict, process: subprocess.Popen, how: str, timeout: float,
+               init_name: str, end_name: str) -> dict:
+    """Kill the process if it still runs, record its exit code, and mark the
+    run invalid when it cannot count: no start event, a timeout, a
+    non-zero exit or no end event, unless the skill load was seen after a
+    start event (the runner kills the process on a seen trigger, so its exit
+    code is then a signal). An invalid run never reads triggered True."""
+    if process.poll() is None:
+        process.kill()
+        process.wait()
+    out["returncode"] = process.returncode
+    out["timed_out"] = how == "timeout"
+    if not out["init_seen"]:
+        _mark_invalid(out, f"no {init_name} event")
+    elif out["trigger_seen"]:
+        pass
+    elif how == "timeout":
+        _mark_invalid(out, f"timed out after {timeout}s before the run ended")
+    elif how == "eof":
+        _mark_invalid(out, "stdout closed but the process did not exit")
+    elif process.returncode != 0:
+        _mark_invalid(out, f"exited {process.returncode}")
+    elif not out["end_seen"]:
+        _mark_invalid(out, f"no {end_name} event")
+    out["triggered"] = bool(out["trigger_seen"]) and not out["invalid"]
+    return out
+
+
+def _json_object(raw_line: str) -> dict | None:
+    line = raw_line.strip()
+    if not line:
+        return None
+    try:
+        evt = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    return evt if isinstance(evt, dict) else None
+
+
+def _int_fields(d: dict, keys) -> dict:
+    return {k: d[k] for k in keys if isinstance(d.get(k), int) and not isinstance(d.get(k), bool)}
+
+
+def _names_skill_file(obj, skill_name: str, skill_dir: Path) -> bool:
+    """True when a tool call's input names the staged skill's SKILL.md: by
+    the staged path (.../skills/<name>/SKILL.md) or the repo folder the
+    staged link resolves to."""
+    text = obj if isinstance(obj, str) else json.dumps(obj, ensure_ascii=False)
+    return (f"skills/{skill_name}/SKILL.md" in text
+            or f"{Path(skill_dir).resolve()}/SKILL.md" in text)
+
+
+# ---------- claude adapter ----------------------------------------------------
+
+
+CLAUDE_TOKEN_KEYS = ("input_tokens", "output_tokens",
+                     "cache_read_input_tokens", "cache_creation_input_tokens")
+
+
 def parse_stream_for_trigger(
     process: subprocess.Popen,
     skill_name: str,
     timeout: float,
 ) -> dict:
-    """Consume the subprocess's stream-json stdout and return a result dict:
-
-        {
-          "triggered": bool,
-          "invalid": bool,
-          "invalid_reason": str | None,
-          "init_skills": list[str] | None,
-        }
-
-    Returns as soon as the Skill tool_use is observed (kills the process),
-    or when the subprocess exits / timeout is hit.
-    """
-    out = {
-        "triggered": False,
-        "invalid": False,
-        "invalid_reason": None,
-        "init_skills": None,
-    }
-    buffer = ""
-    pending_block: dict | None = None  # {"type": "tool_use", "name": "...", "input_json": "..."}
-    start = time.time()
-
-    def _emit_invalid(reason: str) -> None:
-        out["invalid"] = True
-        out["invalid_reason"] = reason
+    """Consume `claude -p` stream-json stdout and return new_run_record's
+    dict for harness claude. Stops as soon as the Skill tool_use is seen
+    (finish_run kills the process), or when the process exits or the
+    timeout is hit."""
+    out = new_run_record("claude")
+    pending = [None]
 
     def _check_init(init_skills: list[str]) -> None:
+        out["init_seen"] = True
         out["init_skills"] = init_skills
         unexpected = [s for s in init_skills if s not in BUILTIN_SKILLS and s != skill_name]
         if unexpected:
-            _emit_invalid(f"unexpected skills in system/init: {unexpected}")
+            _mark_invalid(out, f"unexpected skills in system/init: {unexpected}")
 
-    try:
-        while True:
-            if time.time() - start > timeout:
-                break
-            if process.poll() is not None:
-                # Drain remaining output.
-                rest = process.stdout.read() if process.stdout else b""
-                if rest:
-                    buffer += rest.decode("utf-8", errors="replace")
-                while "\n" in buffer:
-                    line, buffer = buffer.split("\n", 1)
-                    _handle_line(line, skill_name, out, _check_init, _emit_invalid, pending_block)
-                    if out["triggered"]:
-                        return out
-                break
+    def on_line(line: str) -> bool:
+        pending[0] = _handle_line(line, skill_name, out, _check_init,
+                                  lambda reason: _mark_invalid(out, reason), pending[0])
+        if out["triggered"]:
+            out["trigger_seen"] = True
+            return True
+        return False
 
-            ready, _, _ = select.select([process.stdout], [], [], 1.0)
-            if not ready:
-                continue
-            chunk = os.read(process.stdout.fileno(), 8192)
-            if not chunk:
-                break
-            buffer += chunk.decode("utf-8", errors="replace")
-
-            while "\n" in buffer:
-                line, buffer = buffer.split("\n", 1)
-                pending_block = _handle_line(
-                    line, skill_name, out, _check_init, _emit_invalid, pending_block
-                )
-                if out["triggered"]:
-                    return out
-    finally:
-        if process.poll() is None:
-            process.kill()
-            process.wait()
-    return out
+    how = read_stream_lines(process, timeout, on_line)
+    return finish_run(out, process, how, timeout, "system/init", "result")
 
 
 def _handle_line(
@@ -568,6 +670,15 @@ def _handle_line(
         return pending_block
 
     if etype == "result":
+        out["end_seen"] = True
+        usage = evt.get("usage")
+        if isinstance(usage, dict):
+            tokens = _int_fields(usage, CLAUDE_TOKEN_KEYS)
+            if tokens:
+                tokens["total_tokens"] = sum(tokens.values())
+                out["tokens"] = tokens
+        if evt.get("is_error") is True:
+            emit_invalid("result event reports is_error")
         return pending_block
 
     return pending_block
@@ -576,39 +687,288 @@ def _handle_line(
 # ---------- single query ------------------------------------------------------
 
 
+def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
+               timeout: int, sandbox: Path, home: Path, env: dict[str, str]) -> dict:
+    """Claude Code adapter: `claude -p` stream-json; the skill is staged at
+    sandbox/.claude/skills/<name>/ by stage_skill_sandbox, and a trigger is
+    a Skill tool_use naming it."""
+    cmd = [
+        "claude",
+        "-p", query,
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--permission-mode", "bypassPermissions",
+    ]
+    if model:
+        cmd.extend(["--model", model])
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        cwd=str(sandbox),
+        env=env,
+    )
+    return parse_stream_for_trigger(process, skill_name, timeout=timeout)
+
+
+# ---------- kiro adapter ------------------------------------------------------
+#
+# Kiro CLI 3.4.0, `kiro-cli chat --help`: `--output-format stream-json` prints
+# "The run's ACP events as JSON Lines on stdout, one self-describing event per
+# line" and implies --no-interactive. Headless runs authenticate with the
+# KIRO_API_KEY environment variable (kiro.dev/docs/cli/headless, read
+# 2026-11-19), so Kiro's model calls go to Kiro's service, not to Bedrock on
+# the eval-role session; the eval-role env still reaches the subprocess for
+# its AWS tool calls. Kiro reads global skills from ~/.kiro/skills/
+# (kiro.dev/docs/skills) and loads a skill's full SKILL.md on activation, which
+# shows as a file-read tool call on .../skills/<name>/SKILL.md. The record
+# types read here (runStarted, sessionUpdate, runFinished, runError) are the
+# names in the 3.4.0 binary and the headless page's runError record; an ACP
+# tool call is a sessionUpdate whose update has sessionUpdate "tool_call" or
+# "tool_call_update". Token counts are read only if runFinished carries them.
+
+
+KIRO_TOKEN_KEYS = ("input_tokens", "output_tokens", "inputTokens", "outputTokens",
+                   "total_tokens", "totalTokens")
+
+
+def _acp_tool_calls(obj):
+    """Every dict under `obj` whose sessionUpdate is an ACP tool call."""
+    if isinstance(obj, dict):
+        if obj.get("sessionUpdate") in ("tool_call", "tool_call_update"):
+            yield obj
+        for v in obj.values():
+            yield from _acp_tool_calls(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _acp_tool_calls(v)
+
+
+def _find_tokens(obj, keys) -> dict | None:
+    if isinstance(obj, dict):
+        found = _int_fields(obj, keys)
+        if found:
+            return found
+        for v in obj.values():
+            got = _find_tokens(v, keys)
+            if got:
+                return got
+    elif isinstance(obj, list):
+        for v in obj:
+            got = _find_tokens(v, keys)
+            if got:
+                return got
+    return None
+
+
+def parse_kiro_stream(process: subprocess.Popen, skill_name: str, skill_dir: Path,
+                      timeout: float) -> dict:
+    out = new_run_record("kiro")
+    updates = [0]
+
+    def on_line(line: str) -> bool:
+        evt = _json_object(line)
+        if evt is None:
+            return False
+        etype = evt.get("type")
+        if etype == "runStarted":
+            out["init_seen"] = True
+        elif etype == "runFinished":
+            out["end_seen"] = True
+            tokens = _find_tokens(evt, KIRO_TOKEN_KEYS)
+            if tokens:
+                if "total_tokens" not in tokens:
+                    tokens["total_tokens"] = tokens.get("totalTokens") or sum(
+                        v for k, v in tokens.items() if k not in ("totalTokens",))
+                out["tokens"] = tokens
+        elif etype == "runError":
+            _mark_invalid(out, "runError record")
+        elif etype == "sessionUpdate":
+            updates[0] += 1
+            for call in _acp_tool_calls(evt):
+                probe = {k: call.get(k) for k in ("rawInput", "locations", "title")}
+                if _names_skill_file(probe, skill_name, skill_dir):
+                    out["trigger_seen"] = True
+                    return True
+        return False
+
+    how = read_stream_lines(process, timeout, on_line)
+    finish_run(out, process, how, timeout, "runStarted", "runFinished")
+    if not out["invalid"] and not out["trigger_seen"] and updates[0] == 0:
+        _mark_invalid(out, "no sessionUpdate event, so the output cannot show whether the skill loaded")
+    return out
+
+
+def run_kiro(query: str, skill_name: str, skill_dir: Path, model: str | None,
+             timeout: int, sandbox: Path, home: Path, env: dict[str, str]) -> dict:
+    """Kiro CLI adapter: the skill is linked at <clean HOME>/.kiro/skills/<name>."""
+    skills = home / ".kiro" / "skills"
+    skills.mkdir(parents=True, exist_ok=True)
+    (skills / skill_name).symlink_to(Path(skill_dir).resolve())
+    cmd = [
+        "kiro-cli", "chat",
+        "--no-interactive",
+        "--output-format", "stream-json",
+        "--trust-all-tools",
+        "--trust-workspace",
+    ]
+    if model:
+        cmd.extend(["--model", model])
+    cmd.append(query)
+    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
+    return parse_kiro_stream(process, skill_name, skill_dir, timeout)
+
+
+# ---------- codex adapter -----------------------------------------------------
+#
+# Codex CLI 0.163.0, `codex exec --help`: `--json` "Print events to stdout as
+# JSONL". The event and item types are openai/codex
+# codex-rs/exec/src/exec_events.rs (read at f8c6026c, 2026-11-19):
+# thread.started, turn.started, turn.completed {usage}, turn.failed, error,
+# item.started / item.updated / item.completed, item types agent_message,
+# reasoning, command_execution {command}, file_change, mcp_tool_call
+# {arguments}, web_search, todo_list, error. Codex reads skills from
+# $HOME/.agents/skills and, once it picks a skill, "reads the full SKILL.md"
+# (learn.chatgpt.com/docs/build-skills, read 2026-11-19); that read is a
+# command_execution whose command names the file. The model goes to Bedrock
+# through the built-in amazon-bedrock-runtime provider, which signs with
+# AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the env
+# (codex-rs/model-provider/src/amazon_bedrock/auth.rs), here the eval role's.
+
+
+CODEX_TOKEN_KEYS = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens",
+                    "output_tokens", "reasoning_output_tokens")
+CODEX_BEDROCK_PROVIDER = "amazon-bedrock-runtime"
+# Never passed to a Codex subject: each could route its model calls off the
+# eval-role session or load a config other than the clean HOME's.
+CODEX_DROPPED_VARS = frozenset({"CODEX_HOME", "CODEX_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"})
+
+
+def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Path,
+                       timeout: float) -> dict:
+    out = new_run_record("codex")
+    items = [0]
+
+    def on_line(line: str) -> bool:
+        evt = _json_object(line)
+        if evt is None:
+            return False
+        etype = evt.get("type")
+        if etype == "thread.started":
+            out["init_seen"] = True
+        elif etype == "turn.completed":
+            out["end_seen"] = True
+            usage = evt.get("usage")
+            if isinstance(usage, dict):
+                got = _int_fields(usage, CODEX_TOKEN_KEYS)
+                if got:
+                    tokens = out["tokens"] or {}
+                    for k, v in got.items():
+                        tokens[k] = tokens.get(k, 0) + v
+                    # cached and reasoning counts are parts of input and output
+                    tokens["total_tokens"] = tokens.get("input_tokens", 0) + tokens.get("output_tokens", 0)
+                    out["tokens"] = tokens
+        elif etype == "turn.failed":
+            _mark_invalid(out, "turn.failed event")
+        elif etype == "error":
+            _mark_invalid(out, "error event")
+        elif etype in ("item.started", "item.updated", "item.completed"):
+            items[0] += 1
+            item = evt.get("item")
+            if not isinstance(item, dict):
+                return False
+            probe = None
+            if item.get("type") == "command_execution":
+                probe = item.get("command")
+            elif item.get("type") == "mcp_tool_call":
+                probe = item.get("arguments")
+            if probe is not None and _names_skill_file(probe, skill_name, skill_dir):
+                out["trigger_seen"] = True
+                return True
+        return False
+
+    how = read_stream_lines(process, timeout, on_line)
+    finish_run(out, process, how, timeout, "thread.started", "turn.completed")
+    if not out["invalid"] and not out["trigger_seen"] and items[0] == 0:
+        _mark_invalid(out, "no item event, so the output cannot show whether the skill loaded")
+    return out
+
+
+def run_codex(query: str, skill_name: str, skill_dir: Path, model: str | None,
+              timeout: int, sandbox: Path, home: Path, env: dict[str, str]) -> dict:
+    """Codex CLI adapter: the skill is linked at <clean HOME>/.agents/skills/<name>,
+    CODEX_HOME is the clean HOME's .codex, and the model provider is Bedrock
+    in the eval role's region."""
+    skills = home / ".agents" / "skills"
+    skills.mkdir(parents=True, exist_ok=True)
+    (skills / skill_name).symlink_to(Path(skill_dir).resolve())
+    (home / ".codex").mkdir(exist_ok=True)
+    for k in CODEX_DROPPED_VARS:
+        env.pop(k, None)
+    env["CODEX_HOME"] = str(home / ".codex")
+    region = env.get("AWS_REGION", "")
+    cmd = [
+        "codex", "exec",
+        "--json",
+        "--skip-git-repo-check",
+        "--ephemeral",
+        "--sandbox", "read-only",
+        "-C", str(sandbox),
+        "-c", f'model_provider="{CODEX_BEDROCK_PROVIDER}"',
+        "-c", f'model_providers.{CODEX_BEDROCK_PROVIDER}.aws.region="{region}"',
+    ]
+    if model:
+        cmd.extend(["--model", model])
+    cmd.append(query)
+    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                               stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
+    return parse_codex_stream(process, skill_name, skill_dir, timeout)
+
+
+HARNESS_ADAPTERS = {"claude": run_claude, "kiro": run_kiro, "codex": run_codex}
+
+
+def per_run_kubeconfig(home: Path, source: str | None) -> dict[str, str] | None:
+    """Copy the kubeconfig (`source`, else the parent's KUBECONFIG list) into
+    the run's clean HOME, so a run that rewrites its kubeconfig (such as
+    `aws eks update-kubeconfig`) changes only its own copy. Missing entries
+    of the parent's list are skipped, as kubectl skips them."""
+    src = source or os.environ.get("KUBECONFIG")
+    if not src:
+        return None
+    kube = home / ".kube"
+    kube.mkdir(mode=0o700, exist_ok=True)
+    copies = []
+    for path in (p for p in src.split(os.pathsep) if p):
+        if source is None and not os.path.isfile(path):
+            continue
+        dst = kube / f"config-{len(copies)}"
+        shutil.copyfile(path, dst)
+        os.chmod(dst, 0o600)
+        copies.append(str(dst))
+    return {"KUBECONFIG": os.pathsep.join(copies)} if copies else None
+
+
 def run_single_query(
     query: str,
     skill_name: str,
     repo_skill_dir: Path,
     model: str | None,
     timeout: int,
+    *,
+    harness: str = "claude",
+    kubeconfig: str | None = None,
 ) -> dict:
-    """Run one `claude -p` invocation in a fresh sandbox. Returns the result
-    dict from parse_stream_for_trigger (triggered / invalid / init_skills).
-    Caller maps `triggered` to a pass/fail count.
-    """
+    """Run one query on one harness in a fresh sandbox and clean HOME, with
+    the eval-role env and a per-run kubeconfig copy. Returns the adapter's
+    new_run_record dict; the caller counts only valid runs."""
+    adapter = HARNESS_ADAPTERS[harness]
     with stage_skill_sandbox(skill_name, repo_skill_dir) as (sandbox, home):
-        env = build_subprocess_env(home, aws_env=eval_aws_env(timeout))
-
-        cmd = [
-            "claude",
-            "-p", query,
-            "--output-format", "stream-json",
-            "--verbose",
-            "--include-partial-messages",
-            "--permission-mode", "bypassPermissions",
-        ]
-        if model:
-            cmd.extend(["--model", model])
-
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            cwd=str(sandbox),
-            env=env,
-        )
-        return parse_stream_for_trigger(process, skill_name, timeout=timeout)
+        env = build_subprocess_env(home, per_run_kubeconfig(home, kubeconfig),
+                                   aws_env=eval_aws_env(timeout))
+        return adapter(query, skill_name, Path(repo_skill_dir), model, timeout, sandbox, home, env)
 
 
 # ---------- top-level aggregation ---------------------------------------------
@@ -688,21 +1048,61 @@ def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
     return name, description
 
 
-def _worker(args: tuple) -> tuple[str, dict]:
-    query, skill_name, repo_skill_dir, model, timeout, creds = args
+def _worker(args: tuple) -> tuple[int, dict]:
+    case_idx, query, skill_name, repo_skill_dir, model, timeout, creds, harness, kubeconfig = args
     set_eval_credentials(creds)
     try:
-        result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout)
+        result = run_single_query(query, skill_name, Path(repo_skill_dir), model, timeout,
+                                  harness=harness, kubeconfig=kubeconfig)
     except EvalCredentialError:
         raise  # a failed refresh stops the run; it is never an invalid run that can pass
     except Exception as e:  # noqa: BLE001
-        result = {
-            "triggered": False,
-            "invalid": True,
-            "invalid_reason": f"worker exception: {e!r}",
-            "init_skills": None,
-        }
-    return query, result
+        result = new_run_record(harness)
+        result["invalid"] = True
+        result["invalid_reason"] = f"worker exception: {e!r}"
+    return case_idx, result
+
+
+def score_case(item: dict, records: list[dict], trigger_threshold: float) -> dict:
+    """One results[] row. Only valid runs count, in both the trigger count
+    and the run count behind the rate; a case with no valid run fails on
+    either side, and a class's shared negative with any invalid run fails."""
+    valid = [r for r in records if not r.get("invalid")]
+    invalid = [r for r in records if r.get("invalid")]
+    runs = len(valid)
+    trigger_count = sum(1 for r in valid if r.get("triggered"))
+    rate = (trigger_count / runs) if runs else 0.0
+    should = bool(item["should_trigger"])
+    source = item.get("source", "member")
+    if not runs:
+        fail_reason = "no valid run"
+    elif not should and invalid and source != "member":
+        fail_reason = "shared negative with invalid runs"
+    elif should:
+        fail_reason = None if rate >= trigger_threshold else "trigger rate below threshold"
+    else:
+        fail_reason = None if rate < trigger_threshold else "trigger rate at or above threshold"
+    row = {
+        "query": item["query"],
+        "should_trigger": should,
+        "trigger_rate": rate,
+        "triggers": trigger_count,
+        "runs": runs,
+        "pass": fail_reason is None,
+        "source": source,
+        "attempted_runs": len(records),
+        "invalid_count": len(invalid),
+        "fail_reason": fail_reason,
+        "run_records": records,
+    }
+    if "id" in item:
+        row["id"] = item["id"]
+    if invalid:
+        row["invalid_runs"] = [
+            {"reason": r.get("invalid_reason"), "init_skills": r.get("init_skills")}
+            for r in invalid
+        ]
+    return row
 
 
 def run_eval(
@@ -716,74 +1116,221 @@ def run_eval(
     trigger_threshold: float,
     model: str | None,
     creds: EvalCredentials,
+    *,
+    harness: str = "claude",
+    kubeconfig: str | None = None,
 ) -> dict:
-    """Execute every (query × run_idx) pair; aggregate into run_eval.py's
-    output schema so downstream parsers don't need to change. Each worker
-    starts from `creds` and refreshes it when a query would outlive it.
+    """Execute every (case x run) pair; aggregate into run_eval.py's output
+    schema plus the fields score_case adds. Cases are keyed by their index,
+    so a shared case whose query matches a member's is its own row. Each
+    worker starts from `creds` and refreshes it when a query would outlive it.
     """
     jobs = []
-    for item in eval_set:
+    for idx, item in enumerate(eval_set):
         for _ in range(runs_per_query):
-            jobs.append((item["query"], skill_name, str(repo_skill_dir), model, timeout, creds))
+            jobs.append((idx, item["query"], skill_name, str(repo_skill_dir), model, timeout,
+                         creds, harness, kubeconfig))
 
-    triggers_by_query: dict[str, list[bool]] = {}
-    invalids_by_query: dict[str, list[dict]] = {}
+    records_by_case: dict[int, list[dict]] = {}
 
     with ProcessPoolExecutor(max_workers=num_workers) as ex:
         futures = [ex.submit(_worker, j) for j in jobs]
         for fut in as_completed(futures):
             try:
-                query, result = fut.result()
+                idx, result = fut.result()
             except EvalCredentialError:
                 for f in futures:
                     f.cancel()
                 raise
-            triggers_by_query.setdefault(query, []).append(bool(result["triggered"]))
-            if result.get("invalid"):
-                invalids_by_query.setdefault(query, []).append(
-                    {
-                        "reason": result.get("invalid_reason"),
-                        "init_skills": result.get("init_skills"),
-                    }
-                )
+            records_by_case.setdefault(idx, []).append(result)
 
-    results: list[dict] = []
-    item_by_query = {item["query"]: item for item in eval_set}
-    for query in (item["query"] for item in eval_set):
-        triggers = triggers_by_query.get(query, [])
-        item = item_by_query[query]
-        runs = len(triggers)
-        trigger_count = sum(triggers)
-        rate = (trigger_count / runs) if runs else 0.0
-        should = bool(item["should_trigger"])
-        if should:
-            did_pass = rate >= trigger_threshold
-        else:
-            did_pass = rate < trigger_threshold
-        row = {
-            "query": query,
-            "should_trigger": should,
-            "trigger_rate": rate,
-            "triggers": trigger_count,
-            "runs": runs,
-            "pass": did_pass,
-        }
-        if query in invalids_by_query:
-            row["invalid_runs"] = invalids_by_query[query]
-        results.append(row)
+    results = [score_case(item, records_by_case.get(idx, []), trigger_threshold)
+               for idx, item in enumerate(eval_set)]
 
     passed = sum(1 for r in results if r["pass"])
     total = len(results)
+    all_runs = [rec for r in results for rec in r["run_records"]]
+    totals = [rec["tokens"]["total_tokens"] for rec in all_runs
+              if not rec.get("invalid") and isinstance(rec.get("tokens"), dict)
+              and isinstance(rec["tokens"].get("total_tokens"), int)]
     return {
         "skill_name": skill_name,
         "description": description,
+        "harness": harness,
+        "runs_per_query": runs_per_query,
+        "trigger_threshold": trigger_threshold,
         "results": results,
         "summary": {
             "total": total,
             "passed": passed,
             "failed": total - passed,
+            "invalid_runs": sum(r["invalid_count"] for r in results),
+            "runs_with_tokens": len(totals),
+            "tokens_per_run": (sum(totals) / len(totals)) if totals else None,
         },
     }
+
+
+# ---------- class shared trigger evals ----------------------------------------
+#
+# A class's shared trigger cases live at classes/<class>/evals/trigger/
+# triggering.json. They run against each target of the
+# class, merged with the target's own cases, a class's parents' cases first.
+# Until skills declare metadata.apex-classes (added by later skill rebuilds),
+# the targets are this explicit list. `blocking` False is a report-only target:
+# the 22 planned skills, until the maintainers decide which targets block, the
+# 4 owner-held skills and the 3 other devops-agent copies. dotnet-aws-ecs runs
+# once it is de-vendored in its own later rebuild.
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+_APEX_BASE_REPORT_ONLY = (
+    "skills/apex", "skills/apex-new-skill", "skills/ecs-architect", "skills/ecs-build",
+    "skills/ecs-devops", "skills/ecs-genai", "skills/ecs-modernize", "skills/ecs-observability",
+    "skills/ecs-operation-review", "skills/ecs-recon", "skills/ecs-security",
+    "skills/eks-best-practices", "skills/eks-build", "skills/eks-cost-intelligence",
+    "skills/eks-design", "skills/eks-genai", "skills/eks-mcp-server",
+    "skills/eks-platform-engineering", "skills/eks-recon", "skills/eks-security",
+    "skills/graviton-migration", "skills/update-docs",
+    "skills/eks-upgrade-check", "skills/eks-operation-review",
+    "skills/eks-well-architected-review", "skills/eks-ingress-migration",
+    "devops-agent/eks-ingress-migration", "devops-agent/eks-operation-review",
+    "devops-agent/eks-upgrade-check",
+)
+_APEX_BASE_BLOCKING = (
+    "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon", "devops-agent/eks-security",
+)
+CLASS_TARGETS: dict[str, dict[str, bool]] = {
+    "apex-base": {**{p: True for p in _APEX_BASE_BLOCKING},
+                  **{p: False for p in _APEX_BASE_REPORT_ONLY}},
+}
+
+
+class EvalSetError(ValueError):
+    """An eval set, class or target that cannot be run as asked."""
+
+
+def run_key_for(skill_dir: Path) -> str:
+    """The key a run's output and history use: the folder name for
+    skills/<name>, <parent>-<name> for any other folder (each devops-agent
+    copy shares its twin's `name:`, so it needs a key of its own)."""
+    skill_dir = Path(skill_dir).resolve()
+    if skill_dir.parent.name == "skills":
+        return skill_dir.name
+    return f"{skill_dir.parent.name}-{skill_dir.name}"
+
+
+def target_path(skill_dir: Path) -> str | None:
+    """skill_dir relative to the repo root, or None outside it."""
+    try:
+        return Path(skill_dir).resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return None
+
+
+def class_parents(name: str, classes_root: Path) -> list[str]:
+    path = classes_root / name / "class.yaml"
+    try:
+        text = path.read_text()
+    except OSError as e:
+        raise EvalSetError(f"no class {name!r}: cannot read {path}") from e
+    if yaml is not None:
+        data = yaml.safe_load(text) or {}
+        parents = data.get("parents") or []
+    else:
+        m = re.search(r"^parents:\s*\[(.*)\]\s*$", text, re.MULTILINE)
+        parents = [p.strip().strip("'\"") for p in m.group(1).split(",") if p.strip()] if m else []
+    if not isinstance(parents, list) or not all(isinstance(p, str) for p in parents):
+        raise EvalSetError(f"{path}: parents must be a list of class names")
+    return parents
+
+
+def class_chain(names: list[str], classes_root: Path) -> list[str]:
+    """The named classes and their parents, parents first, each class once."""
+    order: list[str] = []
+    visiting: set[str] = set()
+
+    def visit(n: str) -> None:
+        if n in order:
+            return
+        if n in visiting:
+            raise EvalSetError(f"class parents loop at {n!r}")
+        visiting.add(n)
+        for p in class_parents(n, classes_root):
+            visit(p)
+        visiting.discard(n)
+        order.append(n)
+
+    for n in names:
+        visit(n)
+    return order
+
+
+def _check_cases(cases, where: str) -> list[dict]:
+    if not isinstance(cases, list):
+        raise EvalSetError(f"{where}: must be a JSON list of cases")
+    for i, c in enumerate(cases):
+        if (not isinstance(c, dict) or not isinstance(c.get("query"), str)
+                or not isinstance(c.get("should_trigger"), bool)):
+            raise EvalSetError(f"{where}[{i}]: needs a string query and a bool should_trigger")
+        if "id" in c and (not isinstance(c["id"], int) or isinstance(c["id"], bool)):
+            raise EvalSetError(f"{where}[{i}]: id must be an integer")
+    return cases
+
+
+def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
+                   classes_root: Path | None = None,
+                   targets: dict[str, dict[str, bool]] | None = None) -> tuple[list[dict], dict]:
+    """Merge the member's own cases (source "member") with each named
+    class's shared cases (source "class:<name>"), parents first. Returns
+    (cases, meta); meta holds run_key, target, classes and blocking (None
+    with no class). Refuses a skill that is not on a named class's target
+    list, a chain with no shared trigger file, and repeated case ids."""
+    classes_root = classes_root or (REPO_ROOT / "classes")
+    targets = CLASS_TARGETS if targets is None else targets
+    cases: list[dict] = []
+    if member_set is not None:
+        where = str(member_set)
+        try:
+            loaded = json.loads(Path(member_set).read_text())
+        except (OSError, ValueError) as e:
+            raise EvalSetError(f"cannot read {where}: {e}") from e
+        cases += [dict(c, source="member") for c in _check_cases(loaded, where)]
+    target = target_path(skill_dir)
+    blocking = None
+    chain: list[str] = []
+    if classes:
+        for name in classes:
+            listed = targets.get(name)
+            if listed is None:
+                raise EvalSetError(f"class {name!r} has no target list in CLASS_TARGETS")
+            if target not in listed:
+                raise EvalSetError(f"{target or skill_dir} is not a target of class {name!r}")
+            blocking = bool(blocking) or listed[target]
+        chain = class_chain(classes, classes_root)
+        found = False
+        for name in chain:
+            path = classes_root / name / "evals" / "trigger" / "triggering.json"
+            if not path.is_file():
+                continue
+            found = True
+            try:
+                loaded = json.loads(path.read_text())
+            except (OSError, ValueError) as e:
+                raise EvalSetError(f"cannot read {path}: {e}") from e
+            cases += [dict(c, source=f"class:{name}") for c in _check_cases(loaded, str(path))]
+        if not found:
+            raise EvalSetError(f"no shared trigger evals (evals/trigger/triggering.json) "
+                               f"in classes {chain}")
+    ids = [c["id"] for c in cases if "id" in c]
+    dup = sorted({i for i in ids if ids.count(i) > 1})
+    if dup:
+        raise EvalSetError(f"case ids repeat across the merged set: {dup}")
+    if not cases:
+        raise EvalSetError("no cases: pass --eval-set, --class or both")
+    meta = {"run_key": run_key_for(skill_dir), "target": target,
+            "classes": chain, "blocking": blocking}
+    return cases, meta
 
 
 # ---------- CLI ---------------------------------------------------------------
@@ -791,8 +1338,20 @@ def run_eval(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--eval-set", required=True, help="Path to triggering.json")
-    parser.add_argument("--skill-path", required=True, help="Path to skills/<name>/")
+    parser.add_argument("--eval-set", default=None,
+                        help="Path to the skill's own triggering.json")
+    parser.add_argument("--skill-path", default=None,
+                        help="Path to skills/<name>/ or devops-agent/<name>/")
+    parser.add_argument("--class", dest="classes", action="append", default=[],
+                        metavar="CLASS",
+                        help="Also run this class's shared trigger evals (and its parents'); "
+                             "the skill must be on the class's target list. Repeatable")
+    parser.add_argument("--list-class-targets", metavar="CLASS", default=None,
+                        help="Print the class's target list as JSON and exit; runs nothing")
+    parser.add_argument("--harness", choices=HARNESSES, default="claude")
+    parser.add_argument("--kubeconfig", default=None,
+                        help="Kubeconfig each run gets its own copy of (default: the "
+                             "parent's KUBECONFIG, copied the same way)")
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=90, help="Per-query wallclock seconds")
     parser.add_argument("--runs-per-query", type=int, default=3)
@@ -801,11 +1360,35 @@ def main() -> int:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    eval_set = json.loads(Path(args.eval_set).read_text())
+    if args.list_class_targets is not None:
+        listed = CLASS_TARGETS.get(args.list_class_targets)
+        if listed is None:
+            print(f"error: class {args.list_class_targets!r} has no target list", file=sys.stderr)
+            return 1
+        print(json.dumps({"class": args.list_class_targets, "targets": [
+            {"target": t, "run_key": run_key_for(REPO_ROOT / t), "blocking": b}
+            for t, b in listed.items()]}, indent=2))
+        return 0
+
+    if not args.skill_path:
+        print("error: --skill-path is required", file=sys.stderr)
+        return 1
     skill_dir = Path(args.skill_path).resolve()
     if not (skill_dir / "SKILL.md").exists():
         print(f"error: no SKILL.md at {skill_dir}", file=sys.stderr)
         return 1
+    if args.kubeconfig is not None and not os.path.isfile(args.kubeconfig):
+        print(f"error: --kubeconfig {args.kubeconfig} is not a file", file=sys.stderr)
+        return 1
+    try:
+        eval_set, meta = build_eval_set(
+            Path(args.eval_set) if args.eval_set else None, args.classes, skill_dir)
+    except EvalSetError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if args.harness == "kiro" and not os.environ.get("KIRO_API_KEY"):
+        print("error: --harness kiro needs KIRO_API_KEY (Kiro's headless sign-in)", file=sys.stderr)
+        return 2
 
     name, description = read_skill_meta(skill_dir)
 
@@ -816,8 +1399,9 @@ def main() -> int:
         return 2
 
     if args.verbose:
-        print(f"[run_triggering] skill={name} prompts={len(eval_set)} "
-              f"runs={args.runs_per_query} workers={args.num_workers} model={args.model}",
+        print(f"[run_triggering] skill={name} run_key={meta['run_key']} harness={args.harness} "
+              f"prompts={len(eval_set)} runs={args.runs_per_query} workers={args.num_workers} "
+              f"model={args.model}",
               file=sys.stderr)
 
     try:
@@ -832,10 +1416,13 @@ def main() -> int:
             trigger_threshold=args.trigger_threshold,
             model=args.model,
             creds=creds,
+            harness=args.harness,
+            kubeconfig=args.kubeconfig,
         )
     except EvalCredentialError as e:
         print(f"error: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
         return 2
+    output.update(meta)
 
     if args.verbose:
         s = output["summary"]

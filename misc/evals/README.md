@@ -57,7 +57,7 @@ Composite scoring combines all layers via configurable weights in `.skilleval.ya
 
 ## How to update evals (manual process)
 
-Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers stay maintainer-run and out of CI for now, pending proper eval automation.
+Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers are maintainer-run; the model-backed `eval-gate` CI job runs by hand until its secrets are added (see "Merge gate" below).
 
 ### Step 1 — Run evals
 
@@ -67,8 +67,9 @@ cd misc/evals
 # Triggering (layer 0) — tests description routing
 make triggering-<skill> RUNS_PER_QUERY=3
 
-# Task evals (layers 1–4) — runs the skill, grades output
-make task-<skill> RUNS_PER_PROMPT=3
+# Task evals (layers 1–4): runs the skill, grades output; each case runs
+# the skill's regression.pass_k times (3 when unset) unless RUNS_PER_PROMPT is set
+make task-<skill>
 
 # Composite score — combines all layers into a grade
 make composite-<skill>
@@ -77,7 +78,7 @@ make composite-<skill>
 Or run everything at once:
 
 ```bash
-make task-all-parallel RUNS_PER_PROMPT=3    # all skills, all layers
+make task-all-parallel                      # all skills, all layers
 make composite-all                          # recompute all grades
 ```
 
@@ -186,6 +187,43 @@ make snapshot-<skill>       # freeze current scores
 make regression-<skill>     # compare against baseline, exit 2 on regression
 ```
 
+## Merge gate (old against new)
+
+The gate compares each skill as it is now (arm `with_skill`) with the same skill at a git ref (arm `base_skill`, default the `v1.3.0` tag, then the skill's last released tag). A skill absent at the ref, such as a new skill, runs against `without_skill`.
+
+```bash
+make gate SKILL=<run key>                   # one run key
+make gate SKILL=eks-recon HARNESS=codex     # another harness
+make gate-all                               # every run key with a runnable case
+make gate-stages                            # the deterministic stages only, no model call
+```
+
+`gate` runs, in this order, the deterministic stages (class admission checks, schema validation, link check, size check), then the evals. The four stage commands are the Makefile variables `GATE_ADMISSION_CMD`, `GATE_SCHEMA_CMD`, `GATE_LINK_CMD` and `GATE_SIZE_CMD`. They are empty here, and the stage prints that it is not wired; the checks are owned by later changes, which set the commands from `.github/workflows/evals.yml`. A stage that exits non-zero stops the gate before any model call. Then `run_task_evals.py` runs each case `regression.pass_k` times per arm, and `regression.py --gate` scores that run's own result. `SKILL` takes any run key `run_task_evals.py --list-targets` prints: a `misc/evals/<skill>` folder or a class target.
+
+What blocks (exit 2):
+
+- A case that fails Pass@k: none of its k `with_skill` runs passed. A run passes only when it is valid and every grader expectation, process assertion and artifact check passed; an invalid run (no events, no init event, a non-zero exit, a timeout) never passes. One failed case fails the gate on its own. A skill's own cases always block; a shared class case blocks only on a blocking target (`CLASS_TARGETS`: today the three repo-owned `devops-agent` copies), and on a report-only target it is listed without blocking.
+- A pooled pass-rate drop (the `with_skill` mean less the base arm's mean) past `THRESHOLD` points.
+
+Tokens and time per case and per skill are in the report and do not block: until the maintainers decide whether tokens or time may block a merge, only pass rate blocks. The gate exits 1, never 0, when there is nothing to score: a runner error, a refused eval-role session or a run key with no runnable case. The report goes to stderr, to `gate-report.md` in the run key's workspace and, in GitHub Actions, to the job summary.
+
+Runner flags the gate uses (`run_task_evals.py`):
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--harness {claude,kiro,codex}` | `claude` | Subject harness, one adapter each; the grader is `claude -p` on every harness |
+| `--base-ref REF` | `v1.3.0` | Git ref of the base arm; `none` runs `with_skill` against `without_skill` |
+| `--runs N` | the skill's `regression.pass_k` | Runs per case and arm |
+| `--list-targets` | | Prints one JSON line per run key and exits; mints no credential, runs nothing |
+
+`run_triggering.py` takes `--harness` too, plus `--class CLASS` (repeatable: adds that class's shared trigger cases from `classes/<class>/evals/trigger/triggering.json`, parents first, for a skill on the class's target list), `--list-class-targets CLASS` (prints the target list and exits), `--kubeconfig PATH` (each run gets its own 0600 copy) and `--runs-per-query` (default 3). `--eval-set` is needed unless `--class` is given. A triggering run that is invalid (no init event, a non-zero exit, a timeout, an error result) is left out of the trigger count, and a query with no valid run fails on both the should and the should-not side.
+
+Harnesses: `claude` (`claude -p`), `kiro` (`kiro-cli chat --no-interactive`) and `codex` (`codex exec --json`). The claude and codex subjects call Bedrock on the eval-role session. Kiro's model calls go to Kiro's own service, signed in with `KIRO_API_KEY`, not to Bedrock on the eval role, so a live Kiro run needs a maintainer's approval first. The kiro and codex adapters are built and tested on recorded output only.
+
+Every real run, on any harness, waits on the decision on whether evals may run on a shared host and on the dedicated eval role. The CI job `eval-gate` in `.github/workflows/evals.yml` runs only by hand (`workflow_dispatch`) until a maintainer adds its CI credentials and repository secrets: `APEX_EVAL_AWS_CONFIG` (the `~/.apex-eval/aws-config` contents), `APEX_EVAL_EXPECTED_ACCOUNT` (the eval account id) and, for `HARNESS=kiro`, `KIRO_API_KEY`. How CI gets its AWS credential is not yet decided. Without the secrets the job fails at its first step, and a pull request from a fork gets no secrets, so it fails there too; there is no pass without them.
+
+`make eval-manifest-check` (`generate_eval_manifest.py --check`) compares the committed `misc/website/static/manifests/evals.json` with a fresh build and exits 1 on a difference, writing nothing. Each manifest entry carries `tokens_per_run`, the `with_skill` mean tokens per run from the skill's latest task history row, null until a run records it.
+
 ## Per-skill layout
 
 ```
@@ -204,11 +242,14 @@ misc/evals/<skill>/
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PROVIDER` | `bedrock` | `bedrock`. `PROVIDER=anthropic` is not supported: every run needs `CLAUDE_CODE_USE_BEDROCK=1` and goes to Bedrock in the eval account (setup below) |
+| `PROVIDER` | `bedrock` | `bedrock` is the only value: every run needs `CLAUDE_CODE_USE_BEDROCK=1` and goes to Bedrock in the eval account (setup below) |
 | `MODEL` | `global.anthropic.claude-opus-4-6-v1` | A Bedrock model or inference-profile ID |
 | `RUNS_PER_QUERY` | `3` | ≥3 for meaningful confidence intervals |
 | `NUM_WORKERS` | `10` | Parallelism for triggering runs |
-| `RUNS_PER_PROMPT` | `1` | Task eval runs per prompt (3 for stddev) |
+| `RUNS_PER_PROMPT` | empty | Task eval runs per case and arm; empty uses the skill's `regression.pass_k` in `.skilleval.yaml` (3 when unset) |
+| `HARNESS` | `claude` | Gate subject harness: `claude`, `kiro` or `codex` (the grader is `claude -p` on all three) |
+| `BASE_REF` | `v1.3.0` | Git ref the gate's base arm takes the skill from; `none` runs against `without_skill` |
+| `THRESHOLD` | `5` | Pooled pass-rate drop, in percentage points, that fails `regression` and the gate |
 
 ```bash
 make triggering-all                                     # default: Bedrock Opus

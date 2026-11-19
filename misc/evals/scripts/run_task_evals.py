@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Task-axis runner for misc/evals/ (PLAN §2).
 
-For each prompt in <skill>/evals.json (skipping "live_only": true entries
-unless --include-live-only), for each config in {with_skill, without_skill},
-for k in 1..--runs:
+For each case in <skill>/evals.json and in the shared evals of the run key's
+classes (CLASS_TARGETS; skipping "live_only": true entries unless
+--include-live-only), for each arm in {with_skill, base arm}, for k in
+1..--runs (default regression.pass_k). The base arm is base_skill, the
+skill as it was at --base-ref (default v1.3.0), or without_skill when the
+skill is absent there or --base-ref is none. Step 2's subject is the
+--harness (claude, kiro or codex; one adapter function each), and every
+run's valid, pass, tokens and wall time go to run-result.json, cases.json
+and the history row:
 
   1. Stage a sandbox (stage_skill_sandbox or stage_empty_sandbox) with a
      clean HOME, plus an optional KUBECONFIG. The only AWS credentials the
@@ -43,13 +49,17 @@ import argparse
 import contextlib
 import datetime as dt
 import hashlib
+import io
 import json
+import multiprocessing
 import os
 import re
 import select
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -65,14 +75,18 @@ from run_triggering import (
     read_skill_meta,
 )
 from parse_trajectory import (
+    HARNESSES,
     MODEL_USAGE_KEYS,
     USAGE_TOKEN_KEYS,
     model_usage_entries,
+    normalize_events,
     parse_events,
+    stream_invalid_reason,
     token_count,
 )
-from process_assertions import evaluate
+from process_assertions import AssertionResult, ProcessAssertionResults, evaluate
 from artifact_validation import validate_run as validate_artifacts
+import elicitation
 from elicitation import ElicitationConfig, _append_event, run_multiturn_subject
 from skilleval_config import load_config as load_skilleval_config
 
@@ -81,6 +95,68 @@ REPO_ROOT = EVALS_ROOT.parent.parent
 HISTORY_DIR = EVALS_ROOT / "history"
 HISTORY_CAP = 50
 GRADER_MD = REPO_ROOT / "skills" / "skill-creator" / "agents" / "grader.md"
+SC_DIR = REPO_ROOT / "skills" / "skill-creator"
+CLASSES_ROOT = REPO_ROOT / "classes"
+# Run folders for a target with no misc/evals/<run key>/ folder of its own.
+# misc/evals/workspace is left out of discover_skills and the Makefile's
+# SKILLS list, so a run there adds no skill.
+TARGETS_WORKSPACE = EVALS_ROOT / "workspace"
+
+# The "old" arm is the skill as it was at this git ref (v1.3.0 is the
+# first base). "none" runs with against without, as before.
+DEFAULT_BASE_REF = "v1.3.0"
+NEW_ARM = "with_skill"
+BASE_ARM = "base_skill"
+WITHOUT_ARM = "without_skill"
+
+# Each process assertion runs in its own worker under this limit; one
+# that does not finish scores failed with the reason "timeout".
+ASSERTION_TIMEOUT_SECONDS = 10
+
+# Where each harness finds a project skill in the sandbox.
+# kiro: ".kiro/skills/" workspace scope (https://kiro.dev/docs/skills/,
+# read 2026-11-19). codex: "$CWD/.agents/skills" (https://learn.chatgpt.com/
+# docs/build-skills, read 2026-11-19).
+HARNESS_SKILL_DIRS = {
+    "claude": Path(".claude") / "skills",
+    "kiro": Path(".kiro") / "skills",
+    "codex": Path(".agents") / "skills",
+}
+# Top-level sandbox folders the runner stages; never copied into outputs/.
+STAGED_TOP_DIRS = frozenset({".claude", ".kiro", ".agents"})
+
+# Shared class cases. Each class's shared evals run against each member
+# skill; a skill becomes a member through its own `metadata.apex-classes`
+# (added by later skill rebuilds), and none declares it yet. Until then the
+# targets are this explicit list. "blocking": the 3 repo-owned devops-agent
+# copies block; every other target is report-only until the maintainers
+# decide which targets block.
+# dotnet-aws-ecs is left out: it is de-vendored in its own later rebuild.
+# A shared case lives in classes/<class>/evals/<suite>/evals.json and its
+# fixtures in <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases
+# with a "prompt" run here (a "mode": "manual" case is run by hand).
+SHARED_CASE_IDS = range(9001, 10000)
+_PLANNED_MEMBERS = (
+    "apex", "apex-new-skill", "ecs-architect", "ecs-build", "ecs-devops",
+    "ecs-genai", "ecs-modernize", "ecs-observability", "ecs-operation-review",
+    "ecs-recon", "ecs-security", "eks-best-practices", "eks-build",
+    "eks-cost-intelligence", "eks-design", "eks-genai", "eks-mcp-server",
+    "eks-platform-engineering", "eks-recon", "eks-security",
+    "graviton-migration", "update-docs",
+)
+_OWNER_HELD = (
+    "eks-upgrade-check", "eks-operation-review", "eks-well-architected-review",
+    "eks-ingress-migration",
+)
+_COPIES_BLOCKING = ("eks-cost-intelligence", "eks-recon", "eks-security")
+_COPIES_REPORT = ("eks-ingress-migration", "eks-operation-review", "eks-upgrade-check")
+CLASS_TARGETS: tuple[dict, ...] = tuple(
+    [{"run_key": s, "skill_dir": f"skills/{s}", "classes": ["apex-base"], "blocking": False}
+     for s in _PLANNED_MEMBERS + _OWNER_HELD]
+    + [{"run_key": f"devops-agent-{s}", "skill_dir": f"devops-agent/{s}",
+        "classes": ["apex-base"], "blocking": s in _COPIES_BLOCKING}
+       for s in _COPIES_BLOCKING + _COPIES_REPORT]
+)
 
 
 # ---------- stream consumption ------------------------------------------------
@@ -321,7 +397,10 @@ def extract_result_summary(events: list[dict]) -> dict:
     }
 
 
-def aggregate_token_usage(runs_dir: Path) -> dict:
+def aggregate_token_usage(
+    runs_dir: Path,
+    configs: tuple[str, ...] = ("with_skill", "without_skill"),
+) -> dict:
     """Sum and average the per-run token counts in each config's timing.json.
 
     The skill-creator benchmark.json carries one `tokens` value per run (usually `output_chars`);
@@ -338,7 +417,7 @@ def aggregate_token_usage(runs_dir: Path) -> dict:
     """
     keys = ("total_tokens",) + USAGE_TOKEN_KEYS
     out: dict[str, dict] = {}
-    for config in ("with_skill", "without_skill"):
+    for config in configs:
         totals = dict.fromkeys(keys, 0)
         n = 0
         for timing_file in sorted(runs_dir.glob(f"eval-*/{config}/run-*/timing.json")):
@@ -381,6 +460,14 @@ def stage_fixture_files(
       1. The eval case declares a non-empty "files" array, AND
       2. The <skill_eval_dir>/files/ directory actually exists on disk.
 
+    <skill_eval_dir> is misc/evals/<member>/ for a member's own case and
+    classes/<class>/evals/<suite>/ for a shared class case.
+
+    A link inside a fixture folder is followed (eval 18's tracked
+    .claude/skills/terraform-skill link points into the repo) only when it
+    resolves to a path that exists inside the repo; any other link raises
+    FixtureLinkError before anything is copied.
+
     Returns each staged file's sandbox-relative POSIX path mapped to the
     sha256 of its staged bytes; empty when nothing was staged.
     snapshot_sandbox_outputs uses it to leave staged files out.
@@ -398,6 +485,9 @@ def stage_fixture_files(
     sources = [files_root / "shared", files_root / f"eval-{eval_id}"]
     for source in sources:
         if source.is_dir():
+            check_fixture_links(source)
+    for source in sources:
+        if source.is_dir():
             shutil.copytree(source, sandbox, symlinks=False, dirs_exist_ok=True)
 
     for source in sources:
@@ -410,8 +500,40 @@ def stage_fixture_files(
     return staged
 
 
+class FixtureLinkError(RuntimeError):
+    """A fixture folder holds a link that leaves the repo or leads nowhere."""
+
+
+def check_fixture_links(source: Path, repo_root: Path | None = None) -> None:
+    """Raise FixtureLinkError for a link under `source` (followed links
+    included) that does not resolve to an existing path inside the repo."""
+    root = os.path.realpath(repo_root or REPO_ROOT)
+    seen: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(source, followlinks=True):
+        real_dir = os.path.realpath(dirpath)
+        if real_dir in seen:
+            dirnames[:] = []
+            continue
+        seen.add(real_dir)
+        for name in dirnames + filenames:
+            path = os.path.join(dirpath, name)
+            if not os.path.islink(path):
+                continue
+            target = os.path.realpath(path)
+            inside = target == root or target.startswith(root + os.sep)
+            if not inside or not os.path.exists(target):
+                raise FixtureLinkError(
+                    f"fixture link {path} -> {os.readlink(path)} "
+                    + ("leaves the repo" if not inside else "leads nowhere"))
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _ignore_links(directory: str, names: list[str]) -> list[str]:
+    """copytree ignore callable: leave out every link."""
+    return [n for n in names if os.path.islink(os.path.join(directory, n))]
 
 
 # ---------- sandbox snapshot --------------------------------------------------
@@ -428,14 +550,19 @@ def snapshot_sandbox_outputs(
     `staged` is stage_fixture_files' return. A staged file still byte-identical
     to what was staged is then removed from outputs_dir, so a check on outputs
     cannot pass on fixture text alone. A staged file the subject edited is kept.
+
+    Links are never copied, at the top level or below it: a dangling one
+    would crash copytree, and a live one would copy what lies outside the
+    sandbox. The staged skill folders (STAGED_TOP_DIRS) are left out.
     """
     outputs_dir.mkdir(parents=True, exist_ok=True)
     for item in sandbox.iterdir():
-        if item.name == ".claude":
+        if item.name in STAGED_TOP_DIRS or item.is_symlink():
             continue
         dest = outputs_dir / item.name
         if item.is_dir():
-            shutil.copytree(item, dest, symlinks=False, dirs_exist_ok=True)
+            shutil.copytree(item, dest, symlinks=False, dirs_exist_ok=True,
+                            ignore=_ignore_links)
         elif item.is_file():
             shutil.copy2(item, dest)
     for rel, digest in (staged or {}).items():
@@ -461,11 +588,26 @@ def run_subject(
     skill_eval_dir: Path | None = None,
     eval_id: int | str | None = None,
     fixture_files: list[str] | None = None,
+    harness: str = "claude",
 ) -> dict:
     """Execute the subject and persist transcript/outputs/metrics/timing.
 
-    Returns {"transcript_path": ..., "outputs_dir": ..., "ok": bool, "reason": ...}.
+    Returns {"transcript_path": ..., "outputs_dir": ..., "ok": bool,
+    "reason": ..., "invalid": bool, "exit_codes": [...], "elicitation": ...}.
+    A run that is not ok is an invalid run: it timed out, a subject
+    process exited non-zero (every turn of a canned multi-turn run is
+    read), the stream holds no events or no start event, the harness
+    reported an error (stream_invalid_reason), or its fixtures were refused
+    (FixtureLinkError). events.jsonl holds the stream in Claude Code
+    stream-json form (normalize_events); a kiro or codex run also writes
+    its raw stream to raw-events.jsonl.
+
+    A KUBECONFIG in `extra_env` is copied into the run's clean HOME and the
+    subject gets the copy, so a live run that writes its kubeconfig (such
+    as `aws eks update-kubeconfig`) cannot rewrite the shared file.
     """
+    if harness not in HARNESS_ADAPTERS:
+        raise ValueError(f"unknown harness: {harness!r} (expected one of {HARNESSES})")
     run_dir.mkdir(parents=True, exist_ok=True)
     outputs_dir = run_dir / "outputs"
     outputs_dir.mkdir(exist_ok=True)
@@ -479,53 +621,71 @@ def run_subject(
     t0 = time.time()
 
     elicitation = elicitation or ElicitationConfig.from_dict(None)
+    multiturn = bool(elicitation.strategy == "canned-multiturn" and elicitation.turns)
+    elicitation_note = None
+    if multiturn and harness != "claude":
+        # Canned answers resume the session after an AskUserQuestion call
+        # (elicitation.py); kiro and codex run non-interactive with no such
+        # tool, so the case runs as one turn and the run says so.
+        multiturn = False
+        elicitation_note = f"single turn: {harness} has no AskUserQuestion tool non-interactively"
+    raw_events: list[dict] = []
+    exit_codes: list[int | None] = []
+    stderr: bytes = b""
+    timed_out = False
+    refused: str | None = None
 
     with ctx as (sandbox, home):
+        if with_skill and harness != "claude":
+            link = sandbox / HARNESS_SKILL_DIRS[harness] / skill_name
+            link.parent.mkdir(parents=True, exist_ok=True)
+            link.symlink_to(repo_skill_dir.resolve())
         # Stage fixture files into the sandbox before running the subject.
         staged: dict[str, str] = {}
         if skill_eval_dir and eval_id is not None and fixture_files:
-            staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
+            try:
+                staged = stage_fixture_files(sandbox, skill_eval_dir, eval_id, fixture_files)
+            except FixtureLinkError as e:
+                refused = f"fixture staging refused: {e}"
+
+        run_extra = dict(extra_env or {})
+        if run_extra.get("KUBECONFIG"):
+            kube_copy = home / ".kube" / "config"
+            kube_copy.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(run_extra["KUBECONFIG"], kube_copy)
+            kube_copy.chmod(0o600)
+            run_extra["KUBECONFIG"] = str(kube_copy)
 
         def subject_env() -> dict[str, str]:
-            return build_subprocess_env(home, extra=extra_env, aws_env=eval_aws_env(timeout))
+            return build_subprocess_env(home, extra=run_extra or None,
+                                        aws_env=eval_aws_env(timeout))
 
-        if elicitation.strategy == "canned-multiturn" and elicitation.turns:
-            cmd_base = [
-                "claude",
-                "--output-format", "stream-json",
-                "--verbose",
-                "--include-partial-messages",
-                "--permission-mode", "bypassPermissions",
-                "--model", model,
-            ]
-            events, timed_out, _ = run_multiturn_subject(
-                initial_prompt=prompt,
-                elicitation=elicitation,
-                cmd_base=cmd_base,
-                cwd=str(sandbox),
-                env_for_turn=subject_env,
-                timeout_per_turn=timeout,
-            )
-            stderr = b""
+        if refused:
+            pass
+        elif multiturn:
+            cmd_base = _claude_cmd_base(model)
+            with _recording_popen() as procs:
+                raw_events, timed_out, _ = run_multiturn_subject(
+                    initial_prompt=prompt,
+                    elicitation=elicitation,
+                    cmd_base=cmd_base,
+                    cwd=str(sandbox),
+                    env_for_turn=subject_env,
+                    timeout_per_turn=timeout,
+                )
+            exit_codes = [p.returncode for p in procs]
         else:
-            cmd = [
-                "claude",
-                "-p", prompt,
-                "--output-format", "stream-json",
-                "--verbose",
-                "--include-partial-messages",
-                "--permission-mode", "bypassPermissions",
-                "--model", model,
-            ]
+            env = subject_env()
+            cmd = HARNESS_ADAPTERS[harness](prompt=prompt, model=model, sandbox=sandbox, env=env)
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(sandbox),
-                env=subject_env(),
+                env=env,
             )
-            events, timed_out = drain_stream(process, timeout=timeout)
-            stderr = b""
+            raw_events, timed_out = drain_stream(process, timeout=timeout)
+            exit_codes = [process.returncode]
             if process.stderr:
                 try:
                     stderr = process.stderr.read() or b""
@@ -537,6 +697,7 @@ def run_subject(
     end_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     wall = time.time() - t0
 
+    events = normalize_events(raw_events, harness)
     transcript_text = format_transcript(
         events, prompt, skill_name=(skill_name if with_skill else None)
     )
@@ -545,6 +706,10 @@ def run_subject(
     (run_dir / "events.jsonl").write_text(
         "\n".join(json.dumps(e, separators=(",", ":")) for e in events) + "\n"
     )
+    if harness != "claude":
+        (run_dir / "raw-events.jsonl").write_text(
+            "\n".join(json.dumps(e, separators=(",", ":")) for e in raw_events) + "\n"
+        )
 
     summary = extract_result_summary(events)
     metrics = compute_metrics(events, transcript_text, outputs_dir)
@@ -562,29 +727,112 @@ def run_subject(
     }
     (run_dir / "timing.json").write_text(json.dumps(timing, indent=2))
 
-    if timed_out:
-        return {
-            "transcript_path": str(transcript_path),
-            "outputs_dir": str(outputs_dir),
-            "ok": False,
-            "reason": f"subject timed out after {timeout}s",
-            "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-        }
-    if not (elicitation.strategy == "canned-multiturn" and elicitation.turns):
-        if process.returncode != 0:
-            return {
-                "transcript_path": str(transcript_path),
-                "outputs_dir": str(outputs_dir),
-                "ok": False,
-                "reason": f"subject exited {process.returncode}",
-                "stderr": stderr.decode("utf-8", errors="replace")[-400:] if isinstance(stderr, bytes) else stderr[-400:],
-            }
-    return {
+    if refused:
+        reason = refused
+    elif timed_out:
+        reason = f"subject timed out after {timeout}s"
+    elif any(code != 0 for code in exit_codes):
+        reason = f"subject exited {next(c for c in exit_codes if c != 0)}"
+    else:
+        reason = stream_invalid_reason(raw_events, harness)
+    out = {
         "transcript_path": str(transcript_path),
         "outputs_dir": str(outputs_dir),
-        "ok": True,
-        "reason": None,
+        "ok": reason is None,
+        "reason": reason,
+        "invalid": reason is not None,
+        "exit_codes": exit_codes,
+        "elicitation": elicitation_note,
     }
+    if reason is not None:
+        out["stderr"] = stderr.decode("utf-8", errors="replace")[-400:]
+    return out
+
+
+# ---------- harness adapters --------------------------------------------------
+#
+# One function per harness, each returning the subject command for one
+# non-interactive run whose stdout is JSON Lines. Every adapter runs under
+# the same env: build_subprocess_env with the eval-role session
+# (eval_aws_env), a clean HOME and no host AWS_* variables.
+
+
+def _claude_cmd_base(model: str) -> list[str]:
+    return [
+        "claude",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--permission-mode", "bypassPermissions",
+        "--model", model,
+    ]
+
+
+def adapter_claude(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
+    """`claude -p` stream-json, as the runner has always run it."""
+    base = _claude_cmd_base(model)
+    return base[:1] + ["-p", prompt] + base[1:]
+
+
+def adapter_kiro(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
+    """`kiro-cli chat` (kiro-cli 3.4.0 `chat --help`): --output-format
+    stream-json gives "The run's ACP events as JSON Lines on stdout" and
+    "implies --no-interactive"; --trust-all-tools lets it run tools without
+    asking, the counterpart of claude's bypassPermissions."""
+    return ["kiro-cli", "chat", "--no-interactive", "--output-format", "stream-json",
+            "--trust-all-tools", "--model", model, prompt]
+
+
+def adapter_codex(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
+    """`codex exec --json` (codex-cli 0.163.0 `exec --help`): "Print events
+    to stdout as JSONL". The sandbox is not a git repo
+    (--skip-git-repo-check), no session files are kept (--ephemeral), and
+    approvals and Codex's own sandbox are off, the counterpart of claude's
+    bypassPermissions (the runner's temp sandbox is the outer fence). The
+    model goes to the amazon-bedrock-runtime provider in the eval-role
+    session's region."""
+    cmd = ["codex", "exec", "--json", "--skip-git-repo-check", "--ephemeral",
+           "--dangerously-bypass-approvals-and-sandbox", "-C", str(sandbox),
+           "-c", 'model_provider="amazon-bedrock-runtime"', "-m", model]
+    region = env.get("AWS_REGION") or env.get("AWS_DEFAULT_REGION")
+    if region:
+        cmd += ["-c", f'model_providers.amazon-bedrock-runtime.aws.region="{region}"']
+    return cmd + [prompt]
+
+
+HARNESS_ADAPTERS = {
+    "claude": adapter_claude,
+    "kiro": adapter_kiro,
+    "codex": adapter_codex,
+}
+
+
+class _PopenRecorder:
+    """Stands in for the subprocess module inside elicitation.py for one
+    multi-turn run, keeping every Popen so each turn's exit code is read
+    (elicitation.run_multiturn_subject does not return them)."""
+
+    def __init__(self) -> None:
+        self.procs: list[subprocess.Popen] = []
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(subprocess, name)
+
+    def Popen(self, *args: Any, **kwargs: Any) -> subprocess.Popen:  # noqa: N802
+        proc = subprocess.Popen(*args, **kwargs)
+        self.procs.append(proc)
+        return proc
+
+
+@contextlib.contextmanager
+def _recording_popen():
+    recorder = _PopenRecorder()
+    saved = elicitation.subprocess
+    elicitation.subprocess = recorder
+    try:
+        yield recorder.procs
+    finally:
+        elicitation.subprocess = saved
 
 
 # ---------- grader run --------------------------------------------------------
@@ -717,6 +965,318 @@ def run_grader(
     return grading
 
 
+# ---------- process assertions under a per-assertion limit ------------------
+
+
+def _assertion_worker(conn: Any, trajectory: Any, assertion: dict) -> None:
+    try:
+        result = evaluate(trajectory, [assertion]).results[0]
+        conn.send(("ok", result.to_dict()))
+    except Exception as e:  # reported as that assertion's failure
+        conn.send(("error", f"{type(e).__name__}: {e}"))
+    finally:
+        conn.close()
+
+
+def _mp_context() -> Any:
+    methods = multiprocessing.get_all_start_methods()
+    return multiprocessing.get_context("fork" if "fork" in methods else "spawn")
+
+
+def evaluate_with_timeouts(
+    trajectory: Any,
+    assertions: list[dict],
+    timeout: float | None = None,
+) -> ProcessAssertionResults:
+    """evaluate(trajectory, [a]) once per assertion, each in its own worker
+    process under `timeout` seconds (default ASSERTION_TIMEOUT_SECONDS),
+    merged into one result in the shape evaluate() returns. A worker that
+    does not answer in time is killed and its assertion scores failed with
+    the evidence and failure_class "timeout"; a worker that raises scores
+    failed with the error."""
+    timeout = ASSERTION_TIMEOUT_SECONDS if timeout is None else timeout
+    ctx = _mp_context()
+    results: list[AssertionResult] = []
+    for assertion in assertions:
+        recv, send = ctx.Pipe(duplex=False)
+        proc = ctx.Process(target=_assertion_worker, args=(send, trajectory, assertion))
+        proc.start()
+        send.close()
+        msg = None
+        try:
+            if recv.poll(timeout):
+                msg = recv.recv()
+        except EOFError:
+            msg = ("error", "worker exited with no result")
+        finally:
+            recv.close()
+            proc.join(1)
+            if proc.is_alive():
+                proc.kill()
+                proc.join()
+        if msg is None:
+            results.append(AssertionResult(assertion=assertion, passed=False, evidence="timeout",
+                                           failure_class="timeout", matching_calls=None))
+        elif msg[0] == "ok":
+            results.append(AssertionResult(**msg[1]))
+        else:
+            results.append(AssertionResult(assertion=assertion, passed=False,
+                                           evidence=f"assertion raised {msg[1]}",
+                                           failure_class="error", matching_calls=None))
+    return _merge_assertion_results(results)
+
+
+def _merge_assertion_results(results: list[AssertionResult]) -> ProcessAssertionResults:
+    passed = sum(1 for r in results if r.passed)
+    failure_classes: dict[str, int] = {}
+    for r in results:
+        if r.failure_class:
+            failure_classes[r.failure_class] = failure_classes.get(r.failure_class, 0) + 1
+    return ProcessAssertionResults(
+        results=results, passed=passed, failed=len(results) - passed, total=len(results),
+        pass_rate=passed / len(results) if results else 0.0, failure_classes=failure_classes,
+    )
+
+
+def invalid_run_assertions(assertions: list[dict], reason: str) -> ProcessAssertionResults:
+    """Every assertion failed for an invalid run, so the process layer
+    counts the run instead of dropping it."""
+    return _merge_assertion_results([
+        AssertionResult(assertion=a, passed=False, evidence=f"invalid run: {reason}",
+                        failure_class="invalid_run", matching_calls=None)
+        for a in assertions
+    ])
+
+
+# ---------- old against new ---------------------------------------------------
+
+
+class BaseRefError(RuntimeError):
+    """The --base-ref cannot be read or a skill cannot be taken from it."""
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(REPO_ROOT), *args], capture_output=True)
+
+
+def resolve_base_ref(ref: str) -> str:
+    """The commit sha `ref` names, else BaseRefError."""
+    r = _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    if r.returncode != 0:
+        raise BaseRefError(f"--base-ref {ref!r} names no commit in {REPO_ROOT}")
+    return r.stdout.decode().strip()
+
+
+def materialise_skill_at_ref(sha: str, rel_path: str, dest: Path) -> Path | None:
+    """Write the folder `rel_path` as it is at commit `sha` under `dest`,
+    read from git objects only (git archive; the worktree is not touched).
+    Returns the folder, or None when `rel_path` does not exist at `sha`.
+    A link, or a member whose name leaves `rel_path`, raises BaseRefError
+    (no skill or devops-agent folder holds a link at v1.3.0)."""
+    if _git("cat-file", "-e", f"{sha}:{rel_path}").returncode != 0:
+        return None
+    r = _git("archive", "--format=tar", sha, "--", rel_path)
+    if r.returncode != 0:
+        raise BaseRefError(f"git archive {sha} {rel_path} failed: "
+                           f"{r.stderr.decode('utf-8', 'replace').strip()}")
+    prefix = rel_path.rstrip("/") + "/"
+    with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
+        for member in tar.getmembers():
+            name = member.name.rstrip("/")
+            parent_dir = member.isdir() and prefix.startswith(name + "/")
+            if (name.startswith("/") or ".." in Path(name).parts
+                    or not (parent_dir or name == prefix.rstrip("/") or name.startswith(prefix))):
+                raise BaseRefError(f"unexpected path in archive: {name}")
+            if not (member.isfile() or member.isdir()):
+                raise BaseRefError(f"{name} at {sha[:12]} is a link or special file")
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(dest, filter="data")
+        else:
+            tar.extractall(dest)
+    return dest / rel_path
+
+
+# ---------- targets and shared class cases ------------------------------------
+
+
+def class_target(run_key: str) -> dict | None:
+    return next((t for t in CLASS_TARGETS if t["run_key"] == run_key), None)
+
+
+def resolve_target(run_key: str) -> dict:
+    """Where a run key's skill, own cases, runs and history live.
+
+    A key with a misc/evals/<key>/ folder keeps today's layout. A class
+    target with none (a planned member with no suite yet, or a devops-agent
+    copy, whose key is devops-agent-<name> so its runs and history never
+    overwrite its skills/ twin's) runs under misc/evals/workspace/<key>/."""
+    target = class_target(run_key) or {}
+    own = EVALS_ROOT / run_key
+    own_dir = own if (own / "evals.json").exists() else None
+    skill_dir = target.get("skill_dir", f"skills/{run_key}")
+    workspace = (own if own_dir else TARGETS_WORKSPACE / run_key) / "workspace"
+    return {
+        "run_key": run_key,
+        "skill_rel": skill_dir,
+        "skill_repo_dir": REPO_ROOT / skill_dir,
+        "own_eval_dir": own_dir,
+        "classes": list(target.get("classes", [])),
+        "blocking": target.get("blocking"),
+        "workspace": workspace,
+    }
+
+
+def load_shared_cases(classes: list[str]) -> list[dict]:
+    """The runnable shared cases of each class: every case with a "prompt"
+    in classes/<class>/evals/<suite>/evals.json, tagged with its source and
+    fixture folder."""
+    cases: list[dict] = []
+    for cls in classes:
+        for suite_json in sorted((CLASSES_ROOT / cls / "evals").glob("*/evals.json")):
+            data = json.loads(suite_json.read_text())
+            for case in data.get("evals") or []:
+                if not isinstance(case, dict) or not case.get("prompt"):
+                    continue
+                case = dict(case)
+                case["_source"] = f"class:{cls}/{suite_json.parent.name}"
+                case["_fixture_root"] = suite_json.parent
+                cases.append(case)
+    return cases
+
+
+def merge_cases(own: list[dict], shared: list[dict]) -> list[dict]:
+    """A member's own cases followed by the shared ones. Shared ids must be
+    integers in SHARED_CASE_IDS and differ from the member's ids and from
+    each other: run folders, the benchmark and the assertion runners key on
+    the id, so a repeat would overwrite a run."""
+    seen: dict[Any, str] = {}
+    for case in own:
+        seen[case["id"]] = "own"
+    for case in shared:
+        cid = case.get("id")
+        if not isinstance(cid, int) or isinstance(cid, bool) or cid not in SHARED_CASE_IDS:
+            raise ValueError(f"{case['_source']}: shared case id {cid!r} is not an integer "
+                             f"from {SHARED_CASE_IDS.start} to {SHARED_CASE_IDS.stop - 1}")
+        if cid in seen:
+            raise ValueError(f"{case['_source']}: case id {cid} repeats an id from {seen[cid]}")
+        seen[cid] = case["_source"]
+    return list(own) + list(shared)
+
+
+# ---------- per-run and per-case results --------------------------------------
+
+
+def _read_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def run_record(run_dir: Path, *, arm: str, k: int, subj: dict, harness: str) -> dict:
+    """One run's result, written to run-result.json: valid, pass, tokens and
+    wall time. A run passes only when it is valid, every grader expectation
+    passed, and its process assertions and artifact validation (when the
+    case has them) passed."""
+    timing = _read_json(run_dir / "timing.json") or {}
+    grading = _read_json(run_dir / "grading.json") or {}
+    summary = grading.get("summary") or {}
+    total = summary.get("total") or 0
+    grader_ok = bool(total) and summary.get("passed") == total
+    pa = _read_json(run_dir / "process-assertions.json")
+    av = _read_json(run_dir / "artifact-validation.json")
+    process_ok = None if pa is None else pa.get("failed") == 0
+    artifact_ok = None
+    if av is not None:
+        s = av.get("summary") or {}
+        artifact_ok = (s.get("structural_failed", 0) + s.get("validators_failed", 0)) == 0
+    valid = bool(subj.get("ok"))
+    record = {
+        "arm": arm,
+        "run": k,
+        "harness": harness,
+        "valid": valid,
+        "invalid_reason": subj.get("reason"),
+        "exit_codes": subj.get("exit_codes"),
+        "elicitation": subj.get("elicitation"),
+        "grader_pass_rate": summary.get("pass_rate", 0.0),
+        "grader_error": grading.get("grader_error"),
+        "process_passed": process_ok,
+        "artifact_passed": artifact_ok,
+        "pass": valid and grader_ok and process_ok is not False and artifact_ok is not False,
+        "tokens": token_count(timing.get("total_tokens")),
+        "token_usage": {key: token_count(timing.get(key)) for key in USAGE_TOKEN_KEYS},
+        "token_source": timing.get("token_source"),
+        "wall_seconds": timing.get("total_duration_seconds", 0.0),
+    }
+    (run_dir / "run-result.json").write_text(json.dumps(record, indent=2))
+    return record
+
+
+def _mean(values: list[float]) -> float:
+    return round(sum(values) / len(values), 4) if values else 0.0
+
+
+def summarize_arm(records: list[dict], k: int) -> dict:
+    """Pass@k for one case and arm: pass_at_k when any of the k runs passed,
+    pass_all_k when all k ran valid and passed (pass^k). Invalid runs never
+    pass; a case with no valid run fails."""
+    passes = sum(1 for r in records if r["pass"])
+    valid = [r for r in records if r["valid"]]
+    return {
+        "runs": len(records),
+        "valid_runs": len(valid),
+        "passes": passes,
+        "pass_at_k": passes > 0,
+        "pass_all_k": len(records) == k and passes == k,
+        "pass_rate_mean": _mean([r["grader_pass_rate"] for r in records]),
+        "tokens_per_run": [r["tokens"] for r in records],
+        "tokens_mean": _mean([r["tokens"] for r in records]),
+        "token_usage_mean": {key: _mean([r["token_usage"][key] for r in records])
+                             for key in USAGE_TOKEN_KEYS},
+        "wall_seconds_per_run": [r["wall_seconds"] for r in records],
+        "wall_seconds_mean": _mean([r["wall_seconds"] for r in records]),
+        "invalid_reasons": [r["invalid_reason"] for r in records if not r["valid"]],
+    }
+
+
+def summarize_case(eval_id: Any, source: str, by_arm: dict[str, list[dict]],
+                   base_arm: str, k: int) -> dict:
+    """One case's result across both arms. `pass` is the new arm's
+    pass_at_k; `regressed` is True when the base arm passed and the new one
+    did not."""
+    arms = {arm: summarize_arm(recs, k) for arm, recs in by_arm.items()}
+    new = arms.get(NEW_ARM) or summarize_arm([], k)
+    base = arms.get(base_arm) or summarize_arm([], k)
+    return {
+        "eval_id": eval_id,
+        "source": source,
+        "arms": arms,
+        "pass": new["pass_at_k"],
+        "regressed": base["pass_at_k"] and not new["pass_at_k"],
+    }
+
+
+def summarize_skill(cases: list[dict], base_arm: str) -> dict:
+    out: dict[str, Any] = {"cases": len(cases),
+                           "cases_passed": sum(1 for c in cases if c["pass"]),
+                           "cases_regressed": sum(1 for c in cases if c["regressed"]),
+                           "arms": {}}
+    for arm in (NEW_ARM, base_arm):
+        arm_cases = [c["arms"][arm] for c in cases if arm in c["arms"]]
+        tokens = [t for a in arm_cases for t in a["tokens_per_run"]]
+        walls = [w for a in arm_cases for w in a["wall_seconds_per_run"]]
+        out["arms"][arm] = {
+            "cases_pass_at_k": sum(1 for a in arm_cases if a["pass_at_k"]),
+            "cases_pass_all_k": sum(1 for a in arm_cases if a["pass_all_k"]),
+            "runs": sum(a["runs"] for a in arm_cases),
+            "invalid_runs": sum(a["runs"] - a["valid_runs"] for a in arm_cases),
+            "tokens_per_run_mean": _mean(tokens),
+            "wall_seconds_per_run_mean": _mean(walls),
+        }
+    return out
+
+
 # ---------- history -----------------------------------------------------------
 
 
@@ -755,18 +1315,25 @@ def append_history(skill: str, entry: dict) -> None:
 # ---------- benchmark --------------------------------------------------------
 
 
-def run_benchmark(skill: str, benchmark_dir: Path) -> None:
-    """Shell out to `make benchmark-<skill>`."""
-    cmd = ["make", "-C", str(EVALS_ROOT), f"benchmark-{skill}", f"BENCHMARK_DIR={benchmark_dir}"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+def run_benchmark(skill: str, benchmark_dir: Path, skill_path: Path | None = None) -> None:
+    """Shell out to `make benchmark-<skill>`. A target with no
+    misc/evals/<skill>/ folder has no make target, so its benchmark runs
+    aggregate_benchmark directly with the same arguments."""
+    if skill_path is None:
+        cmd = ["make", "-C", str(EVALS_ROOT), f"benchmark-{skill}", f"BENCHMARK_DIR={benchmark_dir}"]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+    else:
+        cmd = [sys.executable, "-m", "scripts.aggregate_benchmark", str(benchmark_dir),
+               "--skill-name", skill, "--skill-path", str(skill_path)]
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=str(SC_DIR))
     if r.returncode != 0:
         sys.stderr.write(r.stdout)
         sys.stderr.write(r.stderr)
         raise RuntimeError(f"benchmark-{skill} failed")
 
 
-def update_latest_symlink(skill: str, runs_dir: Path) -> None:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+def update_latest_symlink(skill: str, runs_dir: Path, workspace: Path | None = None) -> None:
+    latest = (workspace or EVALS_ROOT / skill / "workspace") / "latest"
     if latest.is_symlink() or latest.exists():
         latest.unlink()
     # Symlink relative so it survives a repo move.
@@ -780,27 +1347,43 @@ def run_skill(
     skill: str,
     *,
     model: str,
-    runs: int,
+    runs: int | None,
     include_live_only: bool,
     subject_timeout: int | None,
     grader_timeout: int,
     extra_env: dict[str, str] | None,
+    harness: str = "claude",
+    base_ref: str | None = None,
+    base_sha: str | None = None,
 ) -> dict:
-    skill_eval_dir = EVALS_ROOT / skill
-    skill_repo_dir = REPO_ROOT / "skills" / skill
-    evals_json = skill_eval_dir / "evals.json"
-    if not evals_json.exists():
-        return {"skill": skill, "error": f"missing {evals_json}"}
+    """Run one run key's cases: its own misc/evals/<key>/evals.json cases
+    and the shared cases of its classes, on two arms: with_skill (the
+    skill as it is now) against the base arm, which is the skill as it was
+    at `base_sha` (base_skill), or without_skill when `base_sha` is None or
+    the skill does not exist there. Each case runs `runs` times per
+    arm, default regression.pass_k from .skilleval.yaml."""
+    target = resolve_target(skill)
+    skill_repo_dir = target["skill_repo_dir"]
+    skill_eval_dir = target["own_eval_dir"]
+    if skill_eval_dir is None and class_target(skill) is None:
+        return {"skill": skill, "error": f"missing {EVALS_ROOT / skill / 'evals.json'}"}
 
     # Resolve effective subject timeout: CLI override > .skilleval.yaml > 600
+    skill_config = load_skilleval_config(skill)
     if subject_timeout is not None:
         effective_timeout = subject_timeout
     else:
-        skill_config = load_skilleval_config(skill)
         effective_timeout = skill_config.timeout
+    runs = runs if runs is not None else skill_config.pass_k
 
-    evals_data = json.loads(evals_json.read_text())
-    prompts = evals_data.get("evals") or []
+    own: list[dict] = []
+    if skill_eval_dir is not None:
+        for case in json.loads((skill_eval_dir / "evals.json").read_text()).get("evals") or []:
+            own.append(dict(case, _source="own", _fixture_root=skill_eval_dir))
+    try:
+        prompts = merge_cases(own, load_shared_cases(target["classes"]))
+    except ValueError as e:
+        return {"skill": skill, "error": str(e)}
     if not include_live_only:
         prompts = [p for p in prompts if not p.get("live_only")]
     if not prompts:
@@ -808,11 +1391,48 @@ def run_skill(
 
     skill_name, _description = read_skill_meta(skill_repo_dir)
 
+    base_tmp = Path(tempfile.mkdtemp(prefix="evals-base-ref-"))
+    try:
+        base_dir = (materialise_skill_at_ref(base_sha, target["skill_rel"], base_tmp)
+                    if base_sha else None)
+        base_arm = BASE_ARM if base_dir is not None else WITHOUT_ARM
+        base_name = read_skill_meta(base_dir)[0] if base_dir is not None else None
+        return _run_cases(
+            skill, target, prompts, skill_name=skill_name, base_arm=base_arm,
+            base_dir=base_dir, base_name=base_name, base_ref=base_ref, base_sha=base_sha,
+            model=model, runs=runs, timeout=effective_timeout, grader_timeout=grader_timeout,
+            extra_env=extra_env, harness=harness,
+        )
+    finally:
+        shutil.rmtree(base_tmp, ignore_errors=True)
+
+
+def _run_cases(
+    skill: str,
+    target: dict,
+    prompts: list[dict],
+    *,
+    skill_name: str,
+    base_arm: str,
+    base_dir: Path | None,
+    base_name: str | None,
+    base_ref: str | None,
+    base_sha: str | None,
+    model: str,
+    runs: int,
+    timeout: int,
+    grader_timeout: int,
+    extra_env: dict[str, str] | None,
+    harness: str,
+) -> dict:
+    skill_repo_dir = target["skill_repo_dir"]
+    effective_timeout = timeout
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
-    runs_dir = skill_eval_dir / "workspace" / "runs" / ts
+    runs_dir = target["workspace"] / "runs" / ts
     runs_dir.mkdir(parents=True, exist_ok=True)
 
     per_prompt: list[dict] = []
+    cases: list[dict] = []
     for p in prompts:
         eval_id = p["id"]
         eval_dir = runs_dir / f"eval-{eval_id}"
@@ -824,14 +1444,17 @@ def run_skill(
                     "eval_name": p.get("prompt", "")[:60],
                     "prompt": p["prompt"],
                     "expectations": p["expectations"],
+                    "source": p["_source"],
                 },
                 indent=2,
             )
         )
 
-        for config in ("with_skill", "without_skill"):
+        by_arm: dict[str, list[dict]] = {}
+        for config in (NEW_ARM, base_arm):
             config_dir = eval_dir / config
             config_dir.mkdir(exist_ok=True)
+            by_arm[config] = []
             for k in range(1, runs + 1):
                 run_dir = config_dir / f"run-{k}"
                 print(
@@ -841,18 +1464,23 @@ def run_skill(
                 eval_elicitation = ElicitationConfig.from_dict(p.get("elicitation"))
                 subj = run_subject(
                     prompt=p["prompt"],
-                    skill_name=skill_name,
-                    repo_skill_dir=skill_repo_dir,
-                    with_skill=(config == "with_skill"),
+                    skill_name=(base_name if config == BASE_ARM else skill_name),
+                    repo_skill_dir=(base_dir if config == BASE_ARM else skill_repo_dir),
+                    with_skill=(config != WITHOUT_ARM),
                     model=model,
                     timeout=effective_timeout,
                     run_dir=run_dir,
                     extra_env=extra_env,
                     elicitation=eval_elicitation,
-                    skill_eval_dir=skill_eval_dir,
+                    skill_eval_dir=p["_fixture_root"],
                     eval_id=eval_id,
                     fixture_files=p.get("files"),
+                    harness=harness,
                 )
+                process_assertion_defs = p.get("process_assertions")
+                events_file = run_dir / "events.jsonl"
+                if subj["ok"] and process_assertion_defs and not events_file.exists():
+                    subj = dict(subj, ok=False, invalid=True, reason="events.jsonl missing")
                 if not subj["ok"]:
                     print(
                         f"[task]   subject failed: {subj.get('reason')}",
@@ -876,33 +1504,38 @@ def run_skill(
                                     "pass_rate": 0.0,
                                 },
                                 "subject_error": subj.get("reason"),
+                                "invalid_run": True,
                             },
                             indent=2,
                         )
                     )
+                    if process_assertion_defs:
+                        (run_dir / "process-assertions.json").write_text(json.dumps(
+                            invalid_run_assertions(process_assertion_defs,
+                                                   subj.get("reason") or "").to_dict(),
+                            indent=2))
+                    by_arm[config].append(run_record(run_dir, arm=config, k=k, subj=subj,
+                                                     harness=harness))
                     continue
 
                 # --- Layer 1: Process assertions (deterministic, no LLM) ---
-                process_assertion_defs = p.get("process_assertions")
                 if process_assertion_defs:
-                    events_file = run_dir / "events.jsonl"
-                    if events_file.exists():
-                        run_events = []
-                        for line in events_file.read_text().splitlines():
-                            if line.strip():
-                                try:
-                                    run_events.append(json.loads(line))
-                                except json.JSONDecodeError:
-                                    continue
-                        trajectory = parse_events(run_events)
-                        pa_results = evaluate(trajectory, process_assertion_defs)
-                        (run_dir / "process-assertions.json").write_text(
-                            json.dumps(pa_results.to_dict(), indent=2)
-                        )
-                        print(
-                            f"[task]   process assertions: {pa_results.passed}/{pa_results.total} passed",
-                            file=sys.stderr,
-                        )
+                    run_events = []
+                    for line in events_file.read_text().splitlines():
+                        if line.strip():
+                            try:
+                                run_events.append(json.loads(line))
+                            except json.JSONDecodeError:
+                                continue
+                    trajectory = parse_events(run_events)
+                    pa_results = evaluate_with_timeouts(trajectory, process_assertion_defs)
+                    (run_dir / "process-assertions.json").write_text(
+                        json.dumps(pa_results.to_dict(), indent=2)
+                    )
+                    print(
+                        f"[task]   process assertions: {pa_results.passed}/{pa_results.total} passed",
+                        file=sys.stderr,
+                    )
 
                 # --- Layer 2: Artifact validation (deterministic, no LLM) ---
                 artifact_assertion_defs = p.get("artifact_assertions")
@@ -962,16 +1595,26 @@ def run_skill(
                             indent=2,
                         )
                     )
+                by_arm[config].append(run_record(run_dir, arm=config, k=k, subj=subj,
+                                                 harness=harness))
         per_prompt.append({"eval_id": eval_id, "prompt": p["prompt"][:80]})
+        cases.append(summarize_case(eval_id, p["_source"], by_arm, base_arm, runs))
 
-    run_benchmark(skill, runs_dir)
-    update_latest_symlink(skill, runs_dir)
+    skill_summary = summarize_skill(cases, base_arm)
+    (runs_dir / "cases.json").write_text(json.dumps(
+        {"run_key": skill, "harness": harness, "base_arm": base_arm, "pass_k": runs,
+         "cases": cases, "skill_summary": skill_summary}, indent=2))
+
+    run_benchmark(skill, runs_dir,
+                  skill_path=None if target["own_eval_dir"] else skill_repo_dir)
+    update_latest_symlink(skill, runs_dir, target["workspace"])
 
     benchmark = json.loads((runs_dir / "benchmark.json").read_text())
     rs = benchmark.get("run_summary") or {}
-    with_pr = (rs.get("with_skill") or {}).get("pass_rate") or {}
-    wo_pr = (rs.get("without_skill") or {}).get("pass_rate") or {}
-    delta = with_pr.get("mean", 0) - wo_pr.get("mean", 0)
+    with_pr = (rs.get(NEW_ARM) or {}).get("pass_rate") or {}
+    base_pr = (rs.get(base_arm) or {}).get("pass_rate") or {}
+    delta = with_pr.get("mean", 0) - base_pr.get("mean", 0)
+    ran_without = base_arm == WITHOUT_ARM
 
     entry = {
         "kind": "task",
@@ -980,11 +1623,26 @@ def run_skill(
         "runs_per_prompt": runs,
         "with_skill_mean": with_pr.get("mean", 0),
         "with_skill_stddev": with_pr.get("stddev", 0),
-        "without_skill_mean": wo_pr.get("mean", 0),
-        "without_skill_stddev": wo_pr.get("stddev", 0),
+        # None when this run's base arm was base_skill (no without arm ran).
+        "without_skill_mean": base_pr.get("mean", 0) if ran_without else None,
+        "without_skill_stddev": base_pr.get("stddev", 0) if ran_without else None,
+        # with_skill mean less the base arm's mean (without_skill or base_skill).
         "delta": round(delta, 4),
         "eval_ids": [p["id"] for p in prompts],
-        "token_usage": aggregate_token_usage(runs_dir),
+        "token_usage": aggregate_token_usage(runs_dir, configs=(NEW_ARM, base_arm)),
+        "run_key": skill,
+        "skill_dir": target["skill_rel"],
+        "blocking": target["blocking"],
+        "harness": harness,
+        "pass_k": runs,
+        "base_ref": base_ref,
+        "base_ref_sha": base_sha,
+        "baseline_arm": base_arm,
+        "comparison": "new_vs_base" if base_arm == BASE_ARM else "new_vs_without",
+        "base_skill_mean": None if ran_without else base_pr.get("mean", 0),
+        "base_skill_stddev": None if ran_without else base_pr.get("stddev", 0),
+        "cases": cases,
+        "skill_summary": skill_summary,
     }
     append_history(skill, entry)
 
@@ -1009,7 +1667,19 @@ def discover_skills() -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--skill", help="Run only this skill")
-    parser.add_argument("--runs", type=int, default=1, help="Runs per (prompt × config). Default 1 for dev; use 3 for stddev.")
+    parser.add_argument("--runs", type=int, default=None,
+                        help="Runs per (case x arm). Default: the skill's regression.pass_k "
+                             "in .skilleval.yaml (3 when unset).")
+    parser.add_argument("--harness", choices=HARNESSES, default="claude",
+                        help="Subject harness: claude (claude -p), kiro (kiro-cli chat) "
+                             "or codex (codex exec). The grader is claude -p on every harness.")
+    parser.add_argument("--base-ref", default=DEFAULT_BASE_REF,
+                        help=f"Git ref the base arm takes the skill from (default {DEFAULT_BASE_REF}). "
+                             "A skill absent there runs against without_skill; "
+                             "'none' runs with_skill against without_skill.")
+    parser.add_argument("--list-targets", action="store_true",
+                        help="Print every run key (misc/evals skills and class targets) as "
+                             "JSON lines and exit; runs nothing.")
     parser.add_argument("--include-live-only", action="store_true",
                         help="Include prompts marked live_only=true")
     parser.add_argument("--model", default=None,
@@ -1023,8 +1693,15 @@ def main() -> int:
     args = parser.parse_args()
 
     skills = discover_skills()
+    if args.list_targets:
+        for key in sorted(set(skills) | {t["run_key"] for t in CLASS_TARGETS}):
+            t = resolve_target(key)
+            print(json.dumps({"run_key": key, "skill_dir": t["skill_rel"],
+                              "own_cases": t["own_eval_dir"] is not None,
+                              "classes": t["classes"], "blocking": t["blocking"]}))
+        return 0
     if args.skill:
-        if args.skill not in skills:
+        if args.skill not in skills and class_target(args.skill) is None:
             print(f"unknown skill: {args.skill}", file=sys.stderr)
             return 2
         skills = [args.skill]
@@ -1050,6 +1727,15 @@ def main() -> int:
         return 2
     print("[task] eval-role session checked against ~/.apex-eval/expected-account", file=sys.stderr)
 
+    base_ref = None if args.base_ref.lower() in ("", "none") else args.base_ref
+    base_sha = None
+    if base_ref:
+        try:
+            base_sha = resolve_base_ref(base_ref)
+        except BaseRefError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+
     outcomes = []
     for skill in skills:
         print(f"[task] === {skill} ===", file=sys.stderr)
@@ -1062,10 +1748,15 @@ def main() -> int:
                 subject_timeout=args.subject_timeout,
                 grader_timeout=args.grader_timeout,
                 extra_env=extra_env or None,
+                harness=args.harness,
+                base_ref=base_ref,
+                base_sha=base_sha,
             )
         except EvalCredentialError as e:
             print(f"error: {skill}: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
             return 2
+        except BaseRefError as e:
+            result = {"skill": skill, "error": str(e)}
         outcomes.append(result)
         if "error" in result:
             print(f"[task] {skill}: ERROR {result['error']}", file=sys.stderr)
@@ -1073,10 +1764,14 @@ def main() -> int:
             print(f"[task] {skill}: skipped ({result['skipped']})", file=sys.stderr)
         else:
             e = result["history_entry"]
+            base_mean = (e["without_skill_mean"] if e["without_skill_mean"] is not None
+                         else e["base_skill_mean"])
+            s = e["skill_summary"]
             print(
                 f"[task] {skill}: with={e['with_skill_mean']:.2f} "
-                f"without={e['without_skill_mean']:.2f} "
-                f"Δ={e['delta']:+.2f}",
+                f"{e['baseline_arm']}={base_mean:.2f} "
+                f"delta={e['delta']:+.2f} cases passed {s['cases_passed']}/{s['cases']}, "
+                f"regressed {s['cases_regressed']}",
                 file=sys.stderr,
             )
 
