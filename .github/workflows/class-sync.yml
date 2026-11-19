@@ -36,6 +36,10 @@ jobs:
           'classes/**'
           'skills/**'
           'misc/sync-classes.py'
+          'plugins/apex/hooks/**'
+          'plugins/apex/kiro/apex-hooks.json'
+          'plugins/apex/.claude-plugin/plugin.json'
+          'plugins/apex/.codex-plugin/plugin.json'
           'misc/safe_frontmatter.py'
           'misc/tests/test_sync_classes.py'
           'misc/tests/fixtures/sync_classes_cases.json'
@@ -76,11 +80,11 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Class copies are stale
 
-          A member skill's copy of a class file differs from `classes/`, or the sync refused its inputs. The exact paths are in the job log above. Never edit a copy by hand: edit the class file, then regenerate and commit the class change and its copies in one pull request:
+          A member skill's copy of a class file, or a plugin hook file under `plugins/apex/`, differs from `classes/`, or the sync refused its inputs. The exact paths are in the job log above. Never edit a copy by hand: edit the class file, then regenerate and commit the class change and its copies in one pull request:
 
           ```bash
-          python3 misc/sync-classes.py && git add skills/<member>/
+          python3 misc/sync-classes.py && git add skills/<member>/ plugins/apex/hooks/ plugins/apex/kiro/
           ./misc/update-all-references.sh && ./misc/update-pages.sh
-          git add classes/ skills/<member>/ misc/website/ README.md skills/README.md devops-agent/README.md
+          git add classes/ skills/<member>/ plugins/apex/hooks/ plugins/apex/kiro/ misc/website/ README.md skills/README.md devops-agent/README.md
           ```
           EOF
