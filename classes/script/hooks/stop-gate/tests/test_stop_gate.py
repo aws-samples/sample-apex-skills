@@ -19,6 +19,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 
@@ -411,15 +412,15 @@ def test_a_skill_folder_outside_the_skills_root_is_never_run(world, tmp_path):
 
 
 def plugin_gate(tmp_path):
-    """The plugin copy of the gate in a scratch plugin tree; returns its path."""
+    """An installed copy of the gate in a scratch plugin tree; returns its path."""
     hook_dir = tmp_path / "plugin" / "hooks" / "script" / "stop-gate"
     hook_dir.mkdir(parents=True)
     shutil.copy(HOOK, hook_dir)
     return hook_dir / "stop_gate.py"
 
 
-def test_the_plugin_copy_drops_a_classes_record(world, tmp_path):
-    # M2: the plugin's copy never runs the classes/ tools; such a record gives no decision.
+def test_the_installed_copy_drops_a_classes_record(world, tmp_path):
+    # M2: an installed copy never runs the classes/ tools; such a record gives no decision.
     gate = plugin_gate(tmp_path)
     path = world.record("bad.yaml", tool=str(world.repo / "classes" / "script" / "scripts" / "validate_output.py"))
     e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON)
@@ -448,9 +449,9 @@ def installed(world, tmp_path, harness):
     (links / "demo").symlink_to(skill)
     e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, HOME=str(home), **ON)
 
-    def run():
+    def run(**env):
         return subprocess.run([sys.executable, str(hook_dir / "stop_gate.py"), *args], input=json.dumps(event),
-                              capture_output=True, text=True, env=e, timeout=60)
+                              capture_output=True, text=True, env=dict(e, **env), timeout=60)
     return run, skill, links / "demo"
 
 
@@ -467,6 +468,18 @@ def test_an_installed_copy_runs_a_skill_from_the_clone(world, tmp_path, harness,
     p = run()
     assert (p.returncode, p.stdout) == (0, ""), p.stderr
     assert seen.exists()
+
+
+def test_an_empty_home_gives_no_skills_root(world, tmp_path):
+    # HOME="" is not read as "/" (expanduser's reading), so an installed copy runs no check.
+    run, skill, _ = installed(world, tmp_path, "claude-code")
+    seen = tmp_path / "seen"
+    (skill / "scripts" / "script_validate_output.py").write_text(f"open({str(seen)!r}, 'w').close()\n",
+                                                                 encoding="utf-8")
+    world.record("good.yaml", tool=str(skill / "scripts" / "script_validate_output.py"), skill_dir=str(skill))
+    p = run(HOME="")
+    assert not seen.exists()
+    assert '"decision": "block"' in p.stdout and "no skills root" in p.stdout, p.stdout
 
 
 def test_an_installed_copy_never_runs_a_skill_planted_in_the_project(world, tmp_path):
@@ -681,8 +694,9 @@ def test_a_timeout_kills_what_the_check_started(world, monkeypatch, capsys, tmp_
         kill_all(pids)
 
 
-def test_stopping_the_gate_kills_the_running_check(world, tmp_path):
-    # F-1: a SIGTERM to the gate while a check runs leaves no check process (a SIGKILL cannot be caught).
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+def test_stopping_the_gate_kills_the_running_check(world, tmp_path, sig):
+    # F-1: a SIGTERM or SIGINT to the gate while a check runs leaves no check process (a SIGKILL cannot be caught).
     pids = tmp_path / f"pids-{uuid.uuid4().hex}"
     world.record("good.yaml", tool=str(check_with_a_child(world, pids)))
     e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON)
@@ -695,7 +709,7 @@ def test_stopping_the_gate_kills_the_running_check(world, tmp_path):
         while not pids.exists() and time.monotonic() < stop:
             time.sleep(0.05)
         assert pids.exists(), "the check never started"
-        gate.send_signal(signal.SIGTERM)
+        gate.send_signal(sig)
         gate.wait(timeout=30)
         left = [pid for pid in (int(x) for x in pids.read_text().split()) if not gone(pid)]
         assert not left, f"still running after the gate stopped: {left}"
@@ -703,6 +717,35 @@ def test_stopping_the_gate_kills_the_running_check(world, tmp_path):
         gate.kill()
         gate.wait()
         kill_all(pids)
+
+
+@pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+def test_a_stop_while_the_check_starts_kills_it(world, monkeypatch, tmp_path, sig):
+    # A signal that lands after the fork, before Popen returns, still kills the check.
+    world.record("good.yaml", tool=str(world.skill_tool("script_validate_output.py", "import time\ntime.sleep(120)\n")))
+    monkeypatch.setattr(GATE, "SKILLS_ROOT", os.path.realpath(world.repo / "skills"))
+    started = []
+    real = subprocess.Popen._execute_child
+
+    def child_then_signal(self, *a, **k):
+        real(self, *a, **k)
+        started.append(self.pid)
+        signal.pthread_kill(threading.main_thread().ident, sig)
+
+    monkeypatch.setattr(subprocess.Popen, "_execute_child", child_then_signal)
+    old = signal.signal(signal.SIGTERM, GATE.stopped)
+    try:
+        with pytest.raises((SystemExit, KeyboardInterrupt)):
+            GATE.gate(GATE.argparse.Namespace(mode="block", id=None), cc_event(str(world.project)))
+            time.sleep(1)  # a signal still pending at the gate's return lands here
+        assert started and gone(started[0]), f"the check {started} is still running"
+    finally:
+        signal.signal(signal.SIGTERM, old)
+        for pid in started:
+            try:
+                os.kill(pid, 9)
+            except ProcessLookupError:
+                pass
 
 
 def test_a_check_slower_than_the_kiro_budget_gets_a_verdict_with_an_id(world, monkeypatch, capsys):

@@ -82,12 +82,12 @@ may name a skill by its link or by its real path, and a skill folder the
 agent makes in the project (a real folder in a project `.claude/skills` or
 `.kiro/skills` included) is never run. With no `~/.apex-skills` clone (a
 marketplace-only plugin install, and Codex, which the installer does not set
-up) every record is no verdict and blocks once. The root is not a boundary
-against an agent that can write the user's home folder (one with no sandbox,
-or one working in the home folder): it can make or relink `~/.apex-skills`
-and add a check the gate runs; the root keeps out a skill planted in the
-project. A `--project --kiro-hooks` install copies the gate itself into the
-project, where the agent can edit it. With an empty or relative HOME (which
+up) every record is no verdict and blocks once. With no sandbox (Claude
+Code's default), or with the agent working in the home folder, the root is not
+a boundary: the agent can make or relink `~/.apex-skills` and add a check the
+gate runs; the root keeps out a skill planted in the project. A
+`--project --kiro-hooks` install copies the gate itself into the project,
+where the agent can edit it. With an empty or relative HOME (which
 the installer refuses) an installed copy runs no check. Neither copy runs
 this repo's `classes/script/scripts/validate_output.py` or
 `classes/operator/scripts/run_artifact_checks.py`: an installed copy drops a
@@ -161,25 +161,28 @@ turn with no decision.
   is 30 seconds (30,000ms). Configure with the `timeout_ms` field"; the IDE
   tab says 60 s; read 2026-11-19). The output shape is set by the event
   (no `stop_hook_active`: Kiro's), so a hand run with no `--id` and a Claude
-  Code event gets Claude Code's output and Kiro's budget. No Kiro Stop entry
-  exists yet. The documented `timeout_ms` is a field of a hook in a Kiro
-  agent config (kiro.dev/docs/hooks/management, CLI: "Modify the hook
-  definition in the agent configuration file"; read 2026-11-19), not of the
-  `.kiro/hooks` file the class sync writes, whose Kiro CLI 3.4.0 struct shows
-  no timeout field (read from the binary's strings, not run). So on Kiro a
-  check slower than 25 s gets no verdict, and the gate does not yet back
-  operator.artifact-checks for eks-build. One validator run on an eks-recon
-  output took about 2.5 s on the build host, and the gate with that one
-  record about 2.5 s in all (most of it the jsonschema import). An Operator artifact check that runs
-  terraform or checkov can take longer (a one-resource project took about
-  18.6 s warm). Each check runs in its own process group (a new session). A
-  timeout of the gate's budget kills the whole group, so no terraform or
-  provider it started keeps running, and so does a SIGTERM or SIGINT to the
-  gate (an interrupt, or the harness stopping the hook) or an error while a
-  check runs. A SIGKILL to the gate cannot be caught: the check and what it
-  started then keep running. A process that leaves the group itself is not
-  killed, and a tool that exits but leaves a child holding its output open
-  waits out the budget, which is no verdict.
+  Code event gets Claude Code's output and Kiro's budget. Kiro documents
+  `hooks[].timeout` (seconds, default 60) for the `.kiro/hooks` file the
+  installer copies (kiro.dev/docs/hooks/, "Hook file schema", read
+  2026-11-19); the Kiro CLI 3.4.0 binary on this host shows no such field
+  (read from its strings, not run). No Kiro Stop entry exists yet, so the
+  25 s budget stands until one lands: on Kiro a check slower than 25 s gets
+  no verdict, and the gate does not back operator.artifact-checks for
+  eks-build. Design E's settable Kiro budget is not built; it waits on the
+  maintainer's call. One validator run on an eks-recon output took about
+  2.5 s on the build host, and the gate with that one record about 2.5 s in
+  all (most of it the jsonschema import). An Operator artifact check that
+  runs terraform or checkov can take longer (a one-resource project took
+  about 18.6 s warm). Each check runs in its own process group (a new
+  session). A timeout of the gate's budget kills the whole group, so no
+  terraform or provider it started keeps running, and so does a SIGTERM or
+  SIGINT to the gate or an error while a check runs; the gate holds both
+  signals off while it starts the check, so one that lands then waits until
+  the gate can kill it. Any other signal (SIGKILL, SIGHUP, SIGQUIT) leaves
+  the check and what it started running. A process that leaves the group
+  itself is not killed, a check that exits leaves what it started running,
+  and a tool that exits but leaves a child holding its output open waits out
+  the budget, which is no verdict.
 - Skipped without a message, with exit 0: a record that is not valid JSON, is
   not a JSON object, cannot be read or is not a regular file; a record whose
   `time` is missing, not a number, not finite or later than now; and a state

@@ -50,9 +50,9 @@ real path of ~/.apex-skills/skills, the clone the installer
 .claude/skills or .kiro/skills entry that is not such a link included, is
 never run. With no ~/.apex-skills clone (a marketplace-only plugin install,
 and Codex, which the installer does not set up) every record is no verdict
-and blocks once. The root is not a boundary against an agent that can write
-the user's home folder (one with no sandbox, or one working in the home
-folder): it can make or relink ~/.apex-skills and add a check the gate runs.
+and blocks once. With no sandbox (Claude Code's default), or with the agent
+working in the home folder, the root is not a boundary: the agent can make or
+relink ~/.apex-skills and add a check the gate runs.
 A --project --kiro-hooks install copies the gate itself into the project,
 where the agent can edit it. With an empty or relative HOME (which the
 installer refuses) an installed copy runs no check. An installed copy also
@@ -71,19 +71,23 @@ by the --id: with one, 570 s (Claude Code and Codex, under their 600 s
 command-hook default, as of 2026-11-19); with none, 25 s (Kiro, under the Kiro
 CLI's 30 s default). The output shape is set by the event instead (no
 stop_hook_active: Kiro's), so a hand run with no --id and a Claude Code event
-gets Claude Code's output and Kiro's budget. No Kiro Stop entry exists yet, and
-the Kiro hook file the class sync writes has no documented timeout field
-(SPIKE.md), so on Kiro a check slower than 25 s gets no verdict and the gate
-does not yet back operator.artifact-checks for eks-build. Each check runs in
-its own process group. A timeout of the gate's budget kills the whole group,
-so no terraform or provider it started keeps running, and so does a SIGTERM
-or SIGINT to the gate (an interrupt, or the harness stopping the hook) or an
-error while a check runs. A SIGKILL to the gate cannot be caught: the check and
-what it started then keep running. A process that leaves the group (its own
-setsid) is not killed, and a tool that exits but leaves a child holding its
-output open waits out the budget, which is no verdict. The tool's output goes
-back to the agent between random-token tags (the shared tags block below), with one
-sentence saying it is the check's output, not instructions; the tags mark it,
+gets Claude Code's output and Kiro's budget. Kiro documents hooks[].timeout
+(seconds, default 60) for the .kiro/hooks file the installer copies; the Kiro
+CLI 3.4.0 binary on this host shows no such field (read from its strings, not
+run). No Kiro Stop entry exists yet, so the 25 s budget stands until one
+lands (SPIKE.md): on Kiro a check slower than 25 s gets no verdict, and the
+gate does not back operator.artifact-checks for eks-build. Design E's settable
+Kiro budget is not built; it waits on the maintainer's call. Each check runs
+in its own process group. A timeout of the gate's budget kills the whole
+group, so no terraform or provider it started keeps running, and so does a
+SIGTERM or SIGINT to the gate or an error while a check runs. Any other signal
+(SIGKILL, SIGHUP, SIGQUIT) leaves the check and what it started running. A
+process that leaves the group (its own setsid) is not killed, a check that
+exits leaves what it started running, and a tool that exits but leaves a child
+holding its output open waits out the budget, which is no verdict. The tool's
+output goes back to the agent between random-token tags (the shared tags block
+below), with one sentence saying it is the check's output, not instructions;
+the tags mark it,
 they do not filter it. On Codex the block reason arrives as a user prompt, so
 text from the checked files reaches the agent as the user's own words; the
 tags do not change that. Record paths are shown outside the tags as written in
@@ -156,7 +160,8 @@ TOOLS = {"script_validate_output.py": "outputs", "operator_run_artifact_checks.p
 BASE = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 IN_CLASSES = os.path.basename(BASE) == "classes"
 # Installed copies: the clone the installer links Claude Code's and Kiro's skills from (cli.mjs INSTALL_DIR).
-_HOME = os.path.expanduser("~")  # an empty HOME gives "", no root, as cli.mjs refuses one
+# An empty or relative HOME gives no root, as cli.mjs refuses one (expanduser would read "" as "/").
+_HOME = os.environ.get("HOME") if "HOME" in os.environ else os.path.expanduser("~")
 SKILLS_ROOT = (os.path.join(os.path.dirname(BASE), "skills") if IN_CLASSES
                else os.path.realpath(os.path.join(_HOME, ".apex-skills", "skills")) if os.path.isabs(_HOME)
                else None)
@@ -167,11 +172,13 @@ STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 # Seconds for all runs: under Claude Code's and Codex's 600 s command-hook default.
 BUDGET = 570.0
-# Kiro (no --id): under the Kiro CLI's 30 s default, which its hook file documents no field to raise.
+# Kiro (no --id): under the Kiro CLI's 30 s default. Kiro documents hooks[].timeout (seconds, default 60)
+# for .kiro/hooks; the Kiro CLI 3.4.0 binary shows no such field. No Kiro Stop entry exists yet.
 KIRO_BUDGET = 25.0
 MAX_AGE = 24 * 3600
 MAX_DETAIL = 4000
 MAX_REPORT = 9000
+STOPS = {signal.SIGTERM, signal.SIGINT}
 
 
 # --- shared tags: byte-identical in token_tags.py and stop_gate.py ------------
@@ -346,17 +353,22 @@ def run_check(rec, deadline):
     if left <= 0:
         return "none", "no time left in the gate's budget"
     cmd = [sys.executable, "-B", tool, "--skill-dir", rec["skill_dir"], "--", *rec["files"]]
+    # A stop while the check starts waits until p is bound, so the finally below can kill it.
+    mask = signal.pthread_sigmask(signal.SIG_BLOCK, STOPS)
     try:
-        # Its own process group, so a timeout kills what the tool started too.
+        # Its own process group, so a timeout kills what the tool started too; the check gets the old mask.
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace",
                              env=env, start_new_session=True,
+                             preexec_fn=lambda: signal.pthread_sigmask(signal.SIG_SETMASK, mask),
                              cwd=rec.get("cwd") if os.path.isdir(str(rec.get("cwd"))) else None)
     except OSError as e:
+        signal.pthread_sigmask(signal.SIG_SETMASK, mask)
         return "none", f"the check could not start: {e}"
     try:
+        signal.pthread_sigmask(signal.SIG_SETMASK, mask)
         out, err = p.communicate(timeout=left)
     except subprocess.TimeoutExpired:
-        return "none", "the check did not finish within the gate's budget"
+        return "none", "the check, or a process holding its output, did not finish within the gate's budget"
     finally:
         if p.returncode is None:  # a timeout, or the gate stopped (SIGTERM, SIGINT, an error) mid-check
             try:
@@ -469,13 +481,14 @@ def gate(args, event):
 
 
 def stopped(signum, frame):
-    """SIGTERM or SIGINT: raise, so run_check's finally kills a running check's group before the gate exits."""
+    """SIGTERM: raise, so run_check's finally kills a running check's group before the gate exits.
+
+    SIGINT needs no handler: its KeyboardInterrupt runs the same finally."""
     raise SystemExit(3)
 
 
 def main(argv):
     signal.signal(signal.SIGTERM, stopped)
-    signal.signal(signal.SIGINT, stopped)
     parser = argparse.ArgumentParser(description="Re-run a skill's output and artifact checks before a turn ends (Stop).")
     parser.add_argument("--mode", choices=["block", "warn"], required=True)
     parser.add_argument("--id")
