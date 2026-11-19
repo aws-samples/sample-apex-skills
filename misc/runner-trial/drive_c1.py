@@ -42,7 +42,6 @@ import contextlib
 import io
 import json
 import math
-import re
 import shutil
 import subprocess
 import sys
@@ -54,10 +53,9 @@ from types import SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "misc" / "evals" / "scripts"
-PIN = "7efa0776"        # case text as it stands at this commit (cases.md)
+PIN = "7efa0776"        # case text, fixtures and skills are read from this commit (cases.md)
 OLD = "0678d921"        # tag v1.3.0, the old arm on T1 to T4 (cases.md)
 RUNS = 3
-PYCACHE = re.compile(r"(^|/)__pycache__/[^/]+\.pyc$")   # Python bytecode, left out of the pin check
 TRIGGER_TIMEOUT = 90    # run_triggering.py --timeout default
 GRADER_TIMEOUT = 600    # run_task_evals.py --grader-timeout default
 
@@ -123,52 +121,17 @@ def load_runner() -> SimpleNamespace:
     )
 
 
-def case_source(case: dict) -> Path:
+def case_source(case: dict, root: Path) -> Path:
     name = "triggering.json" if case["grade"][0] == "trigger" else "evals.json"
-    return REPO_ROOT / "misc" / "evals" / case["skill"] / name
-
-
-def pinned_paths(case: dict) -> list[str]:
-    """Repo paths whose text must equal PIN: the case file, its fixtures and the skill."""
-    paths = [str(case_source(case).relative_to(REPO_ROOT)), f"skills/{case['skill']}"]
-    if case["eval_id"] is not None:
-        files = REPO_ROOT / "misc" / "evals" / case["skill"] / "files"
-        paths += [str((files / d).relative_to(REPO_ROOT)) for d in ("shared", f"eval-{case['eval_id']}")
-                  if (files / d).exists()]
-    return paths
+    return root / "misc" / "evals" / case["skill"] / name
 
 
 class GitError(RuntimeError):
-    """A git read in the pin check failed, so the case text was not compared."""
+    """git archive failed, so the pinned or old tree was not read."""
 
 
-def check_pin(cases: list[dict]) -> list[str]:
-    """Paths that differ from PIN or hold untracked or ignored files (git, no model call).
-
-    An ignored file is staged into the subject's sandbox too, so it counts.
-    Porcelain lists every file (--untracked-files=all), and only a line whose
-    path matches PYCACHE, a .pyc file directly inside a __pycache__/ dir, is
-    left out; any other file in or beside a __pycache__/ dir counts.
-    Raises GitError when git itself fails (diff rc other than 0 or 1, status rc not 0).
-    """
-    changed = []
-    for case in cases:
-        for p in pinned_paths(case):
-            r = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--quiet", PIN, "--", p],
-                               capture_output=True, text=True)
-            st = subprocess.run(["git", "-C", str(REPO_ROOT), "status", "--porcelain", "--ignored",
-                                 "--untracked-files=all", "--", p], capture_output=True, text=True)
-            if r.returncode not in (0, 1) or st.returncode != 0:
-                raise GitError(f"git failed on {p}: diff rc {r.returncode}, status rc {st.returncode}: "
-                               f"{(r.stderr + st.stderr).strip()}")
-            extra = [l for l in st.stdout.splitlines() if not PYCACHE.search(l[3:])]
-            if (r.returncode != 0 or extra) and p not in changed:
-                changed.append(p)
-    return changed
-
-
-def load_case(case: dict) -> dict:
-    data = json.loads(case_source(case).read_text())
+def load_case(case: dict, root: Path) -> dict:
+    data = json.loads(case_source(case, root).read_text())
     if case["grade"][0] == "trigger":
         return {"queries": data}
     matches = [e for e in data["evals"] if e["id"] == case["eval_id"]]
@@ -194,11 +157,11 @@ def artifact_pick(case: dict, spec: dict) -> dict:
     return {"root_glob": cfg.get("root_glob"), section: picked}
 
 
-def check_specs(cases: list[dict]) -> dict:
+def check_specs(cases: list[dict], root: Path) -> dict:
     """Load each case and resolve its pass-condition selector before any run."""
     specs = {}
     for case in cases:
-        spec = specs[case["id"]] = load_case(case)
+        spec = specs[case["id"]] = load_case(case, root)
         kind, value = case["grade"]
         if kind == "suite":
             suite_expectations(case, spec)
@@ -222,11 +185,10 @@ def plan_runs(cases: list[dict]) -> list[dict]:
             if kind == "trigger":
                 idx, should = value[arm]
                 call = (f"run_triggering.run_single_query(query=triggering.json[{idx}], "
-                        f"skill_name='{case['skill']}', repo_skill_dir=skills/{case['skill']}, "
+                        f"skill_name='{case['skill']}', repo_skill_dir=skills/{case['skill']} at {PIN}, "
                         f"timeout={TRIGGER_TIMEOUT}); pass if triggered is {should}")
             else:
-                skill_dir = (f"skills/{case['skill']} at {OLD}" if arm == "old_skill"
-                             else f"skills/{case['skill']}")
+                skill_dir = f"skills/{case['skill']} at {OLD if arm == 'old_skill' else PIN}"
                 call = (f"run_task_evals.run_subject(prompt=evals.json id {case['eval_id']}, "
                         f"skill_name='{case['skill']}', repo_skill_dir={skill_dir}, "
                         f"with_skill={arm != 'without_skill'}"
@@ -246,16 +208,18 @@ def plan_runs(cases: list[dict]) -> list[dict]:
 
 
 @contextlib.contextmanager
-def old_skill_dir(skill: str):
-    """skills/<skill> as it stands at OLD, extracted to a temp dir (git, no model call)."""
-    tmp = Path(tempfile.mkdtemp(prefix="drive-c1-old-"))
+def archived(rev: str, *paths: str):
+    """The repo paths as they stand at rev, extracted to a temp dir that is yielded as
+    the tree's root (git, no model call). Raises GitError when git archive fails."""
+    tmp = Path(tempfile.mkdtemp(prefix="drive-c1-"))
     try:
-        archive = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", OLD, f"skills/{skill}"],
-                                 capture_output=True, check=True).stdout
-        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        r = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", rev, *paths], capture_output=True)
+        if r.returncode != 0:
+            raise GitError(f"git archive {rev} failed: {r.stderr.decode(errors='replace').strip()}")
+        with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
             # filter= needs tarfile.data_filter; /usr/bin/python3 3.9.16 here has none
             tar.extractall(tmp, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))
-        yield tmp / "skills" / skill
+        yield tmp
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -272,7 +236,8 @@ def last_result(events_path: Path) -> tuple[dict, int]:
     return (results[-1] if results else {}), len(results)
 
 
-def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model: str) -> tuple[bool | None, str]:
+def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model: str,
+               root: Path) -> tuple[bool | None, str]:
     kind, value = case["grade"]
     outputs, transcript = Path(subj["outputs_dir"]), Path(subj["transcript_path"])
     if kind in ("suite", "text"):
@@ -286,7 +251,7 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
         ok = all(e.get("passed") for e in grading["expectations"])
         return ok, f"grader {sum(bool(e.get('passed')) for e in grading['expectations'])}/{len(expectations)}"
     if kind == "artifact":
-        res = runner.validate_run(outputs_dir=outputs, assertions_config=artifact_pick(case, spec), repo_root=REPO_ROOT)
+        res = runner.validate_run(outputs_dir=outputs, assertions_config=artifact_pick(case, spec), repo_root=root)
         passed = res.structural_passed + res.validators_passed
         failed = res.structural_failed + res.validators_failed
         return (passed == 1 and failed == 0), f"artifact {passed} passed, {failed} failed"
@@ -297,7 +262,8 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
     raise ValueError(f"{case['id']}: unknown grade kind {kind}")
 
 
-def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: str, kubeconfig: str | None) -> dict:
+def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: str, kubeconfig: str | None,
+            root: Path) -> dict:
     rec = {"case": case["id"], "arm": item["arm"], "run": item["run"], "status": None, "pass": None,
            "tokens": None, "duration_ms": None, "wall_seconds": None, "total_cost_usd": None, "reason": None}
     kind, value = case["grade"]
@@ -308,7 +274,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
     t0 = time.time()
     if kind == "trigger":
         idx, should = value[item["arm"]]
-        skill_dir = REPO_ROOT / "skills" / case["skill"]
+        skill_dir = root / "skills" / case["skill"]
         name, _ = runner.read_skill_meta(skill_dir)
         res = runner.run_single_query(spec["queries"][idx]["query"], name, skill_dir, model, TRIGGER_TIMEOUT)
         rec["wall_seconds"] = round(time.time() - t0, 2)
@@ -320,15 +286,16 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
         return rec
     sys.path.insert(0, str(SCRIPTS))
     from elicitation import ElicitationConfig
-    with (old_skill_dir(case["skill"]) if item["arm"] == "old_skill"
-          else contextlib.nullcontext(REPO_ROOT / "skills" / case["skill"])) as skill_dir:
+    with (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
+          else contextlib.nullcontext(root)) as tree:
+        skill_dir = tree / "skills" / case["skill"]
         name, _ = runner.read_skill_meta(skill_dir)
         subj = runner.run_subject(
             prompt=spec["prompt"], skill_name=name, repo_skill_dir=skill_dir,
             with_skill=item["arm"] != "without_skill", model=model, timeout=runner.subject_timeout(case["skill"]),
             run_dir=run_dir, extra_env=({"KUBECONFIG": kubeconfig} if case.get("live") else None),
             elicitation=ElicitationConfig.from_dict(spec.get("elicitation")),
-            skill_eval_dir=REPO_ROOT / "misc" / "evals" / case["skill"],
+            skill_eval_dir=root / "misc" / "evals" / case["skill"],
             eval_id=case["eval_id"], fixture_files=spec.get("files"))
     rec["wall_seconds"] = round(time.time() - t0, 2)
     timing_path = run_dir / "timing.json"
@@ -340,16 +307,16 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
     if not subj.get("ok"):
         rec.update(status="error", reason=f"subject: {subj.get('reason')}")
         return rec
-    ok, why = grade_task(runner, case, spec, subj, run_dir, model)
+    ok, why = grade_task(runner, case, spec, subj, run_dir, model, root)
     rec.update(status="error" if ok is None else "ran", reason=why, **{"pass": ok})
     return rec
 
 
 def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit: float,
-            kubeconfig: str | None) -> dict:
+            kubeconfig: str | None, root: Path) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in cases}
-    specs = check_specs(cases)
+    specs = check_specs(cases, root)
     spent, records = 0.0, []
     with (out_dir / "runs.jsonl").open("w") as log:
         for item in plan_runs(cases):
@@ -359,7 +326,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
                        "pass": None, "tokens": None, "duration_ms": None, "wall_seconds": None,
                        "total_cost_usd": None, "reason": f"spend limit ${spend_limit} reached (${spent:.2f})"}
             else:
-                rec = run_one(runner, case, specs[case["id"]], item, out_dir, model, kubeconfig)
+                rec = run_one(runner, case, specs[case["id"]], item, out_dir, model, kubeconfig, root)
                 spent += rec["total_cost_usd"] or 0.0
             records.append(rec)
             log.write(json.dumps(rec) + "\n")
@@ -409,17 +376,19 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         print(f"unknown case id: {', '.join(unknown)} (known: {', '.join(CASE_IDS)})", file=sys.stderr)
         return 2
     cases = [c for c in CASES if not args.case or c["id"] in args.case]
+    # The case files, fixtures and skills are read from PIN, never the working tree.
+    paths = sorted({p for c in cases for p in (f"misc/evals/{c['skill']}", f"skills/{c['skill']}")})
     try:
-        changed = check_pin(cases)
+        with archived(PIN, *paths) as root:
+            return drive(args, cases, root, runner)
     except GitError as e:
-        print(f"pin check could not run: {e}", file=sys.stderr)
-        return 2
-    if changed:
-        print(f"case text differs from {PIN}: {', '.join(changed)}", file=sys.stderr)
+        print(f"git read failed: {e}", file=sys.stderr)
         return 2
 
+
+def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: SimpleNamespace | None) -> int:
     try:
-        check_specs(cases)
+        check_specs(cases, root)
     except (ValueError, KeyError, IndexError) as e:
         print(f"case set does not resolve: {e}", file=sys.stderr)
         return 2
@@ -453,7 +422,7 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     try:
         runner.start_eval_session(*max(timeouts, key=lambda t: t[0]))
         summary = execute(runner, cases, args.out, model=args.model or runner.default_model(),
-                          spend_limit=limit, kubeconfig=kubeconfig)
+                          spend_limit=limit, kubeconfig=kubeconfig, root=root)
     except runner.EvalCredentialError as e:
         print(f"eval-role session refused or failed to refresh, stopping: {e}", file=sys.stderr)
         return 2

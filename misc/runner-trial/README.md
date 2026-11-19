@@ -33,4 +33,4 @@ A short trial to choose the eval runner before more eval work is built on one. I
 
 ## Status
 
-No paid run has happened yet. The runs wait on the eval role, which does not exist yet, and one proven end-to-end run (cost-estimate.md; cases.md, Credentials and permissions). Main has also changed the case text of T1 to T5 and T7 since 7efa0776, so on main's tree the driver's pin check refuses those six cases.
+No paid run has happened yet. The runs wait on the eval role, which does not exist yet, and one proven end-to-end run (cost-estimate.md; cases.md, Credentials and permissions). Main has changed the case text, fixtures and skills of T1 to T5 and T7 since 7efa0776, so the driver reads every case file, fixture and skill from 7efa0776 with `git archive`, never from the working tree; the old arm reads its skill from 0678d921 the same way.
