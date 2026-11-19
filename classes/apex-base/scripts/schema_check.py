@@ -219,13 +219,13 @@ def record_run(script_file, skill_dir, files):
     """Leave a run record for the operator Stop gate (classes/script/hooks/stop-gate/stop_gate.py).
 
     The record names paths only, never a verdict: the gate re-runs the tool
-    itself, when it is one the gate runs (stop_gate.py tool_kind()). One JSON
+    itself, when it is one the gate runs (stop_gate.py stale() and tool_kind()). One JSON
     file run-<ns>-<pid>.json in <root>/.apex-stop-gate/, root the nearest
     folder at or above the working folder holding .git (else the working
     folder). The tool writes only into an existing .apex-stop-gate folder
     there, never through a link (the gate makes it at each Stop it runs with
-    its switch on); the gate ignores one it does not own, so no run recorded
-    there is checked.
+    its switch on); the gate ignores one that is not a real folder this user
+    owns with no group or other write bit, so no run recorded there is checked.
     Best effort: an OSError is ignored. The gate's own re-run sets
     APEX_STOP_GATE_RUN, and then no record is written."""
     if os.environ.get("APEX_STOP_GATE_RUN"):

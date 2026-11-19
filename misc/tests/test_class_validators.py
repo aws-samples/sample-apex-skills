@@ -287,7 +287,8 @@ class RunRecord(Tmp):
     def project(self, state="dir"):
         """A project folder with .git; the tools run from its sub/ folder.
 
-        state "dir" makes .apex-stop-gate/ as the gate does, "link" makes it a
+        state "dir" makes a plain .apex-stop-gate/ folder (all the writer checks
+        for), "link" makes it a
         link to a real folder, "none" leaves it out. Returns (cwd, folder)."""
         proj = os.path.join(self.tmp, "proj")
         os.makedirs(os.path.join(proj, ".git"))
