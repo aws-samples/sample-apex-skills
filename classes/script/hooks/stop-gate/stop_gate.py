@@ -74,13 +74,14 @@ Kiro agent-config hook and the 60 s Kiro documents for a .kiro/hooks entry).
 The output shape is set by the event instead (no stop_hook_active: Kiro's), so
 a hand run with no --id and a Claude Code event gets Claude Code's output and
 Kiro's budget. Kiro documents hooks[].timeout (seconds, default 60) for the
-.kiro/hooks file the installer copies, and the hook file schema in a Kiro CLI
-3.4.0 binary's v3 engine takes it (read from its program text, not run). The
+.kiro/hooks file the installer copies, and the hook file schema of the v3
+engine bundled with Kiro CLI 3.4.0 (its kas acp-server.js) takes it (read from
+its program text, not run). The
 class sync writes an entry's kiro_timeout as that timeout and as the
 command's --kiro-timeout, so both limits come from one value (SPIKE.md). No
-Kiro Stop entry exists yet: once one lands with a kiro_timeout longer than a
-check runs, that check gets a verdict on Kiro too, so the gate can back
-operator.artifact-checks for eks-build there; with none set, a check slower
+Kiro Stop entry exists yet: once one lands with a kiro_timeout more than 5 s
+longer than a check runs, that check gets a verdict on Kiro too, so the gate
+can back operator.artifact-checks for eks-build there; with none set, a check slower
 than 25 s gets no verdict on Kiro. Each check runs
 in its own process group. A timeout of the gate's budget kills the whole
 group, so no terraform or provider it started keeps running, and so does a
@@ -176,7 +177,8 @@ STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 # Seconds for all runs: under Claude Code's and Codex's 600 s command-hook default.
 BUDGET = 570.0
-# Kiro (no --id) with no --kiro-timeout: under the 30 s default of a Kiro agent-config hook.
+# Kiro (no --id) with no --kiro-timeout: under the 30 s default of a Kiro agent-config hook
+# and the 60 s Kiro documents for a .kiro/hooks entry.
 KIRO_BUDGET = 25.0
 # Kiro with --kiro-timeout <n> (the hook's own timeout, written by the class sync): the budget is n less this.
 KIRO_MARGIN = 5.0
@@ -496,8 +498,7 @@ def budget(args):
     """Seconds for all runs: BUDGET with an --id; on Kiro, its hook timeout less KIRO_MARGIN, else KIRO_BUDGET."""
     if args.id is not None:
         return BUDGET
-    kiro_timeout = getattr(args, "kiro_timeout", None)
-    return KIRO_BUDGET if kiro_timeout is None else max(kiro_timeout - KIRO_MARGIN, 0.0)
+    return KIRO_BUDGET if args.kiro_timeout is None else max(args.kiro_timeout - KIRO_MARGIN, 0.0)
 
 
 def main(argv):

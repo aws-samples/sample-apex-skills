@@ -736,7 +736,7 @@ def test_a_stop_while_the_check_starts_kills_it(world, monkeypatch, tmp_path, si
     old = signal.signal(signal.SIGTERM, GATE.stopped)
     try:
         with pytest.raises((SystemExit, KeyboardInterrupt)):
-            GATE.gate(GATE.argparse.Namespace(mode="block", id=None), cc_event(str(world.project)))
+            GATE.gate(GATE.argparse.Namespace(mode="block", id=None, kiro_timeout=None), cc_event(str(world.project)))
             time.sleep(1)  # a signal still pending at the gate's return lands here
         assert started and gone(started[0]), f"the check {started} is still running"
     finally:
@@ -771,7 +771,6 @@ def test_the_kiro_budget_comes_from_the_kiro_timeout():
     ns = GATE.argparse.Namespace
     assert GATE.budget(ns(mode="warn", id=None, kiro_timeout=600)) == 595.0
     assert GATE.budget(ns(mode="warn", id=None, kiro_timeout=None)) == GATE.KIRO_BUDGET == 25.0
-    assert GATE.budget(ns(mode="warn", id=None)) == 25.0
     assert GATE.budget(ns(mode="warn", id=GATE.HOOK_ID, kiro_timeout=600)) == GATE.BUDGET
 
 

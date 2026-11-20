@@ -160,20 +160,21 @@ turn with no decision.
   value less 5 s, or 25 s when it is not passed (under the 30 s default of a
   Kiro agent-config hook: kiro.dev/docs/hooks/actions, CLI tab, "Default
   timeout is 30 seconds (30,000ms). Configure with the `timeout_ms` field";
-  the IDE tab says 60 s; read 2026-11-19). The output shape is set by the
-  event (no `stop_hook_active`: Kiro's), so a hand run with no `--id` and a
+  the IDE tab says 60 s; read 2026-11-19; and under the 60 s default Kiro
+  documents for the `.kiro/hooks` file the installer writes, below). The
+  output shape is set by the event (no `stop_hook_active`: Kiro's), so a hand run with no `--id` and a
   Claude Code event gets Claude Code's output and Kiro's budget. Kiro
   documents `hooks[].timeout` for the `.kiro/hooks` file the installer copies
   (kiro.dev/docs/hooks/, "Hook file schema": "Timeout in seconds for command
   actions (default: 60). 0 disables the timeout.", read 2026-11-20), and the
-  hook file schema in a Kiro CLI 3.4.0 binary's v3 engine takes it as a whole
-  number of seconds, 0 or more (read from its program text, not run; that
-  engine drops a whole hook file that fails its schema). The class sync
+  hook file schema of the v3 engine bundled with Kiro CLI 3.4.0 (its kas
+  acp-server.js) takes it as a whole number of seconds, 0 or more (read from
+  its program text, not run; that engine drops a whole hook file that fails its schema). The class sync
   writes a `class.yaml` hooks entry's `kiro_timeout` (whole seconds, at least
   30) as the Kiro hook's `timeout` and as its command's `--kiro-timeout`, so
   Kiro's limit and the gate's budget come from one value. No Kiro Stop entry
-  exists yet: once one lands with a `kiro_timeout` longer than a check runs,
-  that check gets a verdict on Kiro too, so the gate can back
+  exists yet: once one lands with a `kiro_timeout` more than 5 s longer than
+  a check runs, that check gets a verdict on Kiro too, so the gate can back
   operator.artifact-checks for eks-build there; with none set, a check slower
   than 25 s gets no verdict on Kiro. One validator run on an eks-recon output took about
   2.5 s on the build host, and the gate with that one record about 2.5 s in

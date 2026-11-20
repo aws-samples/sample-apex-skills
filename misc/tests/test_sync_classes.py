@@ -223,7 +223,7 @@ class KiroTimeout(unittest.TestCase):
     SCRIPT = ("#!/usr/bin/env python3\nimport argparse\np = argparse.ArgumentParser()\n"
               "p.add_argument(\"--mode\", choices=[\"block\"])\np.add_argument(\"--id\")\n")
 
-    def tree(self, field, script=None):
+    def tree(self, field):
         tmp = tempfile.mkdtemp(prefix="sync-classes-kiro-timeout-")
         self.addCleanup(shutil.rmtree, tmp)
         for rel, text in DATA["bases"]["std"]["files"].items():
@@ -233,7 +233,7 @@ class KiroTimeout(unittest.TestCase):
                    "  - id: script.stop-test\n    event: Stop\n    script: hooks/stop-test/stop_test.py\n"
                    f"    mode: block\n    enabled: false\n{field}")
         write_file(tmp, "classes/script/hooks/stop-test/stop_test.py",
-                   script if script is not None else self.SCRIPT + "p.add_argument(\"--kiro-timeout\", type=int)\n")
+                   self.SCRIPT + "p.add_argument(\"--kiro-timeout\", type=int)\n")
         return tmp
 
     def kiro_hook(self, tmp):
@@ -270,11 +270,6 @@ class KiroTimeout(unittest.TestCase):
                 self.assertEqual(rc, 1, out)
                 self.assertIn("kiro_timeout must be a whole number of seconds, at least 30", out)
 
-    def test_a_script_without_the_argument_stops_the_sync(self):
-        rc, out = run_sync(self.tree("    kiro_timeout: 600\n", script=self.SCRIPT), "write")
-        self.assertEqual(rc, 1, out)
-        self.assertIn("kiro_timeout needs an add_argument(\"--kiro-timeout\") call in "
-                      "classes/script/hooks/stop-test/stop_test.py", out)
 
 
 if __name__ == "__main__":

@@ -56,14 +56,18 @@ python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 --id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
 __APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). An entry's
 optional `kiro_timeout` (whole seconds, at least 30) is written as the Kiro
-hook's `timeout` and passed to its command as --kiro-timeout <n>; with none,
-the Kiro hook has no `timeout`. A Stop command
+hook's `timeout` and passed to its command as --kiro-timeout <n> (no upper
+bound is checked); with none, the Kiro hook has no `timeout`. The sync does
+not check that the script takes --kiro-timeout: one that does not exits 2 at
+its own argument parse, and a Stop command's ` || exit 3` then makes it 3,
+which fails closed. A Stop command
 ends ` || exit 3` and has no matcher. Entries go in class folder order, then
 file order. Codex keys a user's saved per-hook disables by position, so a
 new class that sorts earlier shifts them onto other hooks, and a shifted
 hook's saved trust no longer matches it, so Codex reads it as modified, not
 trusted. An entry with a
-missing or malformed field, a mode its script does not accept (the choices
+missing or malformed field, a `kiro_timeout` that is not a whole number of
+seconds of at least 30, a mode its script does not accept (the choices
 of the script's one add_argument("--mode", choices=[...]) call, read from
 its source; a script where they cannot be read is refused too), a script
 without one add_argument("--id") call that is not required (the sync reads only
@@ -745,14 +749,6 @@ STOP_TAIL = " || exit 3"
 KIRO_TIMEOUT_MIN = 30
 
 
-def script_takes(root, src, flag):
-    """True when the hook script has an add_argument(<flag>, ...) call."""
-    tree = ast.parse(read_text(os.path.join(root, src)))
-    return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "add_argument"
-               and c.args and isinstance(c.args[0], ast.Constant) and c.args[0].value == flag
-               for c in ast.walk(tree))
-
-
 def script_modes(root, src):
     """The choices of the hook script's one add_argument("--mode", choices=[...]) call.
 
@@ -824,9 +820,6 @@ def hook_entries(raw, classes, root):
             modes = script_modes(root, src)
             if h["mode"] not in modes:
                 raise SyncError(f"{who}: mode {h['mode']} is not one of {src}'s --mode choices {modes}")
-            if kiro_timeout is not None and not script_takes(root, src, "--kiro-timeout"):
-                raise SyncError(f"{who}: kiro_timeout needs an add_argument(\"--kiro-timeout\") call in {src}, "
-                                "since the Kiro command passes it")
             hid, key = h["id"], re.sub(r"[.-]", "_", h["id"]).upper()
             if hid in ids:
                 raise SyncError(f"duplicate hooks entry id {hid} from classes/{ids[hid]} and classes/{cls}")
