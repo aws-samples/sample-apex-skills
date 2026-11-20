@@ -334,7 +334,7 @@ def session():
 class LiveSession(unittest.TestCase):
     """T7: the subject gets a short cluster session, never the host's profile path."""
 
-    def run_t7(self, assume, with_config=True):
+    def run_t7(self, assume, with_config=True, relative=False):
         seen, calls = [], []
         runner = fake_runner(calls)
         inner = runner.run_subject
@@ -366,10 +366,15 @@ class LiveSession(unittest.TestCase):
             path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
             op_cfg = Path(k) / "operator-aws-config"
             op_cfg.write_text("[profile cluster-ro]\n")
-            flags = ("--cluster-aws-config", str(op_cfg)) if with_config else ()
-            with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
-                    mock.patch.dict(os.environ, {"PATH": path}):
-                rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc), *flags)
+            flags = ("--cluster-aws-config", op_cfg.name if relative else str(op_cfg)) if with_config else ()
+            cwd = os.getcwd()
+            os.chdir(k)   # a relative path, as an operator would type it
+            try:
+                with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
+                        mock.patch.dict(os.environ, {"PATH": path}):
+                    rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc), *flags)
+            finally:
+                os.chdir(cwd)
         return rc, recs, seen, host_cfg, str(op_cfg.resolve())
 
     def test_subject_gets_only_a_session_in_its_kubeconfig_and_aws_shim(self):
@@ -418,6 +423,19 @@ class LiveSession(unittest.TestCase):
         self.assertEqual((rc, calls), (2, []))
         self.assertIn("cluster aws config not found", err)
 
+    def test_cluster_aws_config_must_be_a_file_and_is_resolved(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
+            kc = Path(k) / "kc"
+            kc.write_text("k")
+            calls = []
+            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-aws-config", k)
+        self.assertEqual((rc, calls), (2, []))   # a directory is refused before any run
+        self.assertIn("cluster aws config not found", err)
+        asked = []
+        rc, recs, seen, _, op_cfg = self.run_t7(lambda p, c, s: asked.append(c) or session(), relative=True)
+        self.assertEqual((rc, len(seen)), (0, 6))
+        self.assertEqual(asked, [op_cfg] * 6)   # a relative path reaches the assume resolved
+
 
     def test_assume_profile_role_runs_as_the_driver_without_the_parent_aws_env(self):
         with tempfile.TemporaryDirectory() as k:
@@ -426,7 +444,8 @@ class LiveSession(unittest.TestCase):
             fake.write_text(
                 '#!/bin/sh\n'
                 f'echo "$* | ${{AWS_ACCESS_KEY_ID-unset}} ${{AWS_PROFILE-unset}} ${{AWS_DEFAULT_PROFILE-unset}} '
-                f'$AWS_CONFIG_FILE ${{AWS_SHARED_CREDENTIALS_FILE-unset}} ${{AWS_EC2_METADATA_DISABLED-unset}}" >> {log}\n'
+                f'$AWS_CONFIG_FILE ${{AWS_SHARED_CREDENTIALS_FILE-unset}} ${{AWS_EC2_METADATA_DISABLED-unset}} '
+                f'${{BOTO_CONFIG-unset}}" >> {log}\n'
                 'case "$*" in\n'
                 '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
                 '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
@@ -436,7 +455,8 @@ class LiveSession(unittest.TestCase):
             fake.chmod(0o700)
             env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "AWS_ACCESS_KEY_ID": "AKIAHOST",
                    "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin",
-                   "AWS_SHARED_CREDENTIALS_FILE": str(Path.home() / ".aws" / "credentials")}
+                   "AWS_SHARED_CREDENTIALS_FILE": str(Path.home() / ".aws" / "credentials"),
+                   "BOTO_CONFIG": str(Path.home() / ".boto")}
             with mock.patch.dict(os.environ, env):
                 creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
             lines = log.read_text().splitlines()
@@ -445,7 +465,7 @@ class LiveSession(unittest.TestCase):
         # the parent's AWS_* are stripped, only the operator's config is read, with no
         # shared credentials file (no ~/.aws or host keys) and no instance metadata
         for line in lines:
-            self.assertTrue(line.endswith(f"| unset unset unset /cfg/operator {os.devnull} true"), line)
+            self.assertTrue(line.endswith(f"| unset unset unset /cfg/operator {os.devnull} true {os.devnull}"), line)
         self.assertTrue(lines[2].startswith("sts assume-role --profile src --role-arn test-role-arn "
                                             "--role-session-name apex-c1-live-"), lines[2])
         self.assertIn("--duration-seconds 3600 --output json", lines[2])

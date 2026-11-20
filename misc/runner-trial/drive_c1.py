@@ -375,12 +375,15 @@ def assume_profile_role(profile: str, config_file: str, seconds: int) -> dict:
     """Assume the role of `profile` (its role_arn, through its source_profile)
     as the driver, never the subject, from the operator's AWS config file
     only: the parent's AWS_* variables are dropped, the shared credentials
-    file is /dev/null and the instance metadata lookup is off, so no host
-    key and no credentials or config file in ~/.aws is read (the CLI keeps
-    only its own cache under ~/.aws/cli); the source profile signs in by its
-    own means, such as a credential_process. Returns the STS Credentials dict."""
+    file and the boto config are /dev/null and the instance metadata lookup
+    is off, so no host key and no credentials or config file in ~/.aws is
+    read; the CLI still uses ~/.aws/cli (its cache and any alias file) and
+    looks for ~/.aws/models. The source profile must sign in through
+    credential_process: an SSO or aws login source reads its token under
+    ~/.aws. Returns the STS Credentials dict."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
-    env.update(AWS_CONFIG_FILE=config_file, AWS_SHARED_CREDENTIALS_FILE=os.devnull, AWS_EC2_METADATA_DISABLED="true")
+    env.update(AWS_CONFIG_FILE=config_file, AWS_SHARED_CREDENTIALS_FILE=os.devnull, AWS_EC2_METADATA_DISABLED="true",
+               BOTO_CONFIG=os.devnull)
 
     def aws(*argv: str) -> str:
         try:
@@ -461,7 +464,7 @@ def live_env(kubeconfig: str, aws_config: str | None):
 
 
 def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: str, kubeconfig: str | None,
-            root: Path, aws_config: str | None = None) -> dict:
+            root: Path, aws_config: str | None) -> dict:
     rec = {"case": case["id"], "arm": item["arm"], "run": item["run"], "status": None, "pass": None,
            "tokens": None, "duration_ms": None, "wall_seconds": None, "total_cost_usd": None, "reason": None}
     kind, value = case["grade"]
@@ -518,7 +521,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
 
 
 def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit: float,
-            kubeconfig: str | None, root: Path, head: str, aws_config: str | None = None) -> dict:
+            kubeconfig: str | None, root: Path, head: str, aws_config: str | None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in cases}
     specs = check_specs(cases, root)
@@ -576,9 +579,10 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1, per invocation "
                                                          "(required with --paid)")
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
-    p.add_argument("--cluster-aws-config", help="AWS config file holding the kubeconfig's aws profile, whose "
-                                                "source profile signs in without the keys in ~/.aws (such as a "
-                                                "credential_process helper); the driver mints T7's session from it only")
+    p.add_argument("--cluster-aws-config", help="AWS config file outside ~/.aws holding the kubeconfig's aws profile "
+                                                "in role_arn plus source_profile form, its source profile signing in "
+                                                "through credential_process; the driver mints T7's session from it "
+                                                "only (without it T7 reads 'cannot run')")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]
