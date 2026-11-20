@@ -510,7 +510,7 @@ class YamlLoader(Tmp):
     and a python tag is refused."""
 
     def test_duplicate_key_raises(self):
-        with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: duplicate key 'a' at line 2"):
+        with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: duplicate key at line 2, column 1"):
             schema_check.loads("a: 1\na: 2\n", "x.yaml")
 
     def test_python_tags_are_refused(self):
