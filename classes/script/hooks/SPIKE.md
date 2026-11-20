@@ -71,7 +71,7 @@ real path is the skill's own synced copy
 (`<skill_dir>/scripts/script_validate_output.py` or
 `operator_run_artifact_checks.py`) and the skill folder's real path is a folder
 directly in the skills root. A gone tool with any other name, or a record with
-no tool, is not dropped: it is no verdict and blocks once. The gate never
+no tool, is not dropped: it is no verdict and blocks once (on Kiro, with the warning at the next user turn's Stop). The gate never
 takes the skills root from the record or the event: it is the repo's `skills/`
 for the classes/ copy (from the gate's own location), and for an installed
 copy (the Claude Code plugin cache, Kiro's `.kiro/apex-hooks`) the real path of
@@ -82,7 +82,7 @@ may name a skill by its link or by its real path, and a skill folder the
 agent makes in the project (a real folder in a project `.claude/skills` or
 `.kiro/skills` included) is never run. With no `~/.apex-skills` clone (a
 marketplace-only plugin install, and Codex, which the installer does not set
-up) every record is no verdict and blocks once. With no sandbox (Claude
+up) every record is no verdict and blocks once (on Kiro, with the warning at the next user turn's Stop). With no sandbox (Claude
 Code's default), or with the agent working in the home folder, the root is not
 a boundary: the agent can make or relink `~/.apex-skills` and add a check the
 gate runs; the root keeps out a skill planted in the project. A
@@ -106,7 +106,13 @@ not leave a new one.
 
 A pass deletes its record. A blocked fail keeps it, so the retry is checked
 again. A warn, or a fail with the reentry guard spent, deletes it, so the
-next turn starts clean.
+next turn starts clean. On Kiro the turn goes on once and the warning comes
+at the next user turn's Stop: the block writes the guard, Kiro runs no second
+Stop in that execution, and the next user turn's Stop finds the guard, ends
+with the warning and deletes the records. Kiro CLI 3.5.0 runs Stop hooks once
+per execution (run 2026-11-20); 3.4.0 and 3.3.0 were read from the engine
+code, not run, and that this resets each user turn is read from the code, not
+shown by a run.
 
 ## Who writes the record
 
@@ -126,7 +132,8 @@ turn with no decision.
   folder, an undeclared schema, a missing artifact), so such a run is not
   checked at Stop.
 - Records are per project, not per session: two sessions in one project see
-  each other's records. That can cost a retry; the guard keeps it to one. A
+  each other's records. That can cost a retry; the guard keeps it to one
+  (on Kiro, with the warning at the next user turn's Stop). A
   warn, or a Stop with the guard spent, deletes every record under the root,
   another session's included, so that session's failed check is no longer
   checked at its own Stop.
@@ -153,7 +160,7 @@ turn with no decision.
 - Every record left is run again at the next Stop, and all runs share one
   budget; the newest-per-key rule keeps a fix-and-revalidate loop to one run,
   but many distinct files can still run past it, and a run past it is no
-  verdict, which blocks once. The budget is set by the `--id`: with one,
+  verdict, which blocks once (on Kiro, with the warning at the next user turn's Stop). The budget is set by the `--id`: with one,
   570 s (Claude Code and Codex, under their 600 s command-hook default:
   code.claude.com/docs/en/hooks.md, `timeout`; developers.openai.com/codex/hooks,
   `timeout`; both read 2026-11-19); with none (Kiro), the `--kiro-timeout`
@@ -166,10 +173,12 @@ turn with no decision.
   Claude Code event gets Claude Code's output and Kiro's budget. Kiro
   documents `hooks[].timeout` for the `.kiro/hooks` file the installer copies
   (kiro.dev/docs/hooks/, "Hook file schema": "Timeout in seconds for command
-  actions (default: 60). 0 disables the timeout.", read 2026-11-20), and the
-  hook file schema of the v3 engine bundled with Kiro CLI 3.4.0 (its kas
-  acp-server.js) takes it as a whole number of seconds, 0 or more (read from
-  its program text, not run; that engine drops a whole hook file that fails its schema). The class sync
+  actions (default: 60). 0 disables the timeout.", read 2026-11-20). In the
+  2026-11-20 Kiro CLI 3.5.0 (V3 engine) runs, Kiro rejected a `timeout` of -1
+  ("timeout must be >= 0 seconds") and ran no hook from that file, a 30 s
+  `timeout` ended the hook at 30.0 s, and in O and F on c4d9e911 the gate's
+  budget held (a block at 35.1 s under a 40 s `timeout` with
+  `--kiro-timeout 40`, and at 25.1 s with neither set). The class sync
   writes a `class.yaml` hooks entry's `kiro_timeout` (whole seconds, at least
   30) as the Kiro hook's `timeout` and as its command's `--kiro-timeout`, so
   Kiro's limit and the gate's budget come from one value. No Kiro Stop entry
@@ -209,8 +218,12 @@ turn with no decision.
 - Under a read-only project root the gate cannot make the state folder, so each
   Stop with the switch on is the gate's own error (exit 3).
 - Kiro's Agent Stop page documents no surface for a hook's stderr, so a Kiro
-  user may see no warning and no bad-switch line. Not yet run on Kiro, as of
-  2026-11-19; that run uses Kiro's own login and needs no eval account.
+  user may see no warning and no bad-switch line. Not tested by a run: no
+  2026-11-20 run reached the warn path. Read from the Kiro CLI 3.5.0 engine
+  code, not run: for a hook that exits 0 it picks a result with `sendStderr`
+  false. In those runs the test agent allowed no tools; the model wrote
+  shell commands as text, which did not run, and Kiro did not log the block
+  reason's text.
 - The hook-test runner's three run-record fixtures
   (`claude-code-g-block-record`, `claude-code-g-warn-record` and
   `claude-code-g-guard-spent-record`) give their record through
