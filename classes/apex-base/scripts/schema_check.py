@@ -95,11 +95,7 @@ def loads(text, name="<input>", fmt=None):
 
     Loader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
     try:
-        loader = Loader(text)
-        try:
-            doc = loader.get_single_data()
-        finally:
-            loader.dispose()
+        doc = Loader(text).get_single_data()
     except CheckError as e:
         raise CheckError(f"{name}: {e}")
     except yaml.YAMLError as e:
