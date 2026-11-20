@@ -5,31 +5,36 @@
       "id": 1,
       "prompt": "Design a production-ready EKS architecture for a B2B SaaS platform with these requirements: 3 product teams sharing one cluster, PCI-DSS scope for the payments service, 200+ microservices expected within 12 months, bursty traffic with 10x spikes during business hours, multi-AZ in us-east-1, and a hard requirement for GitOps-based deployments. Produce the full architecture design document including system architecture with Mermaid diagrams, ADRs for key decisions, security architecture, and a validation summary.",
       "expectations": [
-        "Output creates at least 5 markdown files using the Write tool in a structured directory TODO: human review",
-        "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax TODO: human review",
-        "Output creates at least 2 Architecture Decision Records as separate files with Status/Context/Decision/Consequences sections TODO: human review",
-        "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build TODO: human review",
-        "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice TODO: human review",
-        "The output recommends a compute strategy that combines Karpenter (or Auto Mode) for workload flexibility with a stable managed node group for critical system components TODO: human review",
-        "The output includes a validation or scoring section that maps design choices to AWS Well-Architected pillars (at least reliability, security, and cost optimization) TODO: human review"
+        "Output creates at least 5 markdown files using the Write tool",
+        "Output places the markdown files in a structured directory",
+        "Output includes at least one .mmd file or Mermaid code block with `subgraph` or `flowchart` syntax",
+        "Each Architecture Decision Record has Context, Decision, Alternatives Considered, Rationale, Consequences and Research Sources sections",
+        "Output produces a machine-readable handoff artifact (AGENTS.md or similar) suitable for feeding to eks-build",
+        "The output addresses PCI-DSS compliance with concrete isolation mechanisms (e.g. dedicated node pool or namespace with network policies, encryption requirements, audit logging) rather than generic security advice",
+        "The output recommends a compute strategy that uses Karpenter (or Auto Mode) for workload flexibility",
+        "The output runs the Karpenter controller on capacity Karpenter does not manage (a small managed node group or EKS Fargate), or uses EKS Auto Mode",
+        "The output addresses where the other critical system components (e.g. CoreDNS) run, with a reason",
+        "The output's Stage 4 score sheet scores the Security dimension",
+        "The output's Stage 4 score sheet scores the Reliability & Operations dimension",
+        "The output's Stage 4 score sheet scores the Cost & Scalability dimension",
+        "Does not recommend a single-AZ deployment.",
+        "Does not recommend kube2iam."
       ],
       "files": [],
       "process_assertions": [
-        {"type": "tool-called", "tool": "Write", "min": 5},
-        {"type": "step-count", "min": 8, "max": 50},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 12}
+        {"type": "tool-called", "tool": "Write", "min": 5}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "Karpenter",
-          "context": "Must recommend Karpenter as compute engine for bursty workloads with 10x spikes",
+          "pattern": "\\b(recommend\\w*|use[sd]?|adopt\\w*|choose|chose|select\\w*|decision|go with)\\b[^.\\n]{0,60}\\bKarpenter\\b|\\bKarpenter\\b[^.\\n]{0,60}\\b(for|handles|provisions|manages)\\b[^.\\n]{0,40}(workload|application|burst|spik|scal)",
+          "context": "Must recommend Karpenter as compute engine for bursty workloads with 10x spikes: the word must sit next to a recommendation, decision or workload role, not only be mentioned",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["prefix.?delegation", "prefix.?mode"],
-          "context": "200+ microservices needs VPC CNI with prefix delegation for pod density",
+          "patterns": ["prefix.?delegation", "prefix.?mode", "\\b(IP|IPv4)\\b[^.\\n]{0,40}(exhaust|capacity|density|per.?node|planning|consum)", "(pod|IP).?density", "max.?pods", "IPv6[^.\\n]{0,60}(pod|IP|address|density|exhaust)"],
+          "context": "Must address Pod density or IP address capacity for 200+ microservices (prefix mode, max Pods, IP exhaustion or IPv6), not one fix the skill prefers",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/networking.html"
         },
         {
@@ -52,26 +57,14 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["multi.?AZ", "3.?AZ", "three.?AZ", "Availability Zone"],
-          "context": "Production cluster must span multiple Availability Zones for resilience",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
-        },
-        {
-          "type": "must-contain",
-          "pattern": "mermaid",
-          "context": "Design documents must include Mermaid diagrams for architecture visualization",
-          "source": "https://docs.aws.amazon.com/prescriptive-guidance/latest/best-practices-cdk-typescript-iac/architecture-diagrams.html"
+          "patterns": ["\\b(across|span\\w*|spread\\w*|over|in)\\s+(?:[\\w-]+\\s+){0,3}(AZs|Availability Zones)", "\\b(two|three|2|3)-AZ\\b", "us-east-1[a-f][^.\\n]{0,40}us-east-1[a-f]", "topology\\.kubernetes\\.io/zone"],
+          "context": "Production cluster must span multiple Availability Zones (at least two) for resilience: the design must name the spread, since the prompt itself says multi-AZ",
+          "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ADR", "Architecture Decision Record"],
-          "context": "Key design choices must be documented as ADRs",
-          "source": "https://docs.aws.amazon.com/prescriptive-guidance/latest/architectural-decision-records/welcome.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["PCI", "PCI.?DSS", "Payment Card"],
-          "context": "Must address PCI-DSS compliance requirement from the prompt",
+          "patterns": ["PCI[^.\\n]{0,80}(dedicated|isolat|separate|segment|taint|node.?pool|namespace|network.?polic|cardholder|CDE)", "(dedicated|isolat|separate|segment)\\w*[^.\\n]{0,80}PCI"],
+          "context": "Must address PCI-DSS compliance requirement from the prompt with an isolation measure next to it, since the prompt itself names PCI-DSS",
           "source": "https://docs.aws.amazon.com/whitepapers/latest/pci-dss-scoping-on-aws/pci-dss-scoping-on-aws.html"
         },
         {
@@ -82,21 +75,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["namespace", "tenant", "isolat"],
-          "context": "Multi-team cluster requires namespace-based tenant isolation",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/multi-tenancy.html"
-        },
-        {
-          "type": "must-not-contain",
-          "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; must not recommend it",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
-        },
-        {
-          "type": "must-not-contain",
-          "pattern": "single.?AZ",
-          "context": "Production cluster must never recommend single-AZ deployment",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
+          "patterns": ["namespace[^.\\n]{0,80}(per (team|tenant)|for each team|RBAC|ResourceQuota|resource.?quota|NetworkPolic|LimitRange)", "(per.?team|per.?tenant|each team)[^.\\n]{0,60}namespace"],
+          "context": "Multi-team cluster requires namespace-based tenant isolation: namespaces must be tied to teams or to an isolation control, not only mentioned",
+          "source": "aws/aws-eks-best-practices latest/bpg/security/multitenancy.adoc:18-21 at edc514fa"
         }
       ],
       "artifact_assertions": {
@@ -104,6 +85,7 @@
         "validators": [],
         "structural": [
           {"type": "file-exists", "path": "**/*architecture*"},
+          {"type": "file-count", "glob": "**/ADR-*.md", "min": 2},
           {"type": "file-count", "glob": "**/*.md", "min": 2},
           {"type": "contains", "file": "**/*.md", "pattern": "```mermaid"},
           {"type": "not-contains", "file": "**/*.md", "pattern": "PLACEHOLDER"}
@@ -114,20 +96,24 @@
       "id": 2,
       "prompt": "Validate and score this existing EKS architecture design against Well-Architected best practices. Current design: Single EKS 1.29 cluster in ap-southeast-1, 2 AZs, one Karpenter NodePool with only m5.xlarge on-demand instances, VPC CNI in default mode (secondary IPs), no network policies, all workloads use the node IAM role for AWS access, ALB Ingress Controller with a single public ALB for all services, no pod security standards enforced, CloudWatch Container Insights for observability, no PDBs defined, manual kubectl deployments. Produce a validation report with risk scores per Well-Architected pillar and a prioritized remediation plan.",
       "expectations": [
-        "Output creates at least 1 file using the Write tool (not just inline conversation text) TODO: human review",
-        "The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability) TODO: human review",
-        "The output flags the node IAM role sharing as a critical/high security finding and recommends migration to Pod Identity or IRSA with per-workload roles TODO: human review",
-        "The output identifies the 2-AZ configuration as a reliability risk and recommends expanding to 3 AZs TODO: human review",
-        "The output recommends topology spread constraints or pod anti-affinity for distributing workloads across AZs TODO: human review",
-        "The output flags the single instance type (m5.xlarge on-demand only) as both a cost and availability risk, recommending instance diversification and Spot for non-critical workloads TODO: human review",
-        "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization TODO: human review",
-        "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap and recommends a GitOps tool (ArgoCD, Flux) for declarative deployments TODO: human review"
+        "Output creates at least 1 file using the Write tool (not just inline conversation text)",
+        "The output provides explicit scores or risk ratings for at least 4 of the 6 Well-Architected pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization, Sustainability)",
+        "The output flags the node IAM role sharing as a critical/high security finding",
+        "The output recommends migration to Pod Identity or IRSA with per-workload roles",
+        "The output keeps the design multi-AZ across at least two Availability Zones and does not recommend reducing it to a single AZ",
+        "The output recommends topology spread constraints or pod anti-affinity for distributing workloads across AZs",
+        "The output flags the single instance type (m5.xlarge on-demand only) as a cost risk",
+        "The output flags the single instance type as an availability risk",
+        "The output recommends instance diversification",
+        "The output recommends Spot for non-critical workloads",
+        "The output presents remediation items in a prioritized order with security and reliability fixes ranked above cost optimization",
+        "The output identifies the lack of GitOps (manual kubectl) as an operational excellence gap",
+        "The output recommends a GitOps tool (ArgoCD, Flux) for declarative deployments",
+        "Does not recommend kube2iam."
       ],
       "files": [],
       "process_assertions": [
-        {"type": "tool-called", "tool": "Write", "min": 1},
-        {"type": "step-count", "min": 3, "max": 50},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 8}
+        {"type": "tool-called", "tool": "Write", "min": 1}
       ],
       "knowledge_assertions": [
         {
@@ -144,9 +130,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["3.?AZ", "three.?AZ", "3 Availability", "three Availability", "expand.*(AZ|Availability)", "third.*Availability", "3 AZ"],
-          "context": "Must recommend expanding from 2 AZs to 3 AZs for reliability",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
+          "patterns": ["(spread|distribut|balanc)\\w*[^.\\n]{0,60}\\b(across|over|between)\\s+(?:[\\w-]+\\s+){0,3}(AZs|Availability Zones|zones)"],
+          "context": "Must recommend spreading workloads across the cluster's Availability Zones (multi-AZ, at least two) for reliability; a third AZ is not required",
+          "source": "aws/aws-eks-best-practices latest/bpg/networking/subnets.adoc:140 and latest/bpg/reliability/dataplane.adoc:51 at edc514fa"
         },
         {
           "type": "must-contain-one-of",
@@ -156,19 +142,19 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["PodDisruptionBudget", "PDB", "Pod Disruption Budget"],
-          "context": "Must flag missing PDBs as an upgrade/disruption hazard",
+          "patterns": ["\\b(add|define|create|configure|set|use|recommend)(s|d|ed|ing)?\\b[^.\\n]{0,40}(PodDisruptionBudget|PDBs?\\b|Pod Disruption Budget)", "(missing|no|lack of|without)\\s+(PodDisruptionBudgets?|PDBs?|Pod Disruption Budgets?)[^.\\n]{0,60}(risk|hazard|disrupt|upgrade|drain|outage)", "kind:\\s*PodDisruptionBudget"],
+          "context": "Must flag missing PDBs as an upgrade/disruption hazard: the term must sit next to a hazard or add phrase, since the prompt itself says 'no PDBs defined'",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/reliability.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["NetworkPolicy", "network.?polic"],
-          "context": "Must flag absence of network policies as a security gap",
+          "patterns": ["(add|define|create|enforce|apply|implement|recommend|default.?deny)\\w*[^.\\n]{0,40}(NetworkPolic|network.?polic)", "(missing|no|lack of|without)\\s+network.?polic\\w*[^.\\n]{0,60}(risk|gap|lateral|exposure|security)"],
+          "context": "Must flag absence of network policies as a security gap: the term must sit next to a gap or add phrase, since the prompt itself says 'no network policies'",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/network-security.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Spot", "spot instance"],
+          "patterns": ["(?-i:Spot)\\b|\\bspot (instances?|capacity|nodes?|pools?|pric\\w*|fleet)"],
           "context": "Must recommend Spot instances for cost optimization with instance diversity",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/cost-opt-compute.html"
         },
@@ -180,27 +166,9 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Well.?Architected", "pillar"],
-          "context": "Validation must reference AWS Well-Architected Framework pillars",
-          "source": "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["Operational Excellence", "Security", "Reliability", "Performance", "Cost Optimization"],
-          "context": "Must explicitly name and score individual Well-Architected pillars",
-          "source": "https://docs.aws.amazon.com/wellarchitected/latest/framework/welcome.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["instance.?divers", "multiple.?instance", "m5\\.", "m6", "c5", "c6", "r5", "r6"],
-          "context": "Must recommend instance type diversification beyond single m5.xlarge",
+          "patterns": ["instance.?divers", "divers\\w*[^.\\n]{0,40}instance", "multiple (instance (types|families)|families)", "karpenter\\.k8s\\.aws/instance-(category|family)", "\\b(m5|m6[ig]?|m7[ig]?|c5|c6[ig]?|c7[ig]?|r5|r6[ig]?|r7[ig]?)[a-z]*\\.\\w+[^.\\n]{0,20}\\b(m5|m6[ig]?|m7[ig]?|c5|c6[ig]?|c7[ig]?|r5|r6[ig]?|r7[ig]?)[a-z]*\\.\\w+"],
+          "context": "Must recommend instance type diversification beyond single m5.xlarge: two instance types listed together, or a diversification phrase; the prompt's lone m5.xlarge does not pass",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/karpenter.html"
-        },
-        {
-          "type": "must-not-contain",
-          "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; must not recommend it",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         }
       ],
       "artifact_assertions": {
@@ -208,8 +176,7 @@
         "validators": [],
         "structural": [
           {"type": "file-count", "glob": "**/*.md", "min": 1},
-          {"type": "contains", "file": "**/*.md", "pattern": "(Security|Reliability|Cost|Operational)"},
-          {"type": "contains", "file": "**/*.md", "pattern": "(Critical|High|Medium|Low|RED|AMBER|GREEN)"}
+          {"type": "contains", "file": "**/*.md", "pattern": "(Operational Excellence|Security|Reliability|Performance Efficiency|Cost Optimization|Sustainability)[^\\n]{0,40}(\\b\\d+(\\.\\d+)?\\s*/\\s*\\d+|\\b\\d+(\\.\\d+)?\\s+out of\\s+\\d+|\\b(Critical|CRITICAL|High|HIGH|Medium|MEDIUM|Low|LOW|RED|AMBER|GREEN)\\b|\\|\\s*\\d+(\\.\\d+)?\\s*%?\\s*\\|)"}
         ]
       }
     }

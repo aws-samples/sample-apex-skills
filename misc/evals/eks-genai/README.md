@@ -29,5 +29,3 @@ From `misc/evals/`:
 - `make validate-eks-genai` — frontmatter + 64/1024-char limits
 - `make triggering-eks-genai` — triggering accuracy score
 - `make benchmark-eks-genai` — aggregate task-eval stats
-
-See `misc/evals/README.md` for the full capability catalogue (A–K).

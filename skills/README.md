@@ -611,6 +611,20 @@ APEX router for Amazon EKS and Amazon ECS work. Use it first for any EKS, ECS or
 
 ---
 
+### [apex-new-skill](./apex-new-skill/)
+
+Adds a new skill, or a class change, to the APEX skills repository (aws-samples/sample-apex-skills) end to end: reads the repo's classes and class tree to pick the skill's classes, writes SKILL.md front matter, drafts its SKILL_META line, authors the eval set and sibling-map updates, regenerates the docs with the repo's generators, runs the checks CI runs, drafts the ADR, the design-doc note and the fact check, asks before drafting a blog, then prepares the branch, explicit-path commit and pull request. Use when someone wants to contribute, add, onboard or submit a new skill to this repo, change a class under classes/, asks how to open a pull request for a new skill, or needs to retrofit a skill that landed without its eval set. Not for using the APEX skills on an EKS or ECS workload (use the matching skill), not for drafting or tuning skill content in general (use skill-creator), not for a doc sync alone (use update-docs), and not for editing vendored skills synced from upstream.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [evals.md](./apex-new-skill/references/evals.md) | Evals |
+| [pull-request.md](./apex-new-skill/references/pull-request.md) | Pull request |
+| [repo-checks.md](./apex-new-skill/references/repo-checks.md) | Repo checks |
+
+---
+
 ### [dotnet-aws-ecs](./dotnet-aws-ecs/)
 
 Generates IaC (CloudFormation or CDK) and a deployment guide to deploy a .NET workload to Amazon ECS Fargate on Linux containers with an Application Load Balancer. Produces a VPC, ECS cluster, task definition, ALB, and auto-scaling. NOT for Windows containers, EC2 launch type, or Kubernetes/EKS deployments.

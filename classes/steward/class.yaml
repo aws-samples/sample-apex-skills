@@ -6,7 +6,8 @@ name: steward
 parents: [apex-base]
 
 # The repo generators and their --check modes. CI runs the --check forms in
-# .github/workflows/docs-sync.yml:56-62.
+# .github/workflows/docs-sync.yml:56-62; the class sync's runs in
+# .github/workflows/class-sync.yml.
 generators:
   - run: "./misc/update-all-references.sh"
     check: "./misc/update-all-references.sh --check"
@@ -17,11 +18,11 @@ generators:
     note: "reads the git index (git ls-files): git add new files first"
   - run: "python3 misc/sync-classes.py"
     check: "python3 misc/sync-classes.py --check"
-    status: planned
+    status: exists
 
 # Hand-kept, not generated.
 hand_kept:
   - "misc/website/src/components/skillCatalog.ts (LINES)"
   - "misc/website/src/components/skillSearch.ts (PORTS)"
 
-add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (planned)"
+add_a_skill: "CONTRIBUTING.md, Creating a New Skill, steps 1-7; then run the class sync (python3 misc/sync-classes.py)"

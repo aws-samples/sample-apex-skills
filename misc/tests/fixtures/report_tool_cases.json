@@ -1,0 +1,970 @@
+{
+ "_about": "Cases for misc/tests/test_report_tool.py, the tests of the shared report tool classes/apex-base/scripts/report.py. `normal`: each skill's normal report, input and expected output, compared byte for byte; the expected files are each skill's own report tool's output at aws-samples/sample-apex-skills 854031dc (ecs-operation-review and eks-cost-intelligence tools/report_to_html.py, eks-security assets/render_report.py), on inputs built from each skill's report template and eks-security's test fixture. A change to an old tool before its skill's rebuild refreshes that skill's baseline here. `hostile`: the hostile-input suite; a markdown case is one input run through each named template, an eks-security case puts `value` in three findings fields of sec-1 (sources[0].title, findings[1].reason, findings[0].fixed); `contains` and `absent` are substrings of the written pages (for eks-security, per suffix in `contains`, and in every page for `absent`). eks-security folds each whitespace run in a value to one space, its own page rule, so a control character made a space reads as one space there. `errors`: each builds `files` in a temp dir ({d} in `args`), runs the tool and expects exit `rc`, one stderr line holding `stderr`, no traceback, and no file named in `absent`. `gate`: sec-1 with coverage.complete false writes both pages and exits 3.",
+ "normal": [
+  {
+   "id": "ecs-1-full",
+   "template": "ecs-operation-review",
+   "inputs": {
+    "ecs-1-full.md": "# ECS Operation Review Report\n\n**Cluster:** prod-cluster | **Region:** us-east-1 | **Account:** 111122223333\n**Capacity mix:** Fargate 60%, EC2 capacity provider 40%\n**Services:** 12\n**Date:** 2026-07-08 18:30\n\n*Treat this report as customer-confidential: it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties.*\n\n## Executive Summary\n\nThe cluster runs its services on a mixed **Fargate and EC2** capacity base with deployment circuit breakers enabled on 11 of 12 services (04.1 GREEN) and Container Insights on (06.1 GREEN).\n\nThe top gaps are a task role with `*` actions (07.1 RED) and a single-AZ production service (05.4 RED). Tagging is incomplete (08.2 AMBER).\n\n28 of 30 items assessable (93% coverage).\n\n## Maturity Score\n\n| Rating | Count | Percentage |\n|--------|-------|------------|\n| GREEN | 20 | 71% |\n| AMBER | 6 | 21% |\n| RED | 2 | 7% |\n| UNKNOWN | 2 | \u2014 |\n\n28 of 30 items assessable (93% coverage)\n\n### Scope & limitations\n\n- Sections 01-08 ran. Scheduled and standalone tasks are not enumerated.\n- Express Mode services: N/A.\n\n## Findings\n\n### 04 - Deployments\n\n| Item | Status | Current State | Recommendation | References |\n|------|--------|---------------|----------------|------------|\n| 04.1 Deployment Circuit Breaker | GREEN | Enabled with rollback on 11 of 12 services | Enable on `billing-api` | [Circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html) |\n| 04.5 Deployment-failure alerting | AMBER | No EventBridge rule on `SERVICE_DEPLOYMENT_FAILED` | Add an EventBridge rule to SNS | [ECS events](https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/) |\n\n### 07 - Security\n\n| Item | Status | Current State | Recommendation | References |\n|------|--------|---------------|----------------|------------|\n| 07.1 Task-role least privilege | RED | `orders-task-role` allows `s3:*` on `*` | Scope to the two buckets it reads | [Task IAM roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) |\n\n## Prioritized Actions\n\n### Critical (Address within 30 days)\n\n| # | Finding | Impact | Action | References |\n|---|---------|--------|--------|------------|\n| 1 | 07.1 - Task-role least privilege RED | Any task compromise reaches every bucket | Replace `s3:*` with the read actions on two ARNs | [Task IAM roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html) |\n| 2 | 05.4 - Single-AZ production service RED | One AZ outage stops `orders-api` | Spread tasks over three subnets | [Availability](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-availability.html) |\n\n### Important (Address within 90 days)\n\n| # | Finding | Impact | Action | References |\n|---|---------|--------|--------|------------|\n| 1 | 04.5 - Deployment-failure alerting AMBER | Failed rollouts go unseen | Alert on the deployment event | [ECS events](https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/) |\n| 2 | 08.2 - Tagging AMBER | Cost allocation gaps | Add `Environment` and `Owner` tags | [ECS Best Practices Guide](https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/) |\n\n### Quick Wins\n\n| # | Finding | Action | Effort | Impact | References |\n|---|---------|--------|--------|--------|------------|\n| 1 | 04.1 - Deployment Circuit Breaker | `aws ecs update-service --deployment-configuration \"deploymentCircuitBreaker={enable=true,rollback=true}\"` | < 1 hour | Safer rollouts | [Circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html) |\n\n## Items to Investigate Manually\n\n- **8.5 Runbooks, on-call and PIR:** UNKNOWN by design; process maturity is not readable from the AWS APIs. Who owns the on-call rota for `orders-api`?\n- **6.4 Log retention exceptions:** are the two log groups with no retention kept on purpose?\n\n## AWS Reference Links\n\n**Section 04 - Deployments**\n- [Deployment circuit breaker](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html)\n\n**Section 07 - Security**\n- [Task IAM roles](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html)\n- [Best practices index](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html)\n\n---\n\n*This report was generated by a Claude Code skill provided as sample code for educational and demonstration purposes only. Findings should be reviewed and validated before acting on them. See the project's README and LICENSE for full terms.*\n"
+   },
+   "outputs": {
+    "ecs-1-full.html": "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>ECS Operation Review Report</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#1a1a2e;background:#f0f2f5;padding:2rem}\nmain{max-width:1100px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:3rem}\nh1{color:#0f1b61;border-bottom:3px solid #ff9900;padding-bottom:.5rem;margin-bottom:1.5rem;font-size:1.8rem}\nh2{color:#232f3e;margin:2rem 0 1rem;padding:.5rem 0;border-bottom:2px solid #e8e8e8;font-size:1.4rem}\nh3{color:#37475a;margin:1.5rem 0 .75rem;font-size:1.15rem}\nh4{color:#37475a;margin:1.2rem 0 .5rem;font-size:1.05rem}\ntable{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:.9rem}\nth{background:#232f3e;color:#fff;padding:10px 14px;text-align:left;font-weight:600}\ntd{padding:8px 14px;border-bottom:1px solid #e8e8e8;vertical-align:top}\ntr:nth-child(even){background:#f8f9fa}\ntr:hover{background:#fff3e0}\ncode{background:#f1f3f5;padding:2px 6px;border-radius:4px;font-size:.85em;color:#c7254e}\npre{background:#1a1a2e;color:#e8e8e8;padding:1rem;border-radius:8px;overflow-x:auto;margin:1rem 0}\npre code{background:none;color:inherit;padding:0}\nblockquote{border-left:4px solid #ff9900;background:#fff8e1;padding:.75rem 1rem;margin:1rem 0;border-radius:0 8px 8px 0}\nhr{border:none;border-top:2px solid #e8e8e8;margin:2rem 0}\na{color:#0073bb;text-decoration:none}a:hover{text-decoration:underline}\nli{margin:.3rem 0 .3rem 1.5rem}\nul,ol{margin:.5rem 0 1rem}\nstrong{color:#16213e}\np{margin:.5rem 0}\n.red{background:#fde8e8;color:#b71c1c;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.amber{background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.green{background:#e8f5e9;color:#1b5e20;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.unknown{background:#e8eaf6;color:#283593;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.score-bar{display:flex;gap:4px;margin:1rem 0}\n.score-bar div{height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.8rem}\n.critical-box{background:#fde8e8;border:2px solid #ef5350;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}\n.quick-win{background:#e8f5e9;border:2px solid #66bb6a;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}\n@media print{body{background:#fff;padding:0}main{box-shadow:none;padding:1rem}}\n</style></head><body><main>\n<h1>ECS Operation Review Report</h1>\n<p><strong>Cluster:</strong> prod-cluster | <strong>Region:</strong> us-east-1 | <strong>Account:</strong> 111122223333</p>\n<p><strong>Capacity mix:</strong> Fargate 60%, EC2 capacity provider 40%</p>\n<p><strong>Services:</strong> 12</p>\n<p><strong>Date:</strong> 2026-07-08 18:30</p>\n<p>*Treat this report as customer-confidential: it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties.*</p>\n<h2>Executive Summary</h2>\n<p>The cluster runs its services on a mixed <strong>Fargate and EC2</strong> capacity base with deployment circuit breakers enabled on 11 of 12 services (04.1 GREEN) and Container Insights on (06.1 GREEN).</p>\n<p>The top gaps are a task role with <code>*</code> actions (07.1 RED) and a single-AZ production service (05.4 RED). Tagging is incomplete (08.2 AMBER).</p>\n<p>28 of 30 items assessable (93% coverage).</p>\n<h2>Maturity Score</h2>\n<table>\n<thead><tr><th>Rating</th><th>Count</th><th>Percentage</th></tr></thead>\n<tbody>\n<tr><td>GREEN</td><td>20</td><td>71%</td></tr>\n<tr><td>AMBER</td><td>6</td><td>21%</td></tr>\n<tr><td>RED</td><td>2</td><td>7%</td></tr>\n<tr><td>UNKNOWN</td><td>2</td><td>\u2014</td></tr>\n</tbody></table>\n\n<p>28 of 30 items assessable (93% coverage)</p>\n<h3>Scope &amp; limitations</h3>\n<ul>\n<li>Sections 01-08 ran. Scheduled and standalone tasks are not enumerated.</li>\n<li>Express Mode services: N/A.</li>\n</ul>\n<h2>Findings</h2>\n<h3>04 - Deployments</h3>\n<table>\n<thead><tr><th>Item</th><th>Status</th><th>Current State</th><th>Recommendation</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>04.1 Deployment Circuit Breaker</td><td>GREEN</td><td>Enabled with rollback on 11 of 12 services</td><td>Enable on <code>billing-api</code></td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html\">Circuit breaker</a></td></tr>\n<tr><td>04.5 Deployment-failure alerting</td><td>AMBER</td><td>No EventBridge rule on <code>SERVICE_DEPLOYMENT_FAILED</code></td><td>Add an EventBridge rule to SNS</td><td><a href=\"https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/\">ECS events</a></td></tr>\n</tbody></table>\n\n<h3>07 - Security</h3>\n<table>\n<thead><tr><th>Item</th><th>Status</th><th>Current State</th><th>Recommendation</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>07.1 Task-role least privilege</td><td>RED</td><td><code>orders-task-role</code> allows <code>s3:*</code> on <code>*</code></td><td>Scope to the two buckets it reads</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html\">Task IAM roles</a></td></tr>\n</tbody></table>\n\n<h2>Prioritized Actions</h2>\n<h3>Critical (Address within 30 days)</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Impact</th><th>Action</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>07.1 - Task-role least privilege RED</td><td>Any task compromise reaches every bucket</td><td>Replace <code>s3:*</code> with the read actions on two ARNs</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html\">Task IAM roles</a></td></tr>\n<tr><td>2</td><td>05.4 - Single-AZ production service RED</td><td>One AZ outage stops <code>orders-api</code></td><td>Spread tasks over three subnets</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-availability.html\">Availability</a></td></tr>\n</tbody></table>\n\n<h3>Important (Address within 90 days)</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Impact</th><th>Action</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>04.5 - Deployment-failure alerting AMBER</td><td>Failed rollouts go unseen</td><td>Alert on the deployment event</td><td><a href=\"https://aws.amazon.com/blogs/containers/monitor-amazon-ecs-events-with-amazon-eventbridge-filtering/\">ECS events</a></td></tr>\n<tr><td>2</td><td>08.2 - Tagging AMBER</td><td>Cost allocation gaps</td><td>Add <code>Environment</code> and <code>Owner</code> tags</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/\">ECS Best Practices Guide</a></td></tr>\n</tbody></table>\n\n<h3>Quick Wins</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Action</th><th>Effort</th><th>Impact</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>04.1 - Deployment Circuit Breaker</td><td><code>aws ecs update-service --deployment-configuration &quot;deploymentCircuitBreaker={enable=true,rollback=true}&quot;</code></td><td>&lt; 1 hour</td><td>Safer rollouts</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html\">Circuit breaker</a></td></tr>\n</tbody></table>\n\n<h2>Items to Investigate Manually</h2>\n<ul>\n<li><strong>8.5 Runbooks, on-call and PIR:</strong> UNKNOWN by design; process maturity is not readable from the AWS APIs. Who owns the on-call rota for <code>orders-api</code>?</li>\n<li><strong>6.4 Log retention exceptions:</strong> are the two log groups with no retention kept on purpose?</li>\n</ul>\n<h2>AWS Reference Links</h2>\n<p><strong>Section 04 - Deployments</strong></p>\n<ul>\n<li><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/deployment-circuit-breaker.html\">Deployment circuit breaker</a></li>\n</ul>\n<p><strong>Section 07 - Security</strong></p>\n<ul>\n<li><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html\">Task IAM roles</a></li>\n<li><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html\">Best practices index</a></li>\n</ul>\n<hr>\n<p>*This report was generated by a Claude Code skill provided as sample code for educational and demonstration purposes only. Findings should be reviewed and validated before acting on them. See the project&#x27;s README and LICENSE for full terms.*</p>\n</main></body></html>"
+   }
+  },
+  {
+   "id": "ecs-2-unknown-heavy",
+   "template": "ecs-operation-review",
+   "inputs": {
+    "ecs-2-unknown-heavy.md": "# ECS Operation Review Report\n\n**Cluster:** batch-cluster | **Region:** ap-southeast-1 | **Account:** 444455556666\n**Capacity mix:** EC2 capacity provider 100% (Managed Instances)\n**Services:** 3\n**Date:** 2026-07-09 09:15\n\n*Treat this report as customer-confidential: it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties.*\n\n## Executive Summary\n\n**14 of 30 items assessable (47% coverage).** Sections 05 and 06 did not run: `ecs:DescribeServices` returned AccessDenied for two of three services, so no headline maturity percentage is given.\n\nOf what was read, managed termination protection is on (01.4 GREEN) and the capacity provider scales from zero (01.3 GREEN).\n\n## Maturity Score\n\n| Rating | Count | Percentage |\n|--------|-------|------------|\n| GREEN | 9 | 64% |\n| AMBER | 4 | 29% |\n| RED | 1 | 7% |\n| UNKNOWN | 16 | \u2014 |\n\n14 of 30 items assessable (47% coverage)\n\n### Scope & limitations\n\n- Coverage is below ~75%: sections 05 and 06 were not run (AccessDenied on `ecs:DescribeServices`).\n- API throttling on `ListTasks` left partial task counts.\n\n## Findings\n\n### 01 - Clusters & Capacity\n\n| Item | Status | Current State | Recommendation | References |\n|------|--------|---------------|----------------|------------|\n| 01.3 Capacity provider scaling | GREEN | Managed scaling, target 100 | None | [Managed Instances capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-capacity-providers-concept.html) |\n| 01.4 Managed termination protection | GREEN | On | None | [Optimize cluster auto scaling](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-cluster-speed-up-ec2.html) |\n| 01.6 Instance patching | AMBER | Maintenance window not set | Set a window | [Patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html) |\n\n## Prioritized Actions\n\n### Critical (Address within 30 days)\n\n| # | Finding | Impact | Action | References |\n|---|---------|--------|--------|------------|\n| 1 | 07.2 - Plaintext secret in task definition RED | Secret visible to anyone with `ecs:DescribeTaskDefinition` | Move to Secrets Manager | [Best practices index](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html) |\n\n### Important (Address within 90 days)\n\n| # | Finding | Impact | Action | References |\n|---|---------|--------|--------|------------|\n| 1 | 01.6 - Instance patching AMBER | Unplanned replacement windows | Set a maintenance window | [Patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html) |\n\n### Quick Wins\n\n| # | Finding | Action | Effort | Impact | References |\n|---|---------|--------|--------|--------|------------|\n| 1 | 01.6 - Instance patching | Set the window in the capacity provider | < 1 hour | Predictable patching | [Patching](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html) |\n\n## Items to Investigate Manually\n\n1. **05.x Service resilience (not run):** grant `ecs:DescribeServices` on the two services and re-run section 05.\n2. **8.5 Runbooks, on-call and PIR:** UNKNOWN by design.\n\n## AWS Reference Links\n\n**Section 01 - Clusters & Capacity**\n- [Managed Instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html)\n- [Launch types & capacity providers](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-launch-type-comparison.html)\n\n---\n\n*This report was generated by a Claude Code skill provided as sample code for educational and demonstration purposes only. Findings should be reviewed and validated before acting on them. See the project's README and LICENSE for full terms.*\n"
+   },
+   "outputs": {
+    "ecs-2-unknown-heavy.html": "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>ECS Operation Review Report</title>\n<style>\n*{box-sizing:border-box;margin:0;padding:0}\nbody{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#1a1a2e;background:#f0f2f5;padding:2rem}\nmain{max-width:1100px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:3rem}\nh1{color:#0f1b61;border-bottom:3px solid #ff9900;padding-bottom:.5rem;margin-bottom:1.5rem;font-size:1.8rem}\nh2{color:#232f3e;margin:2rem 0 1rem;padding:.5rem 0;border-bottom:2px solid #e8e8e8;font-size:1.4rem}\nh3{color:#37475a;margin:1.5rem 0 .75rem;font-size:1.15rem}\nh4{color:#37475a;margin:1.2rem 0 .5rem;font-size:1.05rem}\ntable{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:.9rem}\nth{background:#232f3e;color:#fff;padding:10px 14px;text-align:left;font-weight:600}\ntd{padding:8px 14px;border-bottom:1px solid #e8e8e8;vertical-align:top}\ntr:nth-child(even){background:#f8f9fa}\ntr:hover{background:#fff3e0}\ncode{background:#f1f3f5;padding:2px 6px;border-radius:4px;font-size:.85em;color:#c7254e}\npre{background:#1a1a2e;color:#e8e8e8;padding:1rem;border-radius:8px;overflow-x:auto;margin:1rem 0}\npre code{background:none;color:inherit;padding:0}\nblockquote{border-left:4px solid #ff9900;background:#fff8e1;padding:.75rem 1rem;margin:1rem 0;border-radius:0 8px 8px 0}\nhr{border:none;border-top:2px solid #e8e8e8;margin:2rem 0}\na{color:#0073bb;text-decoration:none}a:hover{text-decoration:underline}\nli{margin:.3rem 0 .3rem 1.5rem}\nul,ol{margin:.5rem 0 1rem}\nstrong{color:#16213e}\np{margin:.5rem 0}\n.red{background:#fde8e8;color:#b71c1c;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.amber{background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.green{background:#e8f5e9;color:#1b5e20;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.unknown{background:#e8eaf6;color:#283593;padding:2px 8px;border-radius:4px;font-weight:600;display:inline-block;font-size:.85em;min-width:60px;text-align:center}\n.score-bar{display:flex;gap:4px;margin:1rem 0}\n.score-bar div{height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.8rem}\n.critical-box{background:#fde8e8;border:2px solid #ef5350;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}\n.quick-win{background:#e8f5e9;border:2px solid #66bb6a;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}\n@media print{body{background:#fff;padding:0}main{box-shadow:none;padding:1rem}}\n</style></head><body><main>\n<h1>ECS Operation Review Report</h1>\n<p><strong>Cluster:</strong> batch-cluster | <strong>Region:</strong> ap-southeast-1 | <strong>Account:</strong> 444455556666</p>\n<p><strong>Capacity mix:</strong> EC2 capacity provider 100% (Managed Instances)</p>\n<p><strong>Services:</strong> 3</p>\n<p><strong>Date:</strong> 2026-07-09 09:15</p>\n<p>*Treat this report as customer-confidential: it contains account IDs, ARNs, security-group findings, and other estate details. Share only with authorized parties.*</p>\n<h2>Executive Summary</h2>\n<p><strong>14 of 30 items assessable (47% coverage).</strong> Sections 05 and 06 did not run: <code>ecs:DescribeServices</code> returned AccessDenied for two of three services, so no headline maturity percentage is given.</p>\n<p>Of what was read, managed termination protection is on (01.4 GREEN) and the capacity provider scales from zero (01.3 GREEN).</p>\n<h2>Maturity Score</h2>\n<table>\n<thead><tr><th>Rating</th><th>Count</th><th>Percentage</th></tr></thead>\n<tbody>\n<tr><td>GREEN</td><td>9</td><td>64%</td></tr>\n<tr><td>AMBER</td><td>4</td><td>29%</td></tr>\n<tr><td>RED</td><td>1</td><td>7%</td></tr>\n<tr><td>UNKNOWN</td><td>16</td><td>\u2014</td></tr>\n</tbody></table>\n\n<p>14 of 30 items assessable (47% coverage)</p>\n<h3>Scope &amp; limitations</h3>\n<ul>\n<li>Coverage is below ~75%: sections 05 and 06 were not run (AccessDenied on <code>ecs:DescribeServices</code>).</li>\n<li>API throttling on <code>ListTasks</code> left partial task counts.</li>\n</ul>\n<h2>Findings</h2>\n<h3>01 - Clusters &amp; Capacity</h3>\n<table>\n<thead><tr><th>Item</th><th>Status</th><th>Current State</th><th>Recommendation</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>01.3 Capacity provider scaling</td><td>GREEN</td><td>Managed scaling, target 100</td><td>None</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-capacity-providers-concept.html\">Managed Instances capacity providers</a></td></tr>\n<tr><td>01.4 Managed termination protection</td><td>GREEN</td><td>On</td><td>None</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-cluster-speed-up-ec2.html\">Optimize cluster auto scaling</a></td></tr>\n<tr><td>01.6 Instance patching</td><td>AMBER</td><td>Maintenance window not set</td><td>Set a window</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html\">Patching</a></td></tr>\n</tbody></table>\n\n<h2>Prioritized Actions</h2>\n<h3>Critical (Address within 30 days)</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Impact</th><th>Action</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>07.2 - Plaintext secret in task definition RED</td><td>Secret visible to anyone with <code>ecs:DescribeTaskDefinition</code></td><td>Move to Secrets Manager</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-best-practices.html\">Best practices index</a></td></tr>\n</tbody></table>\n\n<h3>Important (Address within 90 days)</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Impact</th><th>Action</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>01.6 - Instance patching AMBER</td><td>Unplanned replacement windows</td><td>Set a maintenance window</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html\">Patching</a></td></tr>\n</tbody></table>\n\n<h3>Quick Wins</h3>\n<table>\n<thead><tr><th>#</th><th>Finding</th><th>Action</th><th>Effort</th><th>Impact</th><th>References</th></tr></thead>\n<tbody>\n<tr><td>1</td><td>01.6 - Instance patching</td><td>Set the window in the capacity provider</td><td>&lt; 1 hour</td><td>Predictable patching</td><td><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/managed-instances-patching.html\">Patching</a></td></tr>\n</tbody></table>\n\n<h2>Items to Investigate Manually</h2>\n<ol>\n<li><strong>05.x Service resilience (not run):</strong> grant <code>ecs:DescribeServices</code> on the two services and re-run section 05.</li>\n<li><strong>8.5 Runbooks, on-call and PIR:</strong> UNKNOWN by design.</li>\n</ol>\n<h2>AWS Reference Links</h2>\n<p><strong>Section 01 - Clusters &amp; Capacity</strong></p>\n<ul>\n<li><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ManagedInstances.html\">Managed Instances</a></li>\n<li><a href=\"https://docs.aws.amazon.com/AmazonECS/latest/developerguide/capacity-launch-type-comparison.html\">Launch types &amp; capacity providers</a></li>\n</ul>\n<hr>\n<p>*This report was generated by a Claude Code skill provided as sample code for educational and demonstration purposes only. Findings should be reviewed and validated before acting on them. See the project&#x27;s README and LICENSE for full terms.*</p>\n</main></body></html>"
+   }
+  },
+  {
+   "id": "cost-1-worked-example",
+   "template": "eks-cost-intelligence",
+   "inputs": {
+    "cost-1-worked-example.md": "# EKS Cost Intelligence Report\n\n| Field | Value |\n|-------|-------|\n| Cluster | prod-api |\n| Region | us-east-1 |\n| Assessment Date | 2024-11-15 09:30 |\n| Analysis Window | 7 days (default) |\n| Total Estimated Spend | $6,420/month |\n| Data Sources | Cost Explorer, Kubernetes API, EC2 API |\n| Fargate Profiles | none |\n\n---\n\n## Cost Score: 71/100 \u2014 FAIR\n\n**Computed over 5 of 6 dimensions (90 of 100 points).** Not assessed: Observability Costs (10 points), no data source.\n\nThe cluster shows moderate waste, led by over-provisioned pods and an orphaned load balancer. Implementing all recommendations would save about $2,045/month.\n\n### Score Breakdown\n\n| Dimension | Max | Deduction | Status | Top Finding |\n|-----------|-----|-----------|--------|-------------|\n| Compute Efficiency | 25 | -7.5 | \u26a0\ufe0f | Over-provisioned pods in `api` |\n| Spot/Graviton Adoption | 20 | -9.0 | \u26a0\ufe0f | No Spot usage |\n| Networking Costs | 15 | -2.25 | \u26a0\ufe0f | Missing VPC endpoints |\n| Storage Costs | 15 | -2.25 | \u26a0\ufe0f | gp2 volumes |\n| Observability Costs | 10 | -0 | \u23ed\ufe0f | SKIPPED |\n| Idle Resources | 15 | -4.5 | \u26a0\ufe0f | Orphaned load balancer |\n| **Total** | **90** | **-25.5** | 5 of 6 dimensions | **Score: 71** |\n\n---\n\n## Prioritized Recommendations\n\n| # | Finding | Dimension | Resource | Monthly Savings | Effort | Severity |\n|---|---------|-----------|----------|-----------------|--------|----------|\n| 1 | Over-provisioned pods | Compute Efficiency | deployment/api | $847 | Low | HIGH |\n| 2 | Orphaned load balancer | Idle Resources | k8s-default-legacy-1a2b | $432 | Low | HIGH |\n| 3 | No Spot usage | Spot/Graviton Adoption | nodegroup/general | $380 | Medium | HIGH |\n| 4 | Low Graviton share | Spot/Graviton Adoption | nodegroup/general | $200 | Medium | MEDIUM |\n| 5 | Missing VPC endpoints | Networking Costs | vpc-0abc | $150 | Low | MEDIUM |\n| 6 | gp2 volumes | Storage Costs | 12 PVs | $36 | Low | MEDIUM |\n\n**Total projected savings: $2,045/month ($24,540/year)**\n\n---\n\n## Findings by Dimension\n\n### Compute Efficiency\n\n| Finding | Resource | Monthly Waste | Savings | Effort | Severity |\n|---------|----------|---------------|---------|--------|----------|\n| Over-provisioned pods (requests 4x p95 usage) | deployment/api | $847 | $847 | Low | HIGH |\n\n#### Remediation\n\n**Right-size the api requests**\n```yaml\nresources:\n  requests:\n    cpu: \"500m\"\n    memory: \"512Mi\"\n```\n\n---\n\n### Observability Costs \u2014 SKIPPED\n\n**Reason:** No data source: Container Insights not enabled\n**UNKNOWN reads:** none\n**Impact:** Log and metric volume analysis unavailable\n**Retained verified findings (no deduction):** none\n**Remediation:** Enable Container Insights with `aws eks create-addon --addon-name amazon-cloudwatch-observability`\n\n---\n\n### Idle Resources\n\n| Finding | Resource | Monthly Waste | Savings | Effort | Severity |\n|---------|----------|---------------|---------|--------|----------|\n| Orphaned load balancer (0 targets for 30 days) | k8s-default-legacy-1a2b | $432 | $432 | Low | HIGH |\n\n---\n\n## Methodology & Confidence Notes\n\n### Data Sources Used\n\n| Source | Status | Impact |\n|--------|--------|--------|\n| Cost Explorer | Available | Dollar-accurate spend data |\n| Container Insights | Unavailable | Request-only analysis |\n| Kubernetes API | Available | Resource inventory and configuration |\n| EC2 API | Available | Instance types and pricing |\n\n### Confidence Level\n\n| Level | Meaning |\n|-------|---------|\n| High | Cost Explorer + Container Insights available; dollar-accurate findings |\n| Medium | Partial data; some estimates based on node-level pricing |\n| Low | Node-based estimation only; findings are directional |\n\n---\n\n*This report was generated by an APEX skill provided as sample code for educational\nand demonstration purposes only. Findings should be reviewed and validated before\nacting on them. See the project's README and LICENSE for full terms.*\n"
+   },
+   "outputs": {
+    "cost-1-worked-example.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>EKS Cost Intelligence Report</title>\n    <style>\n\n:root {\n    --color-bg: #ffffff;\n    --color-text: #16191f;\n    --color-heading: #0972d3;\n    --color-border: #e9ebed;\n    --color-code-bg: #f2f3f3;\n    --color-table-header: #f2f3f3;\n    --color-link: #0972d3;\n    --color-blockquote-border: #0972d3;\n    --color-blockquote-bg: #f2f8fd;\n\n    /* Score classification colors */\n    --color-optimized: #037f0c;\n    --color-optimized-bg: #f2fcf3;\n    --color-good: #0972d3;\n    --color-good-bg: #f2f8fd;\n    --color-fair: #8d6605;\n    --color-fair-bg: #fffce9;\n    --color-needs-work: #d45b07;\n    --color-needs-work-bg: #fff3e6;\n    --color-critical: #d91515;\n    --color-critical-bg: #fff7f7;\n\n    /* Severity colors */\n    --color-sev-critical: #d91515;\n    --color-sev-critical-bg: #fff7f7;\n    --color-sev-high: #d91515;\n    --color-sev-high-bg: #fff7f7;\n    --color-sev-medium: #8d6605;\n    --color-sev-medium-bg: #fffce9;\n    --color-sev-low: #037f0c;\n    --color-sev-low-bg: #f2fcf3;\n\n    /* Savings colors */\n    --color-savings: #037f0c;\n    --color-savings-bg: #f2fcf3;\n    --color-cost: #d91515;\n\n    /* Dimension status */\n    --color-assessed: #037f0c;\n    --color-assessed-bg: #f2fcf3;\n    --color-skipped: #687078;\n    --color-skipped-bg: #f2f3f3;\n}\n\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\nbody {\n    font-family: \"Amazon Ember\", \"Helvetica Neue\", Roboto, Arial, sans-serif;\n    font-size: 14px;\n    line-height: 1.6;\n    color: var(--color-text);\n    background: var(--color-bg);\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 40px 24px;\n}\n\nh1 {\n    font-size: 28px;\n    font-weight: 700;\n    color: var(--color-heading);\n    margin: 32px 0 16px 0;\n    padding-bottom: 8px;\n    border-bottom: 2px solid var(--color-heading);\n}\n\nh2 {\n    font-size: 22px;\n    font-weight: 700;\n    color: var(--color-heading);\n    margin: 28px 0 12px 0;\n    padding-bottom: 6px;\n    border-bottom: 1px solid var(--color-border);\n}\n\nh3 {\n    font-size: 17px;\n    font-weight: 700;\n    color: var(--color-text);\n    margin: 20px 0 8px 0;\n}\n\nh4 {\n    font-size: 15px;\n    font-weight: 700;\n    margin: 16px 0 6px 0;\n}\n\np {\n    margin: 8px 0;\n}\n\na {\n    color: var(--color-link);\n    text-decoration: none;\n}\n\na:hover {\n    text-decoration: underline;\n}\n\ntable {\n    width: 100%;\n    border-collapse: collapse;\n    margin: 12px 0;\n    font-size: 13px;\n}\n\nth {\n    background: var(--color-table-header);\n    font-weight: 700;\n    text-align: left;\n    padding: 10px 12px;\n    border: 1px solid var(--color-border);\n}\n\ntd {\n    padding: 8px 12px;\n    border: 1px solid var(--color-border);\n    vertical-align: top;\n}\n\ntr:nth-child(even) {\n    background: #fafafa;\n}\n\ncode {\n    font-family: \"Monaco\", \"Menlo\", \"Consolas\", monospace;\n    font-size: 12px;\n    background: var(--color-code-bg);\n    padding: 2px 6px;\n    border-radius: 3px;\n}\n\npre {\n    background: #1b2028;\n    color: #d4d4d4;\n    padding: 16px;\n    border-radius: 6px;\n    overflow-x: auto;\n    margin: 12px 0;\n    font-size: 12px;\n    line-height: 1.5;\n}\n\npre code {\n    background: none;\n    padding: 0;\n    color: inherit;\n}\n\nblockquote {\n    border-left: 4px solid var(--color-blockquote-border);\n    background: var(--color-blockquote-bg);\n    padding: 12px 16px;\n    margin: 12px 0;\n    border-radius: 0 4px 4px 0;\n}\n\nul, ol {\n    margin: 8px 0 8px 24px;\n}\n\nli {\n    margin: 4px 0;\n}\n\nhr {\n    border: none;\n    border-top: 1px solid var(--color-border);\n    margin: 24px 0;\n}\n\n/* Score classification styling */\n.score-optimized {\n    color: var(--color-optimized);\n    font-weight: 700;\n}\n\n.score-good {\n    color: var(--color-good);\n    font-weight: 700;\n}\n\n.score-fair {\n    color: var(--color-fair);\n    font-weight: 700;\n}\n\n.score-needs-work {\n    color: var(--color-needs-work);\n    font-weight: 700;\n}\n\n.score-critical {\n    color: var(--color-critical);\n    font-weight: 700;\n}\n\n/* Score badge (large) */\n.score-badge {\n    display: inline-block;\n    padding: 4px 12px;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.score-badge-optimized { background: var(--color-optimized-bg); color: var(--color-optimized); }\n.score-badge-good { background: var(--color-good-bg); color: var(--color-good); }\n.score-badge-fair { background: var(--color-fair-bg); color: var(--color-fair); }\n.score-badge-needs-work { background: var(--color-needs-work-bg); color: var(--color-needs-work); }\n.score-badge-critical { background: var(--color-critical-bg); color: var(--color-critical); }\n\n/* Severity badges */\n.badge {\n    display: inline-block;\n    padding: 2px 8px;\n    border-radius: 3px;\n    font-size: 11px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical); }\n.badge-high { background: var(--color-sev-high-bg); color: var(--color-sev-high); }\n.badge-medium { background: var(--color-sev-medium-bg); color: var(--color-sev-medium); }\n.badge-low { background: var(--color-sev-low-bg); color: var(--color-sev-low); }\n\n/* Dimension status badges */\n.dimension-badge {\n    display: inline-block;\n    padding: 2px 8px;\n    border-radius: 3px;\n    font-size: 11px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.dimension-assessed { background: var(--color-assessed-bg); color: var(--color-assessed); }\n.dimension-skipped { background: var(--color-skipped-bg); color: var(--color-skipped); }\n\n/* Dollar amount styling */\n.dollar-amount {\n    font-weight: 700;\n    font-family: \"Monaco\", \"Menlo\", \"Consolas\", monospace;\n    font-size: 13px;\n}\n\n.dollar-savings { color: var(--color-savings); }\n.dollar-cost { color: var(--color-cost); }\n.dollar-waste { color: var(--color-needs-work); }\n\n/* Effort badges */\n.effort-low { color: var(--color-optimized); font-weight: 600; }\n.effort-medium { color: var(--color-fair); font-weight: 600; }\n.effort-high { color: var(--color-sev-high); font-weight: 600; }\n\n/* Status icons in tables */\ntd:first-child {\n    white-space: nowrap;\n}\n\n.timestamp {\n    color: #687078;\n    font-size: 12px;\n    margin-top: -8px;\n}\n\n/* Print styles */\n@media print {\n    body {\n        max-width: 100%;\n        padding: 20px;\n        font-size: 11px;\n    }\n    pre {\n        white-space: pre-wrap;\n        word-wrap: break-word;\n        background: #f5f5f5;\n        color: #333;\n    }\n    h1, h2, h3 { page-break-after: avoid; }\n    table { page-break-inside: avoid; }\n    .score-badge, .badge, .dimension-badge {\n        border: 1px solid currentColor;\n    }\n    a { color: var(--color-text); }\n    a::after { content: \" (\" attr(href) \")\"; font-size: 10px; color: #687078; }\n}\n\n    </style>\n</head>\n<body>\n<h1>EKS Cost Intelligence Report</h1>\n<table><tr><th>Field</th><th>Value</th></tr><tr><td>Cluster</td><td>prod-api</td></tr><tr><td>Region</td><td>us-east-1</td></tr><tr><td>Assessment Date</td><td>2024-11-15 09:30</td></tr><tr><td>Analysis Window</td><td>7 days (default)</td></tr><tr><td>Total Estimated Spend</td><td><span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$6,42</span>0/month</span></td></tr><tr><td>Data Sources</td><td>Cost Explorer, Kubernetes API, EC2 API</td></tr><tr><td>Fargate Profiles</td><td>none</td></tr></table>\n<hr>\n<h2>Cost Score: 71/100 \u2014 <span class=\"score-fair\">FAIR</span></h2>\n<p><strong>Computed over 5 of 6 dimensions (90 of 100 points).</strong> Not assessed: Observability Costs (10 points), no data source.</p>\n<p>The cluster shows moderate waste, led by over-provisioned pods and an orphaned load balancer. Implementing all recommendations would save about <span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$2,04</span>5/month</span>.</p>\n<h3>Score Breakdown</h3>\n<table><tr><th>Dimension</th><th>Max</th><th>Deduction</th><th>Status</th><th>Top Finding</th></tr><tr><td>Compute Efficiency</td><td>25</td><td>-7.5</td><td>\u26a0\ufe0f</td><td>Over-provisioned pods in <code>api</code></td></tr><tr><td>Spot/Graviton Adoption</td><td>20</td><td>-9.0</td><td>\u26a0\ufe0f</td><td>No Spot usage</td></tr><tr><td>Networking Costs</td><td>15</td><td>-2.25</td><td>\u26a0\ufe0f</td><td>Missing VPC endpoints</td></tr><tr><td>Storage Costs</td><td>15</td><td>-2.25</td><td>\u26a0\ufe0f</td><td>gp2 volumes</td></tr><tr><td>Observability Costs</td><td>10</td><td>-0</td><td>\u23ed\ufe0f</td><td><span class=\"dimension-badge dimension-skipped\">SKIPPED</span></td></tr><tr><td>Idle Resources</td><td>15</td><td>-4.5</td><td>\u26a0\ufe0f</td><td>Orphaned load balancer</td></tr><tr><td><strong>Total</strong></td><td><strong>90</strong></td><td><strong>-25.5</strong></td><td>5 of 6 dimensions</td><td><strong>Score: 71</strong></td></tr></table>\n<hr>\n<h2>Prioritized Recommendations</h2>\n<table><tr><th>#</th><th>Finding</th><th>Dimension</th><th>Resource</th><th>Monthly Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>1</td><td>Over-provisioned pods</td><td>Compute Efficiency</td><td>deployment/api</td><td><span class=\"dollar-amount\">$847</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr><tr><td>2</td><td>Orphaned load balancer</td><td>Idle Resources</td><td>k8s-default-legacy-1a2b</td><td><span class=\"dollar-amount\">$432</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr><tr><td>3</td><td>No Spot usage</td><td>Spot/Graviton Adoption</td><td>nodegroup/general</td><td><span class=\"dollar-amount\">$380</span></td><td><span class=\"effort-medium\">Medium</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr><tr><td>4</td><td>Low Graviton share</td><td>Spot/Graviton Adoption</td><td>nodegroup/general</td><td><span class=\"dollar-amount\">$200</span></td><td><span class=\"effort-medium\">Medium</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr><tr><td>5</td><td>Missing VPC endpoints</td><td>Networking Costs</td><td>vpc-0abc</td><td><span class=\"dollar-amount\">$150</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr><tr><td>6</td><td>gp2 volumes</td><td>Storage Costs</td><td>12 PVs</td><td><span class=\"dollar-amount\">$36</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr></table>\n<p><strong>Total projected savings: <span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$2,04</span>5/month</span> (<span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$24,54</span>0/year</span>)</strong></p>\n<hr>\n<h2>Findings by Dimension</h2>\n<h3>Compute Efficiency</h3>\n<table><tr><th>Finding</th><th>Resource</th><th>Monthly Waste</th><th>Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>Over-provisioned pods (requests 4x p95 usage)</td><td>deployment/api</td><td><span class=\"dollar-amount\">$847</span></td><td><span class=\"dollar-amount\">$847</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr></table>\n<h4>Remediation</h4>\n<p><strong>Right-size the api requests</strong></p>\n<pre><code class=\"language-yaml\">resources:\n  requests:\n    cpu: &quot;500m&quot;\n    memory: &quot;512Mi&quot;</code></pre>\n<hr>\n<h3>Observability Costs \u2014 <span class=\"dimension-badge dimension-skipped\">SKIPPED</span></h3>\n<p><strong>Reason:</strong> No data source: Container Insights not enabled</p>\n<p><strong>UNKNOWN reads:</strong> none</p>\n<p><strong>Impact:</strong> Log and metric volume analysis unavailable</p>\n<p><strong>Retained verified findings (no deduction):</strong> none</p>\n<p><strong>Remediation:</strong> Enable Container Insights with <code>aws eks create-addon --addon-name amazon-cloudwatch-observability</code></p>\n<hr>\n<h3>Idle Resources</h3>\n<table><tr><th>Finding</th><th>Resource</th><th>Monthly Waste</th><th>Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>Orphaned load balancer (0 targets for 30 days)</td><td>k8s-default-legacy-1a2b</td><td><span class=\"dollar-amount\">$432</span></td><td><span class=\"dollar-amount\">$432</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr></table>\n<hr>\n<h2>Methodology &amp; Confidence Notes</h2>\n<h3>Data Sources Used</h3>\n<table><tr><th>Source</th><th>Status</th><th>Impact</th></tr><tr><td>Cost Explorer</td><td>Available</td><td>Dollar-accurate spend data</td></tr><tr><td>Container Insights</td><td>Unavailable</td><td>Request-only analysis</td></tr><tr><td>Kubernetes API</td><td>Available</td><td>Resource inventory and configuration</td></tr><tr><td>EC2 API</td><td>Available</td><td>Instance types and pricing</td></tr></table>\n<h3>Confidence Level</h3>\n<table><tr><th>Level</th><th>Meaning</th></tr><tr><td><span class=\"effort-high\">High</span></td><td>Cost Explorer + Container Insights available; dollar-accurate findings</td></tr><tr><td><span class=\"effort-medium\">Medium</span></td><td>Partial data; some estimates based on node-level pricing</td></tr><tr><td><span class=\"effort-low\">Low</span></td><td>Node-based estimation only; findings are directional</td></tr></table>\n<hr>\n<p>*This report was generated by an APEX skill provided as sample code for educational</p>\n<p>and demonstration purposes only. Findings should be reviewed and validated before</p>\n<p>acting on them. See the project&#x27;s README and LICENSE for full terms.*</p>\n</body>\n</html>"
+   }
+  },
+  {
+   "id": "cost-2-all-assessed",
+   "template": "eks-cost-intelligence",
+   "inputs": {
+    "cost-2-all-assessed.md": "# EKS Cost Intelligence Report\n\n| Field | Value |\n|-------|-------|\n| Cluster | staging-cluster |\n| Region | eu-west-1 |\n| Assessment Date | 2024-12-01 14:45 |\n| Analysis Window | 30 days (user-specified) |\n| Total Estimated Spend | $1,980/month |\n| Data Sources | Cost Explorer, Container Insights, Kubernetes API, EC2 API |\n| Fargate Profiles | fp-batch (namespaces: batch) |\n\n---\n\n## Cost Score: 87/100 \u2014 GOOD\n\nSpend is well controlled. The main lever is Graviton for the general node group; total projected savings are $310/month.\n\n### Score Breakdown\n\n| Dimension | Max | Deduction | Status | Top Finding |\n|-----------|-----|-----------|--------|-------------|\n| Compute Efficiency | 25 | -3.75 | \u26a0\ufe0f | Idle headroom on `web` |\n| Spot/Graviton Adoption | 20 | -6.0 | \u26a0\ufe0f | No Graviton nodes |\n| Networking Costs | 15 | -0 | \u2705 | None |\n| Storage Costs | 15 | -2.25 | \u26a0\ufe0f | Unattached EBS volume (AWS-only inference) |\n| Observability Costs | 10 | -0.5 | \u26a0\ufe0f | Debug log level in `web` |\n| Idle Resources | 15 | -0 | \u2705 | None |\n| **Total** | **100** | **-12.5** | 6 of 6 dimensions | **Score: 87** |\n\n---\n\n## Prioritized Recommendations\n\n| # | Finding | Dimension | Resource | Monthly Savings | Effort | Severity |\n|---|---------|-----------|----------|-----------------|--------|----------|\n| 1 | No Graviton nodes | Spot/Graviton Adoption | nodegroup/general | $190 | Medium | HIGH |\n| 2 | Idle headroom | Compute Efficiency | deployment/web | $70 | Low | MEDIUM |\n| 3 | Unattached EBS volume (AWS-only inference) | Storage Costs | vol-0123456789abcdef0 | $30 | Low | MEDIUM |\n| 4 | Debug log level | Observability Costs | deployment/web | $20 | Low | LOW |\n\n**Total projected savings: $310/month ($3,720/year)**\n\n---\n\n## Findings by Dimension\n\n### Spot/Graviton Adoption\n\n| Finding | Resource | Monthly Waste | Savings | Effort | Severity |\n|---------|----------|---------------|---------|--------|----------|\n| No Graviton nodes in an all-multiarch workload | nodegroup/general | $190 | $190 | Medium | HIGH |\n\n#### Remediation\n\n**Add an arm64 node group**\n```bash\neksctl create nodegroup --cluster staging-cluster --name general-arm64 \\\n  --node-type m7g.large --nodes 3\n```\n\n### Storage Costs\n\n| Finding | Resource | Monthly Waste | Savings | Effort | Severity |\n|---------|----------|---------------|---------|--------|----------|\n| Unattached EBS volume for 45 days (AWS-only inference) | vol-0123456789abcdef0 | $30 | $30 | Low | MEDIUM |\n\n---\n\n## Methodology & Confidence Notes\n\n### Estimation Methods\n\n- **Cost attribution:** Split Cost Allocation\n- **Utilization data:** Container Insights metrics\n- **Savings estimates:** Conservative projections with 20% confidence buffer applied\n\nA finding tagged AWS-only inference rests only on AWS reads (no Kubernetes read confirmed it); the tag is independent of its confidence level.\n\n---\n\n*This report was generated by an APEX skill provided as sample code for educational\nand demonstration purposes only. Findings should be reviewed and validated before\nacting on them. See the project's README and LICENSE for full terms.*\n"
+   },
+   "outputs": {
+    "cost-2-all-assessed.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>EKS Cost Intelligence Report</title>\n    <style>\n\n:root {\n    --color-bg: #ffffff;\n    --color-text: #16191f;\n    --color-heading: #0972d3;\n    --color-border: #e9ebed;\n    --color-code-bg: #f2f3f3;\n    --color-table-header: #f2f3f3;\n    --color-link: #0972d3;\n    --color-blockquote-border: #0972d3;\n    --color-blockquote-bg: #f2f8fd;\n\n    /* Score classification colors */\n    --color-optimized: #037f0c;\n    --color-optimized-bg: #f2fcf3;\n    --color-good: #0972d3;\n    --color-good-bg: #f2f8fd;\n    --color-fair: #8d6605;\n    --color-fair-bg: #fffce9;\n    --color-needs-work: #d45b07;\n    --color-needs-work-bg: #fff3e6;\n    --color-critical: #d91515;\n    --color-critical-bg: #fff7f7;\n\n    /* Severity colors */\n    --color-sev-critical: #d91515;\n    --color-sev-critical-bg: #fff7f7;\n    --color-sev-high: #d91515;\n    --color-sev-high-bg: #fff7f7;\n    --color-sev-medium: #8d6605;\n    --color-sev-medium-bg: #fffce9;\n    --color-sev-low: #037f0c;\n    --color-sev-low-bg: #f2fcf3;\n\n    /* Savings colors */\n    --color-savings: #037f0c;\n    --color-savings-bg: #f2fcf3;\n    --color-cost: #d91515;\n\n    /* Dimension status */\n    --color-assessed: #037f0c;\n    --color-assessed-bg: #f2fcf3;\n    --color-skipped: #687078;\n    --color-skipped-bg: #f2f3f3;\n}\n\n* {\n    margin: 0;\n    padding: 0;\n    box-sizing: border-box;\n}\n\nbody {\n    font-family: \"Amazon Ember\", \"Helvetica Neue\", Roboto, Arial, sans-serif;\n    font-size: 14px;\n    line-height: 1.6;\n    color: var(--color-text);\n    background: var(--color-bg);\n    max-width: 1100px;\n    margin: 0 auto;\n    padding: 40px 24px;\n}\n\nh1 {\n    font-size: 28px;\n    font-weight: 700;\n    color: var(--color-heading);\n    margin: 32px 0 16px 0;\n    padding-bottom: 8px;\n    border-bottom: 2px solid var(--color-heading);\n}\n\nh2 {\n    font-size: 22px;\n    font-weight: 700;\n    color: var(--color-heading);\n    margin: 28px 0 12px 0;\n    padding-bottom: 6px;\n    border-bottom: 1px solid var(--color-border);\n}\n\nh3 {\n    font-size: 17px;\n    font-weight: 700;\n    color: var(--color-text);\n    margin: 20px 0 8px 0;\n}\n\nh4 {\n    font-size: 15px;\n    font-weight: 700;\n    margin: 16px 0 6px 0;\n}\n\np {\n    margin: 8px 0;\n}\n\na {\n    color: var(--color-link);\n    text-decoration: none;\n}\n\na:hover {\n    text-decoration: underline;\n}\n\ntable {\n    width: 100%;\n    border-collapse: collapse;\n    margin: 12px 0;\n    font-size: 13px;\n}\n\nth {\n    background: var(--color-table-header);\n    font-weight: 700;\n    text-align: left;\n    padding: 10px 12px;\n    border: 1px solid var(--color-border);\n}\n\ntd {\n    padding: 8px 12px;\n    border: 1px solid var(--color-border);\n    vertical-align: top;\n}\n\ntr:nth-child(even) {\n    background: #fafafa;\n}\n\ncode {\n    font-family: \"Monaco\", \"Menlo\", \"Consolas\", monospace;\n    font-size: 12px;\n    background: var(--color-code-bg);\n    padding: 2px 6px;\n    border-radius: 3px;\n}\n\npre {\n    background: #1b2028;\n    color: #d4d4d4;\n    padding: 16px;\n    border-radius: 6px;\n    overflow-x: auto;\n    margin: 12px 0;\n    font-size: 12px;\n    line-height: 1.5;\n}\n\npre code {\n    background: none;\n    padding: 0;\n    color: inherit;\n}\n\nblockquote {\n    border-left: 4px solid var(--color-blockquote-border);\n    background: var(--color-blockquote-bg);\n    padding: 12px 16px;\n    margin: 12px 0;\n    border-radius: 0 4px 4px 0;\n}\n\nul, ol {\n    margin: 8px 0 8px 24px;\n}\n\nli {\n    margin: 4px 0;\n}\n\nhr {\n    border: none;\n    border-top: 1px solid var(--color-border);\n    margin: 24px 0;\n}\n\n/* Score classification styling */\n.score-optimized {\n    color: var(--color-optimized);\n    font-weight: 700;\n}\n\n.score-good {\n    color: var(--color-good);\n    font-weight: 700;\n}\n\n.score-fair {\n    color: var(--color-fair);\n    font-weight: 700;\n}\n\n.score-needs-work {\n    color: var(--color-needs-work);\n    font-weight: 700;\n}\n\n.score-critical {\n    color: var(--color-critical);\n    font-weight: 700;\n}\n\n/* Score badge (large) */\n.score-badge {\n    display: inline-block;\n    padding: 4px 12px;\n    border-radius: 4px;\n    font-size: 14px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.score-badge-optimized { background: var(--color-optimized-bg); color: var(--color-optimized); }\n.score-badge-good { background: var(--color-good-bg); color: var(--color-good); }\n.score-badge-fair { background: var(--color-fair-bg); color: var(--color-fair); }\n.score-badge-needs-work { background: var(--color-needs-work-bg); color: var(--color-needs-work); }\n.score-badge-critical { background: var(--color-critical-bg); color: var(--color-critical); }\n\n/* Severity badges */\n.badge {\n    display: inline-block;\n    padding: 2px 8px;\n    border-radius: 3px;\n    font-size: 11px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.badge-critical { background: var(--color-sev-critical-bg); color: var(--color-sev-critical); }\n.badge-high { background: var(--color-sev-high-bg); color: var(--color-sev-high); }\n.badge-medium { background: var(--color-sev-medium-bg); color: var(--color-sev-medium); }\n.badge-low { background: var(--color-sev-low-bg); color: var(--color-sev-low); }\n\n/* Dimension status badges */\n.dimension-badge {\n    display: inline-block;\n    padding: 2px 8px;\n    border-radius: 3px;\n    font-size: 11px;\n    font-weight: 700;\n    text-transform: uppercase;\n}\n\n.dimension-assessed { background: var(--color-assessed-bg); color: var(--color-assessed); }\n.dimension-skipped { background: var(--color-skipped-bg); color: var(--color-skipped); }\n\n/* Dollar amount styling */\n.dollar-amount {\n    font-weight: 700;\n    font-family: \"Monaco\", \"Menlo\", \"Consolas\", monospace;\n    font-size: 13px;\n}\n\n.dollar-savings { color: var(--color-savings); }\n.dollar-cost { color: var(--color-cost); }\n.dollar-waste { color: var(--color-needs-work); }\n\n/* Effort badges */\n.effort-low { color: var(--color-optimized); font-weight: 600; }\n.effort-medium { color: var(--color-fair); font-weight: 600; }\n.effort-high { color: var(--color-sev-high); font-weight: 600; }\n\n/* Status icons in tables */\ntd:first-child {\n    white-space: nowrap;\n}\n\n.timestamp {\n    color: #687078;\n    font-size: 12px;\n    margin-top: -8px;\n}\n\n/* Print styles */\n@media print {\n    body {\n        max-width: 100%;\n        padding: 20px;\n        font-size: 11px;\n    }\n    pre {\n        white-space: pre-wrap;\n        word-wrap: break-word;\n        background: #f5f5f5;\n        color: #333;\n    }\n    h1, h2, h3 { page-break-after: avoid; }\n    table { page-break-inside: avoid; }\n    .score-badge, .badge, .dimension-badge {\n        border: 1px solid currentColor;\n    }\n    a { color: var(--color-text); }\n    a::after { content: \" (\" attr(href) \")\"; font-size: 10px; color: #687078; }\n}\n\n    </style>\n</head>\n<body>\n<h1>EKS Cost Intelligence Report</h1>\n<table><tr><th>Field</th><th>Value</th></tr><tr><td>Cluster</td><td>staging-cluster</td></tr><tr><td>Region</td><td>eu-west-1</td></tr><tr><td>Assessment Date</td><td>2024-12-01 14:45</td></tr><tr><td>Analysis Window</td><td>30 days (user-specified)</td></tr><tr><td>Total Estimated Spend</td><td><span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$1,98</span>0/month</span></td></tr><tr><td>Data Sources</td><td>Cost Explorer, Container Insights, Kubernetes API, EC2 API</td></tr><tr><td>Fargate Profiles</td><td>fp-batch (namespaces: batch)</td></tr></table>\n<hr>\n<h2>Cost Score: 87/100 \u2014 <span class=\"score-good\">GOOD</span></h2>\n<p>Spend is well controlled. The main lever is Graviton for the general node group; total projected savings are <span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$31</span>0/month</span>.</p>\n<h3>Score Breakdown</h3>\n<table><tr><th>Dimension</th><th>Max</th><th>Deduction</th><th>Status</th><th>Top Finding</th></tr><tr><td>Compute Efficiency</td><td>25</td><td>-3.75</td><td>\u26a0\ufe0f</td><td>Idle headroom on <code>web</code></td></tr><tr><td>Spot/Graviton Adoption</td><td>20</td><td>-6.0</td><td>\u26a0\ufe0f</td><td>No Graviton nodes</td></tr><tr><td>Networking Costs</td><td>15</td><td>-0</td><td>\u2705</td><td>None</td></tr><tr><td>Storage Costs</td><td>15</td><td>-2.25</td><td>\u26a0\ufe0f</td><td>Unattached EBS volume (AWS-only inference)</td></tr><tr><td>Observability Costs</td><td>10</td><td>-0.5</td><td>\u26a0\ufe0f</td><td>Debug log level in <code>web</code></td></tr><tr><td>Idle Resources</td><td>15</td><td>-0</td><td>\u2705</td><td>None</td></tr><tr><td><strong>Total</strong></td><td><strong>100</strong></td><td><strong>-12.5</strong></td><td>6 of 6 dimensions</td><td><strong>Score: 87</strong></td></tr></table>\n<hr>\n<h2>Prioritized Recommendations</h2>\n<table><tr><th>#</th><th>Finding</th><th>Dimension</th><th>Resource</th><th>Monthly Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>1</td><td>No Graviton nodes</td><td>Spot/Graviton Adoption</td><td>nodegroup/general</td><td><span class=\"dollar-amount\">$190</span></td><td><span class=\"effort-medium\">Medium</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr><tr><td>2</td><td>Idle headroom</td><td>Compute Efficiency</td><td>deployment/web</td><td><span class=\"dollar-amount\">$70</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr><tr><td>3</td><td>Unattached EBS volume (AWS-only inference)</td><td>Storage Costs</td><td>vol-0123456789abcdef0</td><td><span class=\"dollar-amount\">$30</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr><tr><td>4</td><td>Debug log level</td><td>Observability Costs</td><td>deployment/web</td><td><span class=\"dollar-amount\">$20</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-low\">LOW</span></td></tr></table>\n<p><strong>Total projected savings: <span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$31</span>0/month</span> (<span class=\"dollar-amount dollar-savings\"><span class=\"dollar-amount\">$3,72</span>0/year</span>)</strong></p>\n<hr>\n<h2>Findings by Dimension</h2>\n<h3>Spot/Graviton Adoption</h3>\n<table><tr><th>Finding</th><th>Resource</th><th>Monthly Waste</th><th>Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>No Graviton nodes in an all-multiarch workload</td><td>nodegroup/general</td><td><span class=\"dollar-amount\">$190</span></td><td><span class=\"dollar-amount\">$190</span></td><td><span class=\"effort-medium\">Medium</span></td><td><span class=\"badge badge-high\">HIGH</span></td></tr></table>\n<h4>Remediation</h4>\n<p><strong>Add an arm64 node group</strong></p>\n<pre><code class=\"language-bash\">eksctl create nodegroup --cluster staging-cluster --name general-arm64 \\\n  --node-type m7g.large --nodes 3</code></pre>\n<h3>Storage Costs</h3>\n<table><tr><th>Finding</th><th>Resource</th><th>Monthly Waste</th><th>Savings</th><th>Effort</th><th>Severity</th></tr><tr><td>Unattached EBS volume for 45 days (AWS-only inference)</td><td>vol-0123456789abcdef0</td><td><span class=\"dollar-amount\">$30</span></td><td><span class=\"dollar-amount\">$30</span></td><td><span class=\"effort-low\">Low</span></td><td><span class=\"badge badge-medium\">MEDIUM</span></td></tr></table>\n<hr>\n<h2>Methodology &amp; Confidence Notes</h2>\n<h3>Estimation Methods</h3>\n<ul><li><strong>Cost attribution:</strong> Split Cost Allocation</li><li><strong>Utilization data:</strong> Container Insights metrics</li><li><strong>Savings estimates:</strong> Conservative projections with 20% confidence buffer applied</li></ul>\n<p>A finding tagged AWS-only inference rests only on AWS reads (no Kubernetes read confirmed it); the tag is independent of its confidence level.</p>\n<hr>\n<p>*This report was generated by an APEX skill provided as sample code for educational</p>\n<p>and demonstration purposes only. Findings should be reviewed and validated before</p>\n<p>acting on them. See the project&#x27;s README and LICENSE for full terms.*</p>\n</body>\n</html>"
+   }
+  },
+  {
+   "id": "sec-1",
+   "template": "eks-security",
+   "inputs": {
+    "sec-1-findings.json": "{\n  \"schema\": \"eks-security/findings@1\",\n  \"generated_at\": \"2026-11-05T18:05:00Z\",\n  \"cluster\": \"demo\",\n  \"coverage\": {\n    \"in_scope\": 2,\n    \"read\": 2,\n    \"ratio\": 1.0,\n    \"gate\": 0.5,\n    \"complete\": true\n  },\n  \"sources\": [\n    {\n      \"id\": \"CVE-TEST-0001\",\n      \"title\": \"AWS-2026-170: Amazon VPC CNI plugin issue\",\n      \"source_url\": \"https://aws.amazon.com/security/security-bulletins/2026-170-aws/\",\n      \"read_at\": \"2026-11-05T15:04:00Z\",\n      \"origin\": \"file\"\n    },\n    {\n      \"id\": \"CVE-TEST-0002\",\n      \"title\": \"Kubernetes official CVE feed\",\n      \"source_url\": \"https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json\",\n      \"read_at\": \"2026-11-05T15:04:00Z\",\n      \"origin\": \"live\"\n    }\n  ],\n  \"findings\": [\n    {\n      \"advisory\": \"CVE-TEST-0001\",\n      \"component\": \"addon:vpc-cni\",\n      \"installed\": \"v1.21.1-eksbuild.3\",\n      \"fixed\": \"1.22.3\",\n      \"verdict\": \"exposed\",\n      \"reason\": \"installed v1.21.1-eksbuild.3 is inside the affected range\",\n      \"severity\": \"high\",\n      \"priority\": \"P1\",\n      \"workaround\": false,\n      \"where\": [\n        \"cluster\"\n      ],\n      \"nodes_pending\": [],\n      \"source_url\": \"https://aws.amazon.com/security/security-bulletins/2026-170-aws/\",\n      \"read_at\": \"2026-11-05T15:04:00Z\"\n    },\n    {\n      \"advisory\": \"CVE-TEST-0002\",\n      \"component\": \"addon:coredns\",\n      \"installed\": \"v1.11.4-eksbuild.2\",\n      \"fixed\": \"1.11.5\",\n      \"verdict\": \"unknown\",\n      \"reason\": \"installed version could not be compared: the feed gives no fixed range for this build\",\n      \"severity\": \"medium\",\n      \"priority\": \"P3\",\n      \"workaround\": null,\n      \"where\": [\n        \"cluster\"\n      ],\n      \"nodes_pending\": [],\n      \"source_url\": \"https://kubernetes.io/\",\n      \"read_at\": \"2026-11-05T15:04:00Z\"\n    }\n  ],\n  \"review\": [],\n  \"overall\": \"exposed\"\n}\n",
+    "sec-1-inventory.json": "{\n  \"schema\": \"eks-security/inventory@1\",\n  \"cluster\": \"demo\",\n  \"region\": \"us-west-2\",\n  \"collected_at\": \"2026-11-05T18:00:00Z\",\n  \"control_plane\": {\n    \"version\": \"1.33\",\n    \"platform_version\": \"eks.9\",\n    \"auto_mode\": false,\n    \"endpoint_public\": false,\n    \"public_cidrs\": []\n  },\n  \"images\": [],\n  \"coverage\": {\n    \"components_total\": 0,\n    \"components_readable\": 0\n  },\n  \"components\": [\n    {\n      \"id\": \"addon:vpc-cni\",\n      \"kind\": \"eks-addon\",\n      \"name\": \"vpc-cni\",\n      \"version\": \"v1.21.1-eksbuild.3\",\n      \"managed_by\": \"customer\",\n      \"where\": [\n        \"cluster\"\n      ],\n      \"readable\": true,\n      \"reason\": null\n    }\n  ]\n}\n"
+   },
+   "outputs": {
+    "sec-1.md": "# EKS security advisory review: demo\n\n- Cluster: demo (Region us-west-2)\n- Inventory collected at: 2026-11-05T18:00:00Z\n- Findings generated at: 2026-11-05T18:05:00Z\n- Coverage: 2 of 2 in-scope components read (100%, gate 50%)\n\nOverall verdict: Exposed: at least one component is inside an affected range.\n\n## Sources\n\n| Advisory | Title | Origin | Read at | Source URL |\n|---|---|---|---|---|\n| CVE-TEST-0001 | AWS-2026-170: Amazon VPC CNI plugin issue | from file, not live | 2026-11-05T15:04:00Z | https://aws.amazon.com/security/security-bulletins/2026-170-aws/ |\n| CVE-TEST-0002 | Kubernetes official CVE feed | live | 2026-11-05T15:04:00Z | https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json |\n\n## Findings\n\n| Priority | Verdict | Advisory | Component | Installed | Fixed | Severity | Workaround | Where |\n|---|---|---|---|---|---|---|---|---|\n| P1 | Exposed | CVE-TEST-0001 | addon:vpc-cni | v1.21.1-eksbuild.3 | 1.22.3 | high | no | cluster |\n| P3 | Unknown | CVE-TEST-0002 | addon:coredns | v1.11.4-eksbuild.2 | 1.11.5 | medium | not stated | cluster |\n\n## Unknown\n\n- Unknown: addon:coredns (CVE-TEST-0002) could not be compared (installed version could not be compared: the feed gives no fixed range for this build). This is not a clean result. To resolve: Read the advisory and the installed version by hand.\n\n## Proposed actions (for the team to review; nothing here was run)\n\nCVE-TEST-0001 on addon:vpc-cni (P1, high): Update the EKS add-on to a version at or above 1.22.3. List the versions first and test in non-prod. PRESERVE keeps your own configuration values.\n\n```bash\naws eks describe-addon-versions --addon-name vpc-cni --kubernetes-version 1.33 --region us-west-2 --query 'addons[].addonVersions[].addonVersion'\naws eks update-addon --cluster-name demo --addon-name vpc-cni --addon-version <VERSION_AT_OR_ABOVE_FIX> --resolve-conflicts PRESERVE --region us-west-2\n```\n\nThe scripts that produced this report are read-only; they changed nothing.\n",
+    "sec-1.html": "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">\n<title>EKS security advisory review: demo</title><style>body{font-family:system-ui,sans-serif;max-width:72rem;margin:2rem auto;padding:0 1rem;color:#1b1b1b}table{border-collapse:collapse;margin:0.5rem 0 1rem}th,td{border:1px solid #ccc;padding:0.3rem 0.5rem;text-align:left;vertical-align:top}th{background:#f2f2f2}pre{background:#f6f6f6;padding:0.75rem;overflow-x:auto}footer{margin-top:2rem;border-top:1px solid #ccc;padding-top:0.5rem}</style></head><body>\n<h1>EKS security advisory review: demo</h1>\n<ul><li>Cluster: demo (Region us-west-2)</li><li>Inventory collected at: 2026-11-05T18:00:00Z</li><li>Findings generated at: 2026-11-05T18:05:00Z</li><li>Coverage: 2 of 2 in-scope components read (100%, gate 50%)</li></ul>\n<p>Overall verdict: Exposed: at least one component is inside an affected range.</p>\n<h2>Sources</h2>\n<table><thead><tr><th>Advisory</th><th>Title</th><th>Origin</th><th>Read at</th><th>Source URL</th></tr></thead><tbody>\n<tr><td>CVE-TEST-0001</td><td>AWS-2026-170: Amazon VPC CNI plugin issue</td><td>from file, not live</td><td>2026-11-05T15:04:00Z</td><td>https://aws.amazon.com/security/security-bulletins/2026-170-aws/</td></tr>\n<tr><td>CVE-TEST-0002</td><td>Kubernetes official CVE feed</td><td>live</td><td>2026-11-05T15:04:00Z</td><td>https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json</td></tr>\n</tbody></table>\n<h2>Findings</h2>\n<table><thead><tr><th>Priority</th><th>Verdict</th><th>Advisory</th><th>Component</th><th>Installed</th><th>Fixed</th><th>Severity</th><th>Workaround</th><th>Where</th></tr></thead><tbody>\n<tr><td>P1</td><td>Exposed</td><td>CVE-TEST-0001</td><td>addon:vpc-cni</td><td>v1.21.1-eksbuild.3</td><td>1.22.3</td><td>high</td><td>no</td><td>cluster</td></tr>\n<tr><td>P3</td><td>Unknown</td><td>CVE-TEST-0002</td><td>addon:coredns</td><td>v1.11.4-eksbuild.2</td><td>1.11.5</td><td>medium</td><td>not stated</td><td>cluster</td></tr>\n</tbody></table>\n<h2>Unknown</h2>\n<ul><li>Unknown: addon:coredns (CVE-TEST-0002) could not be compared (installed version could not be compared: the feed gives no fixed range for this build). This is not a clean result. To resolve: Read the advisory and the installed version by hand.</li></ul>\n<h2>Proposed actions (for the team to review; nothing here was run)</h2>\n<p>CVE-TEST-0001 on addon:vpc-cni (P1, high): Update the EKS add-on to a version at or above 1.22.3. List the versions first and test in non-prod. PRESERVE keeps your own configuration values.</p>\n<pre><code>aws eks describe-addon-versions --addon-name vpc-cni --kubernetes-version 1.33 --region us-west-2 --query &#x27;addons[].addonVersions[].addonVersion&#x27;\naws eks update-addon --cluster-name demo --addon-name vpc-cni --addon-version &lt;VERSION_AT_OR_ABOVE_FIX&gt; --resolve-conflicts PRESERVE --region us-west-2</code></pre>\n<footer><p>The scripts that produced this report are read-only; they changed nothing.</p></footer>\n</body></html>\n"
+   }
+  },
+  {
+   "id": "sec-2",
+   "template": "eks-security",
+   "inputs": {
+    "sec-2-posture.json": "{\n  \"schema\": \"eks-security/posture@1\",\n  \"cluster\": \"demo-shared\",\n  \"generated_at\": \"2026-11-05T17:30:00Z\",\n  \"coverage\": {\n    \"checks_total\": 49,\n    \"checks_answered\": 46,\n    \"ratio\": 0.939,\n    \"gate\": 0.5,\n    \"complete\": true\n  },\n  \"score\": 59,\n  \"layers\": [\n    {\n      \"layer\": \"node-credential\",\n      \"verdict\": \"not-contained\"\n    },\n    {\n      \"layer\": \"lateral-movement\",\n      \"verdict\": \"not-contained\"\n    },\n    {\n      \"layer\": \"privilege\",\n      \"verdict\": \"not-contained\"\n    },\n    {\n      \"layer\": \"identity\",\n      \"verdict\": \"not-contained\"\n    },\n    {\n      \"layer\": \"detection\",\n      \"verdict\": \"partly\"\n    },\n    {\n      \"layer\": \"api-exposure\",\n      \"verdict\": \"not-contained\"\n    },\n    {\n      \"layer\": \"supply-chain\",\n      \"verdict\": \"partly\"\n    }\n  ],\n  \"checks\": [\n    {\n      \"id\": \"SEC-POSTURE-1\",\n      \"war_id\": \"sec-1\",\n      \"title\": \"Is the EKS cluster API server endpoint configured with private access enabled?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"endpointPrivateAccess=true\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Enable the private API endpoint (endpointPrivateAccess=true) so in-VPC clients and nodes do not leave the VPC.\",\n      \"layer\": \"api-exposure\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-2\",\n      \"war_id\": \"sec-2\",\n      \"title\": \"Is public API server access restricted to specific CIDR ranges rather than reachable from the whole internet?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"endpointPublicAccess=true with publicAccessCidrs [0.0.0.0/0]: the API server is reachable from the whole internet\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Restrict publicAccessCidrs to known operator ranges, or turn the public endpoint off.\",\n      \"layer\": \"api-exposure\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-3\",\n      \"war_id\": \"sec-3\",\n      \"title\": \"Do you allow users to assume an IAM Role and map that role to a Kubernetes RBAC group, rather than creating individual user mappings in the aws-auth ConfigMap?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Map IAM roles (not users) to Kubernetes groups, through access entries where possible.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-4\",\n      \"war_id\": \"sec-5\",\n      \"title\": \"Do you use a dedicated IAM role to create EKS clusters that is not used for routine cluster operations or day-to-day management tasks?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Create clusters with a dedicated role that is not used for daily operations.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-5\",\n      \"war_id\": \"sec-6\",\n      \"title\": \"Is pod-level workload identity (EKS Pod Identity or IRSA) configured for workloads that need AWS access?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"3/3 workload service accounts whose pods call AWS have a Pod Identity association or an IRSA role\",\n      \"source_file\": \"posture/serviceaccounts.json, posture/cluster.json, posture/oidcproviders.json, posture/podidentity.json, posture/nodes.json, posture/daemonsets.json, posture/pods.json\",\n      \"recommendation\": \"Give workloads that call AWS their own role with EKS Pod Identity or IRSA instead of the node role.\",\n      \"layer\": \"identity\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-6\",\n      \"war_id\": \"sec-7\",\n      \"title\": \"Do you restrict access to the kube-system namespace to super administrators only, preventing regular users from modifying critical cluster components?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Limit write access to kube-system to cluster administrators.\",\n      \"layer\": \"privilege\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-7\",\n      \"war_id\": \"sec-9\",\n      \"title\": \"Do non-system ClusterRoles avoid wildcard (star) resource and verb permissions?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"0/4 non-system ClusterRoles use a wildcard verb or resource\",\n      \"source_file\": \"posture/clusterroles.json\",\n      \"recommendation\": \"Replace wildcard verbs and resources in custom ClusterRoles with the specific ones needed.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-8\",\n      \"war_id\": \"sec-17\",\n      \"title\": \"Is cluster access granted through EKS access entries (API authentication mode) rather than the legacy aws-auth ConfigMap?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"authenticationMode API_AND_CONFIG_MAP: the aws-auth ConfigMap is still read\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Move authenticationMode to API and grant access through EKS access entries.\",\n      \"layer\": \"identity\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-9\",\n      \"war_id\": \"sec-18\",\n      \"title\": \"Is an OIDC provider configured for the EKS cluster to enable IRSA?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"an IAM OIDC provider matches the cluster issuer\",\n      \"source_file\": \"posture/cluster.json, posture/oidcproviders.json, posture/serviceaccounts.json\",\n      \"recommendation\": \"Register the IAM OIDC provider for the cluster issuer before relying on IRSA.\",\n      \"layer\": \"identity\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-10\",\n      \"war_id\": \"rbac-1\",\n      \"title\": \"Is cluster-admin restricted to the two built-in subjects expected to hold it?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"cluster-admin bound only to Group system:masters and User eks:addon-manager; no system:masters mapping in aws-auth\",\n      \"source_file\": \"posture/clusterrolebindings.json, posture/awsauth.json, posture/cluster.json\",\n      \"recommendation\": \"Remove cluster-admin bindings other than Group system:masters and User eks:addon-manager, and any system:masters mapping in aws-auth.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-11\",\n      \"war_id\": \"rbac-2\",\n      \"title\": \"Do service accounts use namespace-scoped permissions (not cluster-wide)?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"5/5 workload service accounts are bound only by namespaced RoleBindings\",\n      \"source_file\": \"posture/rolebindings.json, posture/clusterrolebindings.json, posture/serviceaccounts.json\",\n      \"recommendation\": \"Bind workload service accounts with namespaced RoleBindings instead of ClusterRoleBindings.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-12\",\n      \"war_id\": \"rbac-3\",\n      \"title\": \"Are role bindings free of stale references to non-existent subjects?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"every RoleBinding and ClusterRoleBinding subject exists\",\n      \"source_file\": \"posture/rolebindings.json, posture/serviceaccounts.json, posture/clusterrolebindings.json\",\n      \"recommendation\": \"Remove role binding subjects that no longer exist.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-13\",\n      \"war_id\": \"rbac-4\",\n      \"title\": \"Do default service accounts in non-system namespaces have automountServiceAccountToken disabled?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"1/4 default service accounts in workload namespaces set automountServiceAccountToken false\",\n      \"source_file\": \"posture/serviceaccounts.json, posture/pods.json\",\n      \"recommendation\": \"Set automountServiceAccountToken: false on each namespace default service account.\",\n      \"layer\": \"identity\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-14\",\n      \"war_id\": \"sec-8\",\n      \"title\": \"Is an external secrets manager operator (e.g. External Secrets Operator) deployed on the cluster?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"no External Secrets Operator or Secrets Store CSI Driver found\",\n      \"source_file\": \"posture/deployments.json\",\n      \"recommendation\": \"Consider an external secrets operator so application credentials live in a managed store.\",\n      \"layer\": \"identity\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-15\",\n      \"war_id\": \"sec-24\",\n      \"title\": \"Do you leverage AWS Secrets Manager and Config Provider (ASCP), EKS secrets encryption, or third-party solutions like HashiCorp Vault to manage secrets in EKS?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Keep application credentials in AWS Secrets Manager (ASCP or an external secrets operator) rather than in manifests.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-16\",\n      \"war_id\": \"sec-34\",\n      \"title\": \"Do you implement automatic rotation of secrets, credentials, and TLS certificates?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Rotate credentials and TLS certificates automatically.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-17\",\n      \"war_id\": \"sec-35\",\n      \"title\": \"Do you implement automatic rotation of secrets, credentials, database passwords, and TLS certificates used by your EKS workloads, using tools like AWS Secrets Manager, External Secrets Operator, or cert-manager?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Automate rotation for workload credentials, database passwords and certificates.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-18\",\n      \"war_id\": \"sec-21\",\n      \"title\": \"Are EBS volumes used by the cluster encrypted at rest?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"12/12 EBS volumes attached to node instances are encrypted\",\n      \"source_file\": \"posture/volumes.json, posture/cluster.json, posture/pv.json, posture/nodes.json\",\n      \"recommendation\": \"Encrypt the EBS volumes this cluster uses (enable EBS encryption by default for the account and Region).\",\n      \"layer\": \"node-credential\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-19\",\n      \"war_id\": \"sec-38\",\n      \"title\": \"Is the cluster configured to envelope-encrypt Kubernetes Secrets with a customer-managed KMS key?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"encryptionConfig provider keyArn is a customer managed KMS key\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Configure envelope encryption of Kubernetes Secrets with a customer-managed KMS key.\",\n      \"layer\": \"identity\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-20\",\n      \"war_id\": \"sec-22\",\n      \"title\": \"Do you enable encryption at rest for Amazon EFS file systems used by Pods?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Create EFS file systems used by pods with encryption at rest.\",\n      \"layer\": \"node-credential\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-21\",\n      \"war_id\": \"sec-25\",\n      \"title\": \"Are StorageClasses configured with encryption enabled for new volumes?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"1/1 StorageClasses set encrypted: true\",\n      \"source_file\": \"posture/storageclasses.json\",\n      \"recommendation\": \"Set encrypted: \\\"true\\\" on every EBS StorageClass.\",\n      \"layer\": \"node-credential\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-22\",\n      \"war_id\": \"sec-23\",\n      \"title\": \"Do you enable encryption in transit for Amazon EFS when using the EFS CSI driver?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Mount EFS with encryption in transit (the EFS CSI driver tls mount option).\",\n      \"layer\": \"node-credential\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-23\",\n      \"war_id\": \"sec-27\",\n      \"title\": \"Is a service mesh control plane (Istio, Linkerd or Consul) deployed?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"no service mesh control plane found\",\n      \"source_file\": \"posture/deployments.json\",\n      \"recommendation\": \"Where zero-trust service-to-service traffic is required, deploy a service mesh control plane.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-24\",\n      \"war_id\": \"sec-28\",\n      \"title\": \"Do workload pods carry a service-mesh sidecar (the data path for service-to-service mTLS)?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"0/8 workload pods carry a mesh sidecar\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Inject mesh sidecars into workload pods where mTLS between services is required.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-25\",\n      \"war_id\": \"sec-29\",\n      \"title\": \"Are Ingress resources configured with TLS termination?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"2/2 Ingress resources set tls\",\n      \"source_file\": \"posture/ingresses.json\",\n      \"recommendation\": \"Terminate TLS on every Ingress (spec.tls, or an ALB certificate-arn with an HTTPS listener).\",\n      \"layer\": \"api-exposure\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-26\",\n      \"war_id\": \"sec-4\",\n      \"title\": \"Are Kubernetes Network Policies deployed to control Pod-to-Pod traffic?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"network policy enforcement on (aws-node aws-eks-nodeagent --enable-network-policy=true); 4/4 workload namespaces have a NetworkPolicy\",\n      \"source_file\": \"posture/networkpolicies.json, posture/namespaces.json, posture/daemonsets.json, posture/pods.json, posture/vpccniconfig.json, posture/nodeclasses.json, posture/nodes.json\",\n      \"recommendation\": \"Turn on NetworkPolicy enforcement (VPC CNI network policy agent, or the Auto Mode Network Policy Controller) and add policies to every workload namespace.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-27\",\n      \"war_id\": \"sec-14\",\n      \"title\": \"Do you apply network separation to Pod networking using Kubernetes Network Policies or AWS security groups to control traffic between Pods and clusters?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Separate pod traffic with NetworkPolicies or security groups for pods.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-28\",\n      \"war_id\": \"sec-30\",\n      \"title\": \"Is inbound SSH (port 22) closed to the internet on the cluster security groups?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"no cluster security group rule opens port 22 to 0.0.0.0/0\",\n      \"source_file\": \"posture/sg.json, posture/cluster.json, posture/nodes.json, posture/instances.json\",\n      \"recommendation\": \"Remove inbound port 22 from 0.0.0.0/0 and ::/0; use SSM Session Manager for node access.\",\n      \"layer\": \"api-exposure\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-29\",\n      \"war_id\": \"net-2\",\n      \"title\": \"Do security groups follow least-privilege (no 0.0.0.0/0 on non-standard ports)?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"no 0.0.0.0/0 rule on a non-standard port in the cluster security groups\",\n      \"source_file\": \"posture/sg.json, posture/cluster.json, posture/nodes.json, posture/instances.json\",\n      \"recommendation\": \"Remove world-open inbound rules outside TCP 80/443 from cluster and node security groups.\",\n      \"layer\": \"api-exposure\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-30\",\n      \"war_id\": \"lens-12\",\n      \"title\": \"Do ECR repositories have scan-on-push enabled?\",\n      \"result\": \"na\",\n      \"severity\": \"medium\",\n      \"evidence\": \"repository scan settings are judged at registry level (SEC-POSTURE-62)\",\n      \"source_file\": \"posture/ecr.json, posture/pods.json\",\n      \"recommendation\": \"Scan the images this cluster pulls; configure registry-level scanning (see SEC-POSTURE-62).\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"na\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-31\",\n      \"war_id\": \"lens-13\",\n      \"title\": \"Do ECR repositories use immutable image tags?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"1/3 ECR repositories use immutable tags\",\n      \"source_file\": \"posture/ecr.json, posture/pods.json\",\n      \"recommendation\": \"Set image tag mutability to IMMUTABLE on the repositories this cluster pulls from.\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-32\",\n      \"war_id\": \"net-4\",\n      \"title\": \"Has the cluster security group's default allow-all egress been narrowed?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"the cluster security group keeps its default allow-all egress\",\n      \"source_file\": \"posture/sg.json, posture/cluster.json\",\n      \"recommendation\": \"Narrow the cluster security group egress from all traffic to 0.0.0.0/0 to what the cluster needs.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-33\",\n      \"war_id\": \"sec-10\",\n      \"title\": \"Is any non-AWS validating admission webhook deployed whose rules match Pod creation?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no non-AWS validating admission webhook matches Pod creation\",\n      \"source_file\": \"posture/validatingwebhooks.json, posture/mutatingwebhooks.json, posture/addons.json\",\n      \"recommendation\": \"Run a validating admission webhook (policy engine) that inspects pod creation.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-34\",\n      \"war_id\": \"sec-11\",\n      \"title\": \"Are Pod Security Standards labels applied to namespaces to enforce security baselines?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"3/4 workload namespaces carry pod-security.kubernetes.io/enforce baseline or restricted; failing: legacy\",\n      \"source_file\": \"posture/namespaces.json, posture/pods.json\",\n      \"recommendation\": \"Label every workload namespace pod-security.kubernetes.io/enforce=baseline or restricted.\",\n      \"layer\": \"privilege\",\n      \"state\": \"most\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-35\",\n      \"war_id\": \"sec-16\",\n      \"title\": \"Is a policy engine (Kyverno or Gatekeeper) deployed with at least one policy loaded?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no Kyverno or Gatekeeper found\",\n      \"source_file\": \"posture/kyverno.json, posture/constraints.json, posture/constrainttemplates.json\",\n      \"recommendation\": \"Deploy a policy engine (Kyverno or Gatekeeper) with enforcing policies loaded.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-36\",\n      \"war_id\": \"adm-1\",\n      \"title\": \"Are admission controller policies (Gatekeeper/Kyverno) deployed on the cluster?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no Kyverno or Gatekeeper found\",\n      \"source_file\": \"posture/kyverno.json, posture/constraints.json, posture/constrainttemplates.json\",\n      \"recommendation\": \"Load admission policies covering the baseline Pod Security controls.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-37\",\n      \"war_id\": \"adm-2\",\n      \"title\": \"Is an admission policy engine deployed with at least one policy loaded, which is where a privileged-container restriction would live (whether any loaded policy restricts privileged is reported, not scored)?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no Kyverno or Gatekeeper found\",\n      \"source_file\": \"posture/kyverno.json, posture/constraints.json, posture/constrainttemplates.json\",\n      \"recommendation\": \"Load an enforcing policy that rejects privileged containers.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-38\",\n      \"war_id\": \"adm-3\",\n      \"title\": \"Is an admission policy engine deployed with at least one policy loaded?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no Kyverno or Gatekeeper found\",\n      \"source_file\": \"posture/kyverno.json, posture/constraints.json, posture/constrainttemplates.json\",\n      \"recommendation\": \"Run admission policies in enforce mode once audit results are clean.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-39\",\n      \"war_id\": \"sec-12\",\n      \"title\": \"Are workload container images pinned to a digest or an explicit tag rather than :latest?\",\n      \"result\": \"pass\",\n      \"severity\": \"low\",\n      \"evidence\": \"14/14 workload containers name a digest or an explicit tag other than latest\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Pin workload images to a digest or an explicit version tag, never :latest.\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-40\",\n      \"war_id\": \"sec-15\",\n      \"title\": \"Do containers have security contexts configured (runAsNonRoot, readOnlyRootFilesystem, or allowPrivilegeEscalation=false)?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"6/8 workload pods set a security context\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Set a securityContext on every container (runAsNonRoot, readOnlyRootFilesystem, allowPrivilegeEscalation: false).\",\n      \"layer\": \"privilege\",\n      \"state\": \"most\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-41\",\n      \"war_id\": \"podsec-1\",\n      \"title\": \"Do containers run as non-root users?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"11/14 workload containers run as non-root\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Run containers as non-root (runAsNonRoot: true and a non-zero runAsUser).\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-42\",\n      \"war_id\": \"podsec-2\",\n      \"title\": \"Are containers running without privileged mode?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"14/14 workload containers are not privileged\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Remove privileged: true from workload containers.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-43\",\n      \"war_id\": \"podsec-3\",\n      \"title\": \"Are pods free of host path volume mounts?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"7/8 workload pods mount no hostPath volume; failing: legacy/log-shipper-x7k2p (hostPath /var/log)\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Replace hostPath volumes with CSI or emptyDir volumes outside the system namespaces.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-44\",\n      \"war_id\": \"podsec-4\",\n      \"title\": \"Do containers add only the Linux capabilities the Pod Security Standards Baseline profile allows (no NET_ADMIN, SYS_ADMIN, SYS_MODULE, ALL)?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"14/14 workload containers add no capability outside the Baseline set\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Add only Baseline-allowed capabilities; drop NET_ADMIN, SYS_ADMIN and similar.\",\n      \"layer\": \"privilege\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-45\",\n      \"war_id\": \"podsec-5\",\n      \"title\": \"Do containers drop ALL Linux capabilities?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"6/14 workload containers drop ALL capabilities\",\n      \"source_file\": \"posture/pods.json, posture/daemonsets.json\",\n      \"recommendation\": \"Drop ALL capabilities and add back only what each container needs.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-46\",\n      \"war_id\": \"lens-11\",\n      \"title\": \"Do EC2 worker nodes enforce IMDSv2 (HttpTokens=required)?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"6/6 running instances require IMDSv2 (HttpTokens=required)\",\n      \"source_file\": \"posture/instances.json\",\n      \"recommendation\": \"Require IMDSv2 (HttpTokens=required) on every node launch template or NodeClass.\",\n      \"layer\": \"node-credential\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-47\",\n      \"war_id\": \"sec-32\",\n      \"title\": \"Do you implement container image signing and verification (Sigstore/Cosign, AWS Signer, Notary)?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Sign images and verify signatures at admission.\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-48\",\n      \"war_id\": \"sec-33\",\n      \"title\": \"Is a runtime security monitoring agent present (GuardDuty Runtime Monitoring, Falco, Sysdig or Tetragon)?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"no GuardDuty add-on and no GuardDuty agent, Falco, Sysdig or Tetragon DaemonSet pods found\",\n      \"source_file\": \"posture/addons.json, posture/pods.json\",\n      \"recommendation\": \"Run a runtime threat detection agent on every node (GuardDuty Runtime Monitoring or an equivalent).\",\n      \"layer\": \"detection\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-49\",\n      \"war_id\": \"sec-13\",\n      \"title\": \"Do you use separate EKS clusters for production and non-production environments, ideally in different AWS accounts?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Run production and non-production on separate clusters, ideally in separate accounts.\",\n      \"layer\": \"identity\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-50\",\n      \"war_id\": \"sec-19\",\n      \"title\": \"Do you leverage tools like kube-bench to automatically check whether EKS is deployed securely by running checks documented in the CIS Kubernetes Benchmark?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Run CIS benchmark checks (for example kube-bench) on a schedule.\",\n      \"layer\": \"detection\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-51\",\n      \"war_id\": \"sec-20\",\n      \"title\": \"Do you manage configuration changes through version control with pull request reviews and approvals before applying to clusters?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Change cluster configuration only through reviewed pull requests.\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-52\",\n      \"war_id\": \"sec-26\",\n      \"title\": \"Is Kubernetes audit logging enabled in the EKS control plane?\",\n      \"result\": \"pass\",\n      \"severity\": \"high\",\n      \"evidence\": \"control plane log type audit is enabled\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Enable the audit control plane log type.\",\n      \"layer\": \"detection\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-53\",\n      \"war_id\": \"sec-36\",\n      \"title\": \"Do you regularly scan your EKS cluster against compliance frameworks (CIS Benchmark, kube-bench)?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Scan the cluster against a compliance framework on a schedule.\",\n      \"layer\": \"detection\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-54\",\n      \"war_id\": \"sec-37\",\n      \"title\": \"Do you regularly scan your EKS cluster configuration against compliance frameworks (CIS Kubernetes Benchmark, PCI-DSS, HIPAA, SOC 2) using automated tools like kube-bench, Prowler, or AWS Security Hub?\",\n      \"result\": \"unknown\",\n      \"severity\": \"low\",\n      \"evidence\": \"governance question: process only, not assessed from cluster data; confirm with the team\",\n      \"source_file\": null,\n      \"recommendation\": \"Automate configuration compliance scanning (kube-bench, Prowler or Security Hub).\",\n      \"layer\": \"detection\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-55\",\n      \"war_id\": null,\n      \"title\": \"Do node instances block pod access to the instance metadata service (IMDSv2 required with hop limit 1, per node type)?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"2/6 running Linux instances block pod access to IMDS (endpoint disabled, or IMDSv2 required with hop limit 1); failing: i-0bb1 (managed node group general, hop limit 2), i-0bb2 (managed node group general, hop limit 2), i-0bb3 (managed node group general, hop limit 2), i-0bb4 (managed node group general, hop limit 2)\",\n      \"source_file\": \"posture/instances.json, posture/nodes.json\",\n      \"recommendation\": \"Set HttpTokens=required and HttpPutResponseHopLimit=1 in each launch template, managed node group template or Karpenter EC2NodeClass; give pods that need AWS access Pod Identity or IRSA.\",\n      \"layer\": \"node-credential\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-56\",\n      \"war_id\": null,\n      \"title\": \"Does every workload namespace carry a default-deny ingress NetworkPolicy?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"2/4 workload namespaces carry a default-deny ingress NetworkPolicy (empty podSelector, Ingress, no ingress rule); objects only, enforcement is SEC-POSTURE-26 (WAR sec-4); failing: orders, web\",\n      \"source_file\": \"posture/networkpolicies.json, posture/namespaces.json\",\n      \"recommendation\": \"Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress] to every workload namespace, then allow the flows each service needs.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-57\",\n      \"war_id\": null,\n      \"title\": \"Is pod egress limited by a NetworkPolicy in every workload namespace?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"0/4 workload namespaces limit egress for every pod (a NetworkPolicy with an empty podSelector and Egress in policyTypes); the allowed destinations are not judged; failing: orders, web, batch, legacy\",\n      \"source_file\": \"posture/networkpolicies.json, posture/namespaces.json\",\n      \"recommendation\": \"Add a NetworkPolicy with podSelector: {} and policyTypes: [Egress] that allows DNS and the destinations each namespace needs.\",\n      \"layer\": \"lateral-movement\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-58\",\n      \"war_id\": null,\n      \"title\": \"Are workload pods free of hostNetwork, hostPID and hostIPC outside the system namespaces?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"7/8 workload pods use no host namespace; 1 pod(s) set hostNetwork, hostPID or hostIPC outside kube-* and amazon-*; failing: legacy/log-shipper-x7k2p (hostNetwork)\",\n      \"source_file\": \"posture/pods.json\",\n      \"recommendation\": \"Remove hostNetwork, hostPID and hostIPC from workload pods; the Baseline Pod Security level rejects them.\",\n      \"layer\": \"privilege\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-59\",\n      \"war_id\": null,\n      \"title\": \"Is the control plane authenticator log enabled?\",\n      \"result\": \"pass\",\n      \"severity\": \"medium\",\n      \"evidence\": \"control plane log types enabled: api, audit, authenticator; authenticator is on\",\n      \"source_file\": \"posture/cluster.json\",\n      \"recommendation\": \"Enable the authenticator control plane log type alongside audit (re-state every type already enabled).\",\n      \"layer\": \"detection\",\n      \"state\": \"all\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-60\",\n      \"war_id\": null,\n      \"title\": \"Is GuardDuty EKS Audit Log Monitoring enabled in this Region?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured\",\n      \"source_file\": \"posture/guardduty.json\",\n      \"recommendation\": \"Enable GuardDuty and its EKS Audit Log Monitoring feature (EKS_AUDIT_LOGS) in this account and Region.\",\n      \"layer\": \"detection\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-61\",\n      \"war_id\": null,\n      \"title\": \"Is GuardDuty Runtime Monitoring enabled for EKS in this Region?\",\n      \"result\": \"unknown\",\n      \"severity\": \"medium\",\n      \"evidence\": \"not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured\",\n      \"source_file\": \"posture/guardduty.json\",\n      \"recommendation\": \"Enable GuardDuty Runtime Monitoring with automated agent management for EKS (EKS_ADDON_MANAGEMENT).\",\n      \"layer\": \"detection\",\n      \"state\": \"unknown\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-62\",\n      \"war_id\": null,\n      \"title\": \"Is ECR registry scanning enhanced, with continuous rescan of every repository?\",\n      \"result\": \"fail\",\n      \"severity\": \"medium\",\n      \"evidence\": \"registry scanType BASIC; rules: none; failing: scanType BASIC\",\n      \"source_file\": \"posture/ecr-scanning.json\",\n      \"recommendation\": \"Set registry scanning to ENHANCED with a CONTINUOUS_SCAN rule whose filter covers the repositories this cluster pulls (for example *).\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"none\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-63\",\n      \"war_id\": null,\n      \"title\": \"Are workload images referenced by immutable digest?\",\n      \"result\": \"fail\",\n      \"severity\": \"low\",\n      \"evidence\": \"5/14 workload containers and init containers reference their image by @sha256: digest (the pod spec as written; a tag resolved at pull time does not count)\",\n      \"source_file\": \"posture/pods.json\",\n      \"recommendation\": \"Reference images as repo@sha256:<digest> (CI can resolve tags to digests at deploy time).\",\n      \"layer\": \"supply-chain\",\n      \"state\": \"some\"\n    },\n    {\n      \"id\": \"SEC-POSTURE-64\",\n      \"war_id\": null,\n      \"title\": \"Is cluster-wide admin through an access policy held only by the expected principals (the roles named with --admin-allow)?\",\n      \"result\": \"fail\",\n      \"severity\": \"high\",\n      \"evidence\": \"2 principal(s) hold cluster admin through an access policy outside --admin-allow (not given); the cluster was created with bootstrapClusterCreatorAdminPermissions true, so one of them is likely the creator; failing: arn:aws:iam::111122223333:role/platform-admin (AmazonEKSClusterAdminPolicy, cluster), arn:aws:iam::111122223333:role/ci-deployer (AmazonEKSClusterAdminPolicy, cluster)\",\n      \"source_file\": \"posture/accessentries.json, posture/cluster.json\",\n      \"recommendation\": \"For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name <CLUSTER> --region <REGION> --principal-arn <ARN> --policy-arn arn:aws:eks::aws:cluster-access-policy/<the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy>. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed.\",\n      \"layer\": \"identity\",\n      \"state\": \"none\"\n    }\n  ]\n}\n"
+   },
+   "outputs": {
+    "sec-2.md": "# EKS security posture check: demo-shared\n\n## Posture check: would this cluster contain a compromised pod?\n\n- Generated at: 2026-11-05T17:30:00Z\n- Coverage: 46 of 49 measured checks answered (94%, gate 50%); 15 governance checks not scored (confirm with the team)\n- Score: 59 of 100\n\n| Containment layer | Verdict |\n|---|---|\n| node-credential | not-contained |\n| lateral-movement | not-contained |\n| privilege | not-contained |\n| identity | not-contained |\n| detection | partly |\n| api-exposure | not-contained |\n| supply-chain | partly |\n\n## Failed, unknown and passed-with-exceptions checks\n\n| Result | Severity | Check | Evidence | Recommendation |\n|---|---|---|---|---|\n| fail | high | SEC-POSTURE-2 Is public API server access restricted to specific CIDR ranges rather than reachable from the whole internet? | endpointPublicAccess=true with publicAccessCidrs \\[0.0.0.0/0\\]: the API server is reachable from the whole internet | Restrict publicAccessCidrs to known operator ranges, or turn the public endpoint off. |\n| fail | high | SEC-POSTURE-34 Are Pod Security Standards labels applied to namespaces to enforce security baselines? | 3/4 workload namespaces carry pod-security.kubernetes.io/enforce baseline or restricted; failing: legacy | Label every workload namespace pod-security.kubernetes.io/enforce=baseline or restricted. |\n| fail | high | SEC-POSTURE-55 Do node instances block pod access to the instance metadata service (IMDSv2 required with hop limit 1, per node type)? | 2/6 running Linux instances block pod access to IMDS (endpoint disabled, or IMDSv2 required with hop limit 1); failing: i-0bb1 (managed node group general, hop limit 2), i-0bb2 (managed node group general, hop limit 2), i-0bb3 (managed node group general, hop limit 2), i-0bb4 (managed node group general, hop limit 2) | Set HttpTokens=required and HttpPutResponseHopLimit=1 in each launch template, managed node group template or Karpenter EC2NodeClass; give pods that need AWS access Pod Identity or IRSA. |\n| fail | high | SEC-POSTURE-56 Does every workload namespace carry a default-deny ingress NetworkPolicy? | 2/4 workload namespaces carry a default-deny ingress NetworkPolicy (empty podSelector, Ingress, no ingress rule); objects only, enforcement is SEC-POSTURE-26 (WAR sec-4); failing: orders, web | Add a NetworkPolicy with podSelector: {} and policyTypes: \\[Ingress\\] to every workload namespace, then allow the flows each service needs. |\n| fail | high | SEC-POSTURE-58 Are workload pods free of hostNetwork, hostPID and hostIPC outside the system namespaces? | 7/8 workload pods use no host namespace; 1 pod(s) set hostNetwork, hostPID or hostIPC outside kube-\\* and amazon-\\*; failing: legacy/log-shipper-x7k2p (hostNetwork) | Remove hostNetwork, hostPID and hostIPC from workload pods; the Baseline Pod Security level rejects them. |\n| fail | high | SEC-POSTURE-64 Is cluster-wide admin through an access policy held only by the expected principals (the roles named with --admin-allow)? | 2 principal(s) hold cluster admin through an access policy outside --admin-allow (not given); the cluster was created with bootstrapClusterCreatorAdminPermissions true, so one of them is likely the creator; failing: arn:aws:iam::111122223333:role/platform-admin (AmazonEKSClusterAdminPolicy, cluster), arn:aws:iam::111122223333:role/ci-deployer (AmazonEKSClusterAdminPolicy, cluster) | For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name &lt;CLUSTER&gt; --region &lt;REGION&gt; --principal-arn &lt;ARN&gt; --policy-arn arn:aws:eks::aws:cluster-access-policy/&lt;the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy&gt;. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed. |\n| fail | medium | SEC-POSTURE-13 Do default service accounts in non-system namespaces have automountServiceAccountToken disabled? | 1/4 default service accounts in workload namespaces set automountServiceAccountToken false | Set automountServiceAccountToken: false on each namespace default service account. |\n| fail | medium | SEC-POSTURE-32 Has the cluster security group's default allow-all egress been narrowed? | the cluster security group keeps its default allow-all egress | Narrow the cluster security group egress from all traffic to 0.0.0.0/0 to what the cluster needs. |\n| fail | medium | SEC-POSTURE-33 Is any non-AWS validating admission webhook deployed whose rules match Pod creation? | no non-AWS validating admission webhook matches Pod creation | Run a validating admission webhook (policy engine) that inspects pod creation. |\n| fail | medium | SEC-POSTURE-35 Is a policy engine (Kyverno or Gatekeeper) deployed with at least one policy loaded? | no Kyverno or Gatekeeper found | Deploy a policy engine (Kyverno or Gatekeeper) with enforcing policies loaded. |\n| fail | medium | SEC-POSTURE-36 Are admission controller policies (Gatekeeper/Kyverno) deployed on the cluster? | no Kyverno or Gatekeeper found | Load admission policies covering the baseline Pod Security controls. |\n| fail | medium | SEC-POSTURE-37 Is an admission policy engine deployed with at least one policy loaded, which is where a privileged-container restriction would live (whether any loaded policy restricts privileged is reported, not scored)? | no Kyverno or Gatekeeper found | Load an enforcing policy that rejects privileged containers. |\n| fail | medium | SEC-POSTURE-38 Is an admission policy engine deployed with at least one policy loaded? | no Kyverno or Gatekeeper found | Run admission policies in enforce mode once audit results are clean. |\n| fail | medium | SEC-POSTURE-40 Do containers have security contexts configured (runAsNonRoot, readOnlyRootFilesystem, or allowPrivilegeEscalation=false)? | 6/8 workload pods set a security context | Set a securityContext on every container (runAsNonRoot, readOnlyRootFilesystem, allowPrivilegeEscalation: false). |\n| fail | medium | SEC-POSTURE-41 Do containers run as non-root users? | 11/14 workload containers run as non-root | Run containers as non-root (runAsNonRoot: true and a non-zero runAsUser). |\n| fail | medium | SEC-POSTURE-43 Are pods free of host path volume mounts? | 7/8 workload pods mount no hostPath volume; failing: legacy/log-shipper-x7k2p (hostPath /var/log) | Replace hostPath volumes with CSI or emptyDir volumes outside the system namespaces. |\n| fail | medium | SEC-POSTURE-45 Do containers drop ALL Linux capabilities? | 6/14 workload containers drop ALL capabilities | Drop ALL capabilities and add back only what each container needs. |\n| fail | medium | SEC-POSTURE-48 Is a runtime security monitoring agent present (GuardDuty Runtime Monitoring, Falco, Sysdig or Tetragon)? | no GuardDuty add-on and no GuardDuty agent, Falco, Sysdig or Tetragon DaemonSet pods found | Run a runtime threat detection agent on every node (GuardDuty Runtime Monitoring or an equivalent). |\n| fail | medium | SEC-POSTURE-57 Is pod egress limited by a NetworkPolicy in every workload namespace? | 0/4 workload namespaces limit egress for every pod (a NetworkPolicy with an empty podSelector and Egress in policyTypes); the allowed destinations are not judged; failing: orders, web, batch, legacy | Add a NetworkPolicy with podSelector: {} and policyTypes: \\[Egress\\] that allows DNS and the destinations each namespace needs. |\n| fail | medium | SEC-POSTURE-62 Is ECR registry scanning enhanced, with continuous rescan of every repository? | registry scanType BASIC; rules: none; failing: scanType BASIC | Set registry scanning to ENHANCED with a CONTINUOUS\\_SCAN rule whose filter covers the repositories this cluster pulls (for example \\*). |\n| unknown | medium | SEC-POSTURE-15 Do you leverage AWS Secrets Manager and Config Provider (ASCP), EKS secrets encryption, or third-party solutions like HashiCorp Vault to manage secrets in EKS? | governance question: process only, not assessed from cluster data; confirm with the team | Keep application credentials in AWS Secrets Manager (ASCP or an external secrets operator) rather than in manifests. |\n| unknown | medium | SEC-POSTURE-16 Do you implement automatic rotation of secrets, credentials, and TLS certificates? | governance question: process only, not assessed from cluster data; confirm with the team | Rotate credentials and TLS certificates automatically. |\n| unknown | medium | SEC-POSTURE-20 Do you enable encryption at rest for Amazon EFS file systems used by Pods? | governance question: process only, not assessed from cluster data; confirm with the team | Create EFS file systems used by pods with encryption at rest. |\n| unknown | medium | SEC-POSTURE-27 Do you apply network separation to Pod networking using Kubernetes Network Policies or AWS security groups to control traffic between Pods and clusters? | governance question: process only, not assessed from cluster data; confirm with the team | Separate pod traffic with NetworkPolicies or security groups for pods. |\n| unknown | medium | SEC-POSTURE-3 Do you allow users to assume an IAM Role and map that role to a Kubernetes RBAC group, rather than creating individual user mappings in the aws-auth ConfigMap? | governance question: process only, not assessed from cluster data; confirm with the team | Map IAM roles (not users) to Kubernetes groups, through access entries where possible. |\n| unknown | medium | SEC-POSTURE-49 Do you use separate EKS clusters for production and non-production environments, ideally in different AWS accounts? | governance question: process only, not assessed from cluster data; confirm with the team | Run production and non-production on separate clusters, ideally in separate accounts. |\n| unknown | medium | SEC-POSTURE-50 Do you leverage tools like kube-bench to automatically check whether EKS is deployed securely by running checks documented in the CIS Kubernetes Benchmark? | governance question: process only, not assessed from cluster data; confirm with the team | Run CIS benchmark checks (for example kube-bench) on a schedule. |\n| unknown | medium | SEC-POSTURE-51 Do you manage configuration changes through version control with pull request reviews and approvals before applying to clusters? | governance question: process only, not assessed from cluster data; confirm with the team | Change cluster configuration only through reviewed pull requests. |\n| unknown | medium | SEC-POSTURE-6 Do you restrict access to the kube-system namespace to super administrators only, preventing regular users from modifying critical cluster components? | governance question: process only, not assessed from cluster data; confirm with the team | Limit write access to kube-system to cluster administrators. |\n| unknown | medium | SEC-POSTURE-60 Is GuardDuty EKS Audit Log Monitoring enabled in this Region? | not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured | Enable GuardDuty and its EKS Audit Log Monitoring feature (EKS\\_AUDIT\\_LOGS) in this account and Region. |\n| unknown | medium | SEC-POSTURE-61 Is GuardDuty Runtime Monitoring enabled for EKS in this Region? | not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured | Enable GuardDuty Runtime Monitoring with automated agent management for EKS (EKS\\_ADDON\\_MANAGEMENT). |\n| fail | low | SEC-POSTURE-14 Is an external secrets manager operator (e.g. External Secrets Operator) deployed on the cluster? | no External Secrets Operator or Secrets Store CSI Driver found | Consider an external secrets operator so application credentials live in a managed store. |\n| fail | low | SEC-POSTURE-23 Is a service mesh control plane (Istio, Linkerd or Consul) deployed? | no service mesh control plane found | Where zero-trust service-to-service traffic is required, deploy a service mesh control plane. |\n| fail | low | SEC-POSTURE-24 Do workload pods carry a service-mesh sidecar (the data path for service-to-service mTLS)? | 0/8 workload pods carry a mesh sidecar | Inject mesh sidecars into workload pods where mTLS between services is required. |\n| fail | low | SEC-POSTURE-31 Do ECR repositories use immutable image tags? | 1/3 ECR repositories use immutable tags | Set image tag mutability to IMMUTABLE on the repositories this cluster pulls from. |\n| fail | low | SEC-POSTURE-63 Are workload images referenced by immutable digest? | 5/14 workload containers and init containers reference their image by @sha256: digest (the pod spec as written; a tag resolved at pull time does not count) | Reference images as repo@sha256:&lt;digest&gt; (CI can resolve tags to digests at deploy time). |\n| fail | low | SEC-POSTURE-8 Is cluster access granted through EKS access entries (API authentication mode) rather than the legacy aws-auth ConfigMap? | authenticationMode API\\_AND\\_CONFIG\\_MAP: the aws-auth ConfigMap is still read | Move authenticationMode to API and grant access through EKS access entries. |\n| unknown | low | SEC-POSTURE-17 Do you implement automatic rotation of secrets, credentials, database passwords, and TLS certificates used by your EKS workloads, using tools like AWS Secrets Manager, External Secrets Operator, or cert-manager? | governance question: process only, not assessed from cluster data; confirm with the team | Automate rotation for workload credentials, database passwords and certificates. |\n| unknown | low | SEC-POSTURE-22 Do you enable encryption in transit for Amazon EFS when using the EFS CSI driver? | governance question: process only, not assessed from cluster data; confirm with the team | Mount EFS with encryption in transit (the EFS CSI driver tls mount option). |\n| unknown | low | SEC-POSTURE-4 Do you use a dedicated IAM role to create EKS clusters that is not used for routine cluster operations or day-to-day management tasks? | governance question: process only, not assessed from cluster data; confirm with the team | Create clusters with a dedicated role that is not used for daily operations. |\n| unknown | low | SEC-POSTURE-47 Do you implement container image signing and verification (Sigstore/Cosign, AWS Signer, Notary)? | governance question: process only, not assessed from cluster data; confirm with the team | Sign images and verify signatures at admission. |\n| unknown | low | SEC-POSTURE-53 Do you regularly scan your EKS cluster against compliance frameworks (CIS Benchmark, kube-bench)? | governance question: process only, not assessed from cluster data; confirm with the team | Scan the cluster against a compliance framework on a schedule. |\n| unknown | low | SEC-POSTURE-54 Do you regularly scan your EKS cluster configuration against compliance frameworks (CIS Kubernetes Benchmark, PCI-DSS, HIPAA, SOC 2) using automated tools like kube-bench, Prowler, or AWS Security Hub? | governance question: process only, not assessed from cluster data; confirm with the team | Automate configuration compliance scanning (kube-bench, Prowler or Security Hub). |\n\nPassed checks: 20. Not applicable: 1.\n\nThe scripts that produced this report are read-only; they changed nothing.\n",
+    "sec-2.html": "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">\n<title>EKS security posture check: demo-shared</title><style>body{font-family:system-ui,sans-serif;max-width:72rem;margin:2rem auto;padding:0 1rem;color:#1b1b1b}table{border-collapse:collapse;margin:0.5rem 0 1rem}th,td{border:1px solid #ccc;padding:0.3rem 0.5rem;text-align:left;vertical-align:top}th{background:#f2f2f2}pre{background:#f6f6f6;padding:0.75rem;overflow-x:auto}footer{margin-top:2rem;border-top:1px solid #ccc;padding-top:0.5rem}</style></head><body>\n<h1>EKS security posture check: demo-shared</h1>\n<h2>Posture check: would this cluster contain a compromised pod?</h2>\n<ul><li>Generated at: 2026-11-05T17:30:00Z</li><li>Coverage: 46 of 49 measured checks answered (94%, gate 50%); 15 governance checks not scored (confirm with the team)</li><li>Score: 59 of 100</li></ul>\n<table><thead><tr><th>Containment layer</th><th>Verdict</th></tr></thead><tbody>\n<tr><td>node-credential</td><td>not-contained</td></tr>\n<tr><td>lateral-movement</td><td>not-contained</td></tr>\n<tr><td>privilege</td><td>not-contained</td></tr>\n<tr><td>identity</td><td>not-contained</td></tr>\n<tr><td>detection</td><td>partly</td></tr>\n<tr><td>api-exposure</td><td>not-contained</td></tr>\n<tr><td>supply-chain</td><td>partly</td></tr>\n</tbody></table>\n<h2>Failed, unknown and passed-with-exceptions checks</h2>\n<table><thead><tr><th>Result</th><th>Severity</th><th>Check</th><th>Evidence</th><th>Recommendation</th></tr></thead><tbody>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-2 Is public API server access restricted to specific CIDR ranges rather than reachable from the whole internet?</td><td>endpointPublicAccess=true with publicAccessCidrs [0.0.0.0/0]: the API server is reachable from the whole internet</td><td>Restrict publicAccessCidrs to known operator ranges, or turn the public endpoint off.</td></tr>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-34 Are Pod Security Standards labels applied to namespaces to enforce security baselines?</td><td>3/4 workload namespaces carry pod-security.kubernetes.io/enforce baseline or restricted; failing: legacy</td><td>Label every workload namespace pod-security.kubernetes.io/enforce=baseline or restricted.</td></tr>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-55 Do node instances block pod access to the instance metadata service (IMDSv2 required with hop limit 1, per node type)?</td><td>2/6 running Linux instances block pod access to IMDS (endpoint disabled, or IMDSv2 required with hop limit 1); failing: i-0bb1 (managed node group general, hop limit 2), i-0bb2 (managed node group general, hop limit 2), i-0bb3 (managed node group general, hop limit 2), i-0bb4 (managed node group general, hop limit 2)</td><td>Set HttpTokens=required and HttpPutResponseHopLimit=1 in each launch template, managed node group template or Karpenter EC2NodeClass; give pods that need AWS access Pod Identity or IRSA.</td></tr>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-56 Does every workload namespace carry a default-deny ingress NetworkPolicy?</td><td>2/4 workload namespaces carry a default-deny ingress NetworkPolicy (empty podSelector, Ingress, no ingress rule); objects only, enforcement is SEC-POSTURE-26 (WAR sec-4); failing: orders, web</td><td>Add a NetworkPolicy with podSelector: {} and policyTypes: [Ingress] to every workload namespace, then allow the flows each service needs.</td></tr>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-58 Are workload pods free of hostNetwork, hostPID and hostIPC outside the system namespaces?</td><td>7/8 workload pods use no host namespace; 1 pod(s) set hostNetwork, hostPID or hostIPC outside kube-* and amazon-*; failing: legacy/log-shipper-x7k2p (hostNetwork)</td><td>Remove hostNetwork, hostPID and hostIPC from workload pods; the Baseline Pod Security level rejects them.</td></tr>\n<tr><td>fail</td><td>high</td><td>SEC-POSTURE-64 Is cluster-wide admin through an access policy held only by the expected principals (the roles named with --admin-allow)?</td><td>2 principal(s) hold cluster admin through an access policy outside --admin-allow (not given); the cluster was created with bootstrapClusterCreatorAdminPermissions true, so one of them is likely the creator; failing: arn:aws:iam::111122223333:role/platform-admin (AmazonEKSClusterAdminPolicy, cluster), arn:aws:iam::111122223333:role/ci-deployer (AmazonEKSClusterAdminPolicy, cluster)</td><td>For each failing principal, grant what it needs at a narrower scope (AmazonEKSAdminPolicy with a namespace access scope, or a Kubernetes group bound to a narrower RBAC role), then remove the cluster-wide grant: aws eks disassociate-access-policy --cluster-name &lt;CLUSTER&gt; --region &lt;REGION&gt; --principal-arn &lt;ARN&gt; --policy-arn arn:aws:eks::aws:cluster-access-policy/&lt;the listed policy, AmazonEKSClusterAdminPolicy or AmazonEKSAdminPolicy&gt;. Keep one break-glass admin role whose use is logged. Printed for review; nothing is changed.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-13 Do default service accounts in non-system namespaces have automountServiceAccountToken disabled?</td><td>1/4 default service accounts in workload namespaces set automountServiceAccountToken false</td><td>Set automountServiceAccountToken: false on each namespace default service account.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-32 Has the cluster security group&#x27;s default allow-all egress been narrowed?</td><td>the cluster security group keeps its default allow-all egress</td><td>Narrow the cluster security group egress from all traffic to 0.0.0.0/0 to what the cluster needs.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-33 Is any non-AWS validating admission webhook deployed whose rules match Pod creation?</td><td>no non-AWS validating admission webhook matches Pod creation</td><td>Run a validating admission webhook (policy engine) that inspects pod creation.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-35 Is a policy engine (Kyverno or Gatekeeper) deployed with at least one policy loaded?</td><td>no Kyverno or Gatekeeper found</td><td>Deploy a policy engine (Kyverno or Gatekeeper) with enforcing policies loaded.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-36 Are admission controller policies (Gatekeeper/Kyverno) deployed on the cluster?</td><td>no Kyverno or Gatekeeper found</td><td>Load admission policies covering the baseline Pod Security controls.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-37 Is an admission policy engine deployed with at least one policy loaded, which is where a privileged-container restriction would live (whether any loaded policy restricts privileged is reported, not scored)?</td><td>no Kyverno or Gatekeeper found</td><td>Load an enforcing policy that rejects privileged containers.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-38 Is an admission policy engine deployed with at least one policy loaded?</td><td>no Kyverno or Gatekeeper found</td><td>Run admission policies in enforce mode once audit results are clean.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-40 Do containers have security contexts configured (runAsNonRoot, readOnlyRootFilesystem, or allowPrivilegeEscalation=false)?</td><td>6/8 workload pods set a security context</td><td>Set a securityContext on every container (runAsNonRoot, readOnlyRootFilesystem, allowPrivilegeEscalation: false).</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-41 Do containers run as non-root users?</td><td>11/14 workload containers run as non-root</td><td>Run containers as non-root (runAsNonRoot: true and a non-zero runAsUser).</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-43 Are pods free of host path volume mounts?</td><td>7/8 workload pods mount no hostPath volume; failing: legacy/log-shipper-x7k2p (hostPath /var/log)</td><td>Replace hostPath volumes with CSI or emptyDir volumes outside the system namespaces.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-45 Do containers drop ALL Linux capabilities?</td><td>6/14 workload containers drop ALL capabilities</td><td>Drop ALL capabilities and add back only what each container needs.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-48 Is a runtime security monitoring agent present (GuardDuty Runtime Monitoring, Falco, Sysdig or Tetragon)?</td><td>no GuardDuty add-on and no GuardDuty agent, Falco, Sysdig or Tetragon DaemonSet pods found</td><td>Run a runtime threat detection agent on every node (GuardDuty Runtime Monitoring or an equivalent).</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-57 Is pod egress limited by a NetworkPolicy in every workload namespace?</td><td>0/4 workload namespaces limit egress for every pod (a NetworkPolicy with an empty podSelector and Egress in policyTypes); the allowed destinations are not judged; failing: orders, web, batch, legacy</td><td>Add a NetworkPolicy with podSelector: {} and policyTypes: [Egress] that allows DNS and the destinations each namespace needs.</td></tr>\n<tr><td>fail</td><td>medium</td><td>SEC-POSTURE-62 Is ECR registry scanning enhanced, with continuous rescan of every repository?</td><td>registry scanType BASIC; rules: none; failing: scanType BASIC</td><td>Set registry scanning to ENHANCED with a CONTINUOUS_SCAN rule whose filter covers the repositories this cluster pulls (for example *).</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-15 Do you leverage AWS Secrets Manager and Config Provider (ASCP), EKS secrets encryption, or third-party solutions like HashiCorp Vault to manage secrets in EKS?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Keep application credentials in AWS Secrets Manager (ASCP or an external secrets operator) rather than in manifests.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-16 Do you implement automatic rotation of secrets, credentials, and TLS certificates?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Rotate credentials and TLS certificates automatically.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-20 Do you enable encryption at rest for Amazon EFS file systems used by Pods?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Create EFS file systems used by pods with encryption at rest.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-27 Do you apply network separation to Pod networking using Kubernetes Network Policies or AWS security groups to control traffic between Pods and clusters?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Separate pod traffic with NetworkPolicies or security groups for pods.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-3 Do you allow users to assume an IAM Role and map that role to a Kubernetes RBAC group, rather than creating individual user mappings in the aws-auth ConfigMap?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Map IAM roles (not users) to Kubernetes groups, through access entries where possible.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-49 Do you use separate EKS clusters for production and non-production environments, ideally in different AWS accounts?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Run production and non-production on separate clusters, ideally in separate accounts.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-50 Do you leverage tools like kube-bench to automatically check whether EKS is deployed securely by running checks documented in the CIS Kubernetes Benchmark?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Run CIS benchmark checks (for example kube-bench) on a schedule.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-51 Do you manage configuration changes through version control with pull request reviews and approvals before applying to clusters?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Change cluster configuration only through reviewed pull requests.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-6 Do you restrict access to the kube-system namespace to super administrators only, preventing regular users from modifying critical cluster components?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Limit write access to kube-system to cluster administrators.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-60 Is GuardDuty EKS Audit Log Monitoring enabled in this Region?</td><td>not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured</td><td>Enable GuardDuty and its EKS Audit Log Monitoring feature (EKS_AUDIT_LOGS) in this account and Region.</td></tr>\n<tr><td>unknown</td><td>medium</td><td>SEC-POSTURE-61 Is GuardDuty Runtime Monitoring enabled for EKS in this Region?</td><td>not collected: guardduty.json (the read was denied or failed; see posture/meta.json errors), so this check was NOT measured</td><td>Enable GuardDuty Runtime Monitoring with automated agent management for EKS (EKS_ADDON_MANAGEMENT).</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-14 Is an external secrets manager operator (e.g. External Secrets Operator) deployed on the cluster?</td><td>no External Secrets Operator or Secrets Store CSI Driver found</td><td>Consider an external secrets operator so application credentials live in a managed store.</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-23 Is a service mesh control plane (Istio, Linkerd or Consul) deployed?</td><td>no service mesh control plane found</td><td>Where zero-trust service-to-service traffic is required, deploy a service mesh control plane.</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-24 Do workload pods carry a service-mesh sidecar (the data path for service-to-service mTLS)?</td><td>0/8 workload pods carry a mesh sidecar</td><td>Inject mesh sidecars into workload pods where mTLS between services is required.</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-31 Do ECR repositories use immutable image tags?</td><td>1/3 ECR repositories use immutable tags</td><td>Set image tag mutability to IMMUTABLE on the repositories this cluster pulls from.</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-63 Are workload images referenced by immutable digest?</td><td>5/14 workload containers and init containers reference their image by @sha256: digest (the pod spec as written; a tag resolved at pull time does not count)</td><td>Reference images as repo@sha256:&lt;digest&gt; (CI can resolve tags to digests at deploy time).</td></tr>\n<tr><td>fail</td><td>low</td><td>SEC-POSTURE-8 Is cluster access granted through EKS access entries (API authentication mode) rather than the legacy aws-auth ConfigMap?</td><td>authenticationMode API_AND_CONFIG_MAP: the aws-auth ConfigMap is still read</td><td>Move authenticationMode to API and grant access through EKS access entries.</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-17 Do you implement automatic rotation of secrets, credentials, database passwords, and TLS certificates used by your EKS workloads, using tools like AWS Secrets Manager, External Secrets Operator, or cert-manager?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Automate rotation for workload credentials, database passwords and certificates.</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-22 Do you enable encryption in transit for Amazon EFS when using the EFS CSI driver?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Mount EFS with encryption in transit (the EFS CSI driver tls mount option).</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-4 Do you use a dedicated IAM role to create EKS clusters that is not used for routine cluster operations or day-to-day management tasks?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Create clusters with a dedicated role that is not used for daily operations.</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-47 Do you implement container image signing and verification (Sigstore/Cosign, AWS Signer, Notary)?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Sign images and verify signatures at admission.</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-53 Do you regularly scan your EKS cluster against compliance frameworks (CIS Benchmark, kube-bench)?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Scan the cluster against a compliance framework on a schedule.</td></tr>\n<tr><td>unknown</td><td>low</td><td>SEC-POSTURE-54 Do you regularly scan your EKS cluster configuration against compliance frameworks (CIS Kubernetes Benchmark, PCI-DSS, HIPAA, SOC 2) using automated tools like kube-bench, Prowler, or AWS Security Hub?</td><td>governance question: process only, not assessed from cluster data; confirm with the team</td><td>Automate configuration compliance scanning (kube-bench, Prowler or Security Hub).</td></tr>\n</tbody></table>\n<p>Passed checks: 20. Not applicable: 1.</p>\n<footer><p>The scripts that produced this report are read-only; they changed nothing.</p></footer>\n</body></html>\n"
+   }
+  }
+ ],
+ "hostile": [
+  {
+   "id": "H1",
+   "about": "Markup in link text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [x<b>y</b>](https://a.example/) here.\n",
+   "contains": [
+    "<a href=\"https://a.example/\">x&lt;b&gt;y&lt;/b&gt;</a>"
+   ],
+   "absent": [
+    "<b>y</b>"
+   ]
+  },
+  {
+   "id": "H1-sec",
+   "about": "Markup in link text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "x<b>y</b>",
+   "contains": {
+    ".md": [
+     "| x&lt;b&gt;y&lt;/b&gt; |"
+    ],
+    ".html": [
+     "<td>x&lt;b&gt;y&lt;/b&gt;</td>"
+    ]
+   },
+   "absent": [
+    "<b>y</b>"
+   ]
+  },
+  {
+   "id": "H2",
+   "about": "Markup in the href (a quote that would close the attribute)",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [a](https://a.example/\"onmouseover=\"z) here.\n",
+   "contains": [
+    "<a href=\"https://a.example/&quot;onmouseover=&quot;z\">a</a>"
+   ],
+   "absent": [
+    "href=\"https://a.example/\"onmouseover"
+   ]
+  },
+  {
+   "id": "H2-sec",
+   "about": "Markup in the href (a quote that would close the attribute) (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "https://a.example/\"onmouseover=\"z",
+   "contains": {
+    ".md": [
+     "| https://a.example/\"onmouseover=\"z |"
+    ],
+    ".html": [
+     "<td>https://a.example/&quot;onmouseover=&quot;z</td>"
+    ]
+   },
+   "absent": [
+    "href="
+   ]
+  },
+  {
+   "id": "H3",
+   "about": "javascript: scheme in a link",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [js](javascript:alert(1)) here.\n",
+   "contains": [
+    "See [js](javascript:alert(1)) here."
+   ],
+   "absent": [
+    "href=\"javascript:",
+    "href=\"#\"",
+    "<a "
+   ]
+  },
+  {
+   "id": "H3-sec",
+   "about": "javascript: scheme in a link (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "[js](javascript:alert(1))",
+   "contains": {
+    ".md": [
+     "| \\[js\\](javascript:alert(1)) |"
+    ],
+    ".html": [
+     "<td>[js](javascript:alert(1))</td>"
+    ]
+   },
+   "absent": [
+    "href=",
+    "<a "
+   ]
+  },
+  {
+   "id": "H4",
+   "about": "Mixed-case unsafe scheme (JaVaScRiPt:)",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [js](JaVaScRiPt:alert(1)) here.\n",
+   "contains": [
+    "See [js](JaVaScRiPt:alert(1)) here."
+   ],
+   "absent": [
+    "href=\"javascript:",
+    "href=\"JaVaScRiPt:",
+    "href=\"#\"",
+    "<a "
+   ]
+  },
+  {
+   "id": "H4-sec",
+   "about": "Mixed-case unsafe scheme (JaVaScRiPt:) (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "[js](JaVaScRiPt:alert(1))",
+   "contains": {
+    ".md": [
+     "| \\[js\\](JaVaScRiPt:alert(1)) |"
+    ],
+    ".html": [
+     "<td>[js](JaVaScRiPt:alert(1))</td>"
+    ]
+   },
+   "absent": [
+    "href=",
+    "<a "
+   ]
+  },
+  {
+   "id": "H5",
+   "about": "Mixed-case allowed scheme (HTTPS://): linked or left as text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [ok](HTTPS://a.example/) here.\n",
+   "contains": [
+    "<a href=\"HTTPS://a.example/\">ok</a>"
+   ],
+   "absent": []
+  },
+  {
+   "id": "H5-sec",
+   "about": "Mixed-case allowed scheme (HTTPS://): linked or left as text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "[ok](HTTPS://a.example/)",
+   "contains": {
+    ".md": [
+     "| \\[ok\\](HTTPS://a.example/) |"
+    ],
+    ".html": [
+     "<td>[ok](HTTPS://a.example/)</td>"
+    ]
+   },
+   "absent": [
+    "href=",
+    "<a "
+   ]
+  },
+  {
+   "id": "H6",
+   "about": "NUL bytes in text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nnul\u0000here and more.\n",
+   "contains": [
+    "nul here and more."
+   ],
+   "absent": [
+    "\u0000",
+    "nulhere"
+   ]
+  },
+  {
+   "id": "H6-sec",
+   "about": "NUL bytes in text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "nul\u0000here",
+   "contains": {
+    ".md": [
+     "| nul here |"
+    ],
+    ".html": [
+     "<td>nul here</td>"
+    ]
+   },
+   "absent": [
+    "\u0000"
+   ]
+  },
+  {
+   "id": "H7",
+   "about": "Placeholder-shaped string (the PR 383 href placeholder) in text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nText \u00000\u0000 here.\n",
+   "contains": [
+    "Text  0  here."
+   ],
+   "absent": [
+    "\u0000",
+    "Text 0 here"
+   ]
+  },
+  {
+   "id": "H7-sec",
+   "about": "Placeholder-shaped string (the PR 383 href placeholder) in text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "Text \u00000\u0000 here",
+   "contains": {
+    ".md": [
+     "| Text 0 here |"
+    ],
+    ".html": [
+     "<td>Text 0 here</td>"
+    ]
+   },
+   "absent": [
+    "\u0000"
+   ]
+  },
+  {
+   "id": "H8",
+   "about": "Placeholder-shaped string in an href, next to a real link",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\n[a](https://a.example/) and [p](https://b.example/\u00000\u0000) here.\n",
+   "contains": [
+    "<a href=\"https://a.example/\">a</a>",
+    "<a href=\"https://b.example/ 0 \">p</a>"
+   ],
+   "absent": [
+    "\u0000",
+    "href=\"https://a.example/\">p<",
+    "https://b.example/0"
+   ]
+  },
+  {
+   "id": "H8-sec",
+   "about": "Placeholder-shaped string in an href, next to a real link (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "https://b.example/\u00000\u0000",
+   "contains": {
+    ".md": [
+     "| https://b.example/ 0 |"
+    ],
+    ".html": [
+     "<td>https://b.example/ 0</td>"
+    ]
+   },
+   "absent": [
+    "\u0000",
+    "href="
+   ]
+  },
+  {
+   "id": "H12",
+   "about": "C0 control character other than NUL (ESC, 0x1b) in text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nesc\u001bhere and more.\n",
+   "contains": [
+    "esc here and more."
+   ],
+   "absent": [
+    "\u001b"
+   ]
+  },
+  {
+   "id": "H12-sec",
+   "about": "C0 control character other than NUL (ESC, 0x1b) in text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "esc\u001bhere",
+   "contains": {
+    ".md": [
+     "| esc here |"
+    ],
+    ".html": [
+     "<td>esc here</td>"
+    ]
+   },
+   "absent": [
+    "\u001b"
+   ]
+  },
+  {
+   "id": "H13",
+   "about": "DEL (0x7f) in text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\ndel\u007fhere and more.\n",
+   "contains": [
+    "del here and more."
+   ],
+   "absent": [
+    "\u007f"
+   ]
+  },
+  {
+   "id": "H13-sec",
+   "about": "DEL (0x7f) in text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "del\u007fhere",
+   "contains": {
+    ".md": [
+     "| del here |"
+    ],
+    ".html": [
+     "<td>del here</td>"
+    ]
+   },
+   "absent": [
+    "\u007f"
+   ]
+  },
+  {
+   "id": "H14",
+   "about": "C1 control character (U+009B) in text",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nc1\u009bhere and more.\n",
+   "contains": [
+    "c1 here and more."
+   ],
+   "absent": [
+    "\u009b"
+   ]
+  },
+  {
+   "id": "H14-sec",
+   "about": "C1 control character (U+009B) in text (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "c1\u009bhere",
+   "contains": {
+    ".md": [
+     "| c1 here |"
+    ],
+    ".html": [
+     "<td>c1 here</td>"
+    ]
+   },
+   "absent": [
+    "\u009b"
+   ]
+  },
+  {
+   "id": "H15",
+   "about": "Tab, LF and CR kept",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\n```\ncode\tTAB\n```\n\ntab\there lf\nhere cr\rhere.\n",
+   "contains": [
+    "<pre><code>code\tTAB</code></pre>",
+    "<p>tab\there lf</p>",
+    "<p>here cr</p>"
+   ],
+   "absent": [
+    "tab here",
+    "lf here",
+    "cr here"
+   ]
+  },
+  {
+   "id": "H15-sec",
+   "about": "Tab, LF and CR kept (eks-security findings values)",
+   "templates": [
+    "eks-security"
+   ],
+   "value": "tab\there lf\nhere cr\rhere",
+   "contains": {
+    ".md": [
+     "| tab here lf here cr here |"
+    ],
+    ".html": [
+     "<td>tab here lf here cr here</td>"
+    ]
+   },
+   "absent": [
+    "\t"
+   ]
+  },
+  {
+   "id": "H16",
+   "about": "Text a later inline pass would rewrite, inside an href (PR 383's href placeholder)",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nSee [a](https://a.example/**b**/`c`/HIGH/$5/month) here.\n",
+   "contains": [
+    "<a href=\"https://a.example/**b**/`c`/HIGH/$5/month\">a</a>"
+   ],
+   "absent": [
+    "<strong>",
+    "<code>",
+    "<span"
+   ]
+  },
+  {
+   "id": "H17",
+   "about": "Quote injection in a code fence's language (the old eks-cost-intelligence tool wrote it into class unescaped)",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\n```x\" onmouseover=\"alert(1)\ncode\n```\n",
+   "contains": [
+    "<pre><code class=\"language-x"
+   ],
+   "absent": [
+    "\" onmouseover=\""
+   ]
+  },
+  {
+   "id": "M1",
+   "about": "The apex.report-masking line in the report text reaches the page as written",
+   "templates": [
+    "ecs-operation-review",
+    "eks-cost-intelligence"
+   ],
+   "input": "# R\n\nBefore sharing this report outside your organization, mask or omit the AWS account ID, ARNs and other identifiers such as hostnames, private repository URLs and load balancer DNS names.\n",
+   "contains": [
+    "<p>Before sharing this report outside your organization, mask or omit the AWS account ID, ARNs and other identifiers such as hostnames, private repository URLs and load balancer DNS names.</p>"
+   ],
+   "absent": []
+  }
+ ],
+ "sec_fields": [
+  [
+   "sources",
+   0,
+   "title"
+  ],
+  [
+   "findings",
+   1,
+   "reason"
+  ],
+  [
+   "findings",
+   0,
+   "fixed"
+  ]
+ ],
+ "errors": [
+  {
+   "id": "H9-operation",
+   "about": "Input file missing",
+   "files": {},
+   "args": [
+    "ecs-operation-review",
+    "{d}/absent.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not readable: No such file or directory",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "H11-operation",
+   "about": "Input not UTF-8 (bytes ff fe inside a line)",
+   "files": {
+    "in.md": {
+     "hex": "232052650a0a6261642062797465733a20fffe20656e640a"
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/in.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not UTF-8 text",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "H9-cost",
+   "about": "Input file missing",
+   "files": {},
+   "args": [
+    "eks-cost-intelligence",
+    "{d}/absent.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not readable: No such file or directory",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "H11-cost",
+   "about": "Input not UTF-8 (bytes ff fe inside a line)",
+   "files": {
+    "in.md": {
+     "hex": "232052650a0a6261642062797465733a20fffe20656e640a"
+    }
+   },
+   "args": [
+    "eks-cost-intelligence",
+    "{d}/in.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not UTF-8 text",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "H9-security",
+   "about": "Input file missing",
+   "files": {},
+   "args": [
+    "eks-security",
+    "{d}/absent.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": not readable: No such file or directory",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "H11-security",
+   "about": "Input not UTF-8 (bytes ff fe inside a line)",
+   "files": {
+    "in.json": {
+     "hex": "232052650a0a6261642062797465733a20fffe20656e640a"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/in.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": not UTF-8 text",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "E1",
+   "about": "Input is a directory",
+   "files": {
+    "adir": {
+     "dir": true
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/adir",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not readable: Is a directory",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "E2",
+   "about": "Output folder missing",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    }
+   },
+   "args": [
+    "eks-cost-intelligence",
+    "{d}/in.md",
+    "--out",
+    "{d}/nope/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": not writable: No such file or directory",
+   "absent": []
+  },
+  {
+   "id": "E3",
+   "about": "Output path is a directory",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    },
+    "adir.html": {
+     "dir": true
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/in.md",
+    "--out",
+    "{d}/adir.html"
+   ],
+   "rc": 2,
+   "stderr": ": not writable: Is a directory",
+   "absent": []
+  },
+  {
+   "id": "E4",
+   "about": "eks-security output path is a symlink: never written through",
+   "files": {
+    "p.json": {
+     "text": "{\"schema\": \"eks-security/posture@1\"}"
+    },
+    "target.md": {
+     "text": "keep\n"
+    },
+    "o.md": {
+     "symlink": "target.md"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/p.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": not writable: ",
+   "absent": []
+  },
+  {
+   "id": "E6",
+   "about": "Two outputs of one format",
+   "files": {
+    "f.json": {
+     "text": "{\"schema\": \"eks-security/posture@1\"}"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/f.json",
+    "--out",
+    "{d}/a.md",
+    "--out",
+    "{d}/b.md"
+   ],
+   "rc": 2,
+   "stderr": ": a second .md output",
+   "absent": [
+    "a.md",
+    "b.md"
+   ]
+  },
+  {
+   "id": "E7",
+   "about": "A format the template does not write",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/in.md",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": ecs-operation-review writes .html only",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "E8",
+   "about": "No --out",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/in.md"
+   ],
+   "rc": 2,
+   "stderr": "the following arguments are required: --out",
+   "absent": []
+  },
+  {
+   "id": "E9",
+   "about": "Unknown template",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    }
+   },
+   "args": [
+    "eks-recon",
+    "{d}/in.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": "invalid choice",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "E10",
+   "about": "An old tool's output flag",
+   "files": {
+    "in.md": {
+     "text": "# R\n"
+    }
+   },
+   "args": [
+    "ecs-operation-review",
+    "{d}/in.md",
+    "-o",
+    "{d}/o.html",
+    "--out",
+    "{d}/p.html"
+   ],
+   "rc": 2,
+   "stderr": "unrecognized arguments: -o",
+   "absent": [
+    "o.html",
+    "p.html"
+   ]
+  },
+  {
+   "id": "E11",
+   "about": "Two inputs for a markdown template",
+   "files": {
+    "a.md": {
+     "text": "# A\n"
+    },
+    "b.md": {
+     "text": "# B\n"
+    }
+   },
+   "args": [
+    "eks-cost-intelligence",
+    "{d}/a.md",
+    "{d}/b.md",
+    "--out",
+    "{d}/o.html"
+   ],
+   "rc": 2,
+   "stderr": ": eks-cost-intelligence takes one input file (got 2)",
+   "absent": [
+    "o.html"
+   ]
+  },
+  {
+   "id": "E12",
+   "about": "Inventory without findings",
+   "files": {
+    "i.json": {
+     "text": "{\"schema\": \"eks-security/inventory@1\"}"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/i.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": an inventory input needs a findings input",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "E13",
+   "about": "A JSON input of another schema",
+   "files": {
+    "x.json": {
+     "text": "{\"schema\": \"eks-recon/2026-10-31\"}"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/x.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": schema must start with one of",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "E14",
+   "about": "A JSON input that does not parse",
+   "files": {
+    "x.json": {
+     "text": "{\"schema\": \n"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/x.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": not valid JSON: ",
+   "absent": [
+    "o.md"
+   ]
+  },
+  {
+   "id": "E15",
+   "about": "Two findings inputs",
+   "files": {
+    "a.json": {
+     "text": "{\"schema\": \"eks-security/findings@1\"}"
+    },
+    "b.json": {
+     "text": "{\"schema\": \"eks-security/findings@1\"}"
+    }
+   },
+   "args": [
+    "eks-security",
+    "{d}/a.json",
+    "{d}/b.json",
+    "--out",
+    "{d}/o.md"
+   ],
+   "rc": 2,
+   "stderr": ": a second findings input",
+   "absent": [
+    "o.md"
+   ]
+  }
+ ],
+ "gate": {
+  "base": "sec-1",
+  "set": [
+   [
+    "coverage",
+    "complete"
+   ],
+   false
+  ],
+  "rc": 3
+ }
+}

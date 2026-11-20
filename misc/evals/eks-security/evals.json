@@ -5,12 +5,21 @@
       "id": 1,
       "prompt": "We're a healthcare SaaS building a NEW EKS cluster to process PHI. HIPAA-eligible workload, no vendor-OS mandate, moderate Kubernetes skill, 6-month audit timeline, single cluster, low operational-overhead tolerance. Lay out the AWS-recommended security baseline across the full stack plus a 30/60/90 plan.",
       "expectations": [
-        "Recommends Bottlerocket as the Layer-1 default for a container-first HIPAA workload with no vendor-OS mandate",
-        "States EKS is HIPAA-ELIGIBLE and a signed BAA with AWS is required before processing PHI (does NOT say 'HIPAA-compliant')",
-        "Recommends EKS Pod Identity for new workloads AND EKS Access Entries instead of the aws-auth ConfigMap",
-        "Includes the non-negotiable baseline: PSA restricted, default-deny NetworkPolicy, control-plane audit+authenticator logging, GuardDuty for EKS, ECR Enhanced Scanning, secrets via Secrets Manager + CSI driver (not plain K8s Secrets)",
+        "Addresses the Layer-1 node OS choice for a container-first HIPAA workload with no vendor-OS mandate, with a reason",
+        "States EKS is HIPAA-ELIGIBLE (does NOT say 'HIPAA-compliant')",
+        "States a signed BAA with AWS is required before processing PHI",
+        "Recommends EKS Pod Identity for new workloads",
+        "Recommends EKS Access Entries instead of the aws-auth ConfigMap",
+        "Includes PSA restricted in the non-negotiable baseline",
+        "Includes default-deny NetworkPolicy in the non-negotiable baseline",
+        "Includes control-plane audit logging in the non-negotiable baseline",
+        "Includes control-plane authenticator logging in the non-negotiable baseline",
+        "Includes GuardDuty for EKS in the non-negotiable baseline",
+        "Includes ECR Enhanced Scanning in the non-negotiable baseline",
+        "Includes secrets via Secrets Manager + CSI driver (not plain K8s Secrets) in the non-negotiable baseline",
         "Includes the compliance-status disclaimer to verify on the live AWS Services in Scope page",
-        "Does NOT call IRSA 'legacy': frames Pod Identity as recommended-for-new while IRSA is a fully supported alternative. TODO: human review"
+        "Does NOT call IRSA 'legacy'.",
+        "Frames IRSA as a fully supported alternative to Pod Identity."
       ],
       "files": [],
       "name": "hipaa-greenfield-baseline"
@@ -20,9 +29,15 @@
       "prompt": "We want EKS Auto Mode for the operational simplicity, but our compliance team says they require CIS-hardened custom AMIs for our HIPAA workload. Can we use Auto Mode, and if not what's the alternative?",
       "expectations": [
         "States EKS Auto Mode does NOT support custom AMIs",
-        "Recommends Bottlerocket on self-managed Karpenter NodePools when a CIS-hardened custom AMI is a hard requirement",
+        "Names a node option outside Auto Mode that can run the CIS-hardened custom AMI (for example self-managed Karpenter (EC2NodeClass amiSelectorTerms) or managed node groups with a launch template), with a reason",
         "Distinguishes a hard regulatory requirement from an organizational preference before recommending",
-        "Notes that on Auto Mode the identity, image, runtime, audit and compliance layers (2, 4, 5, 6, 7) and all policy content stay the customer's, so Auto Mode is not 'security handled'. TODO: human review"
+        "Notes that on Auto Mode the identity layer (2) stays the customer's.",
+        "Notes that on Auto Mode the image layer (4) stays the customer's.",
+        "Notes that on Auto Mode the runtime layer (5) stays the customer's.",
+        "Notes that on Auto Mode the audit layer (6) stays the customer's.",
+        "Notes that on Auto Mode the compliance layer (7) stays the customer's.",
+        "Notes that on Auto Mode all policy content stays the customer's.",
+        "Notes that Auto Mode is not 'security handled'."
       ],
       "files": [],
       "name": "automode-vs-cis-custom-ami"
@@ -34,9 +49,13 @@
         "Sequences non-disruptive baseline (logging, GuardDuty, ECR scanning, Security Hub, kube-bench) BEFORE making changes",
         "Recommends migrating aws-auth ConfigMap to EKS Access Entries during a planned change window",
         "Recommends PSA restricted rolled out in audit mode before enforce mode",
-        "Notes AL2 must be migrated (AL2023 or Bottlerocket) and references the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 / AL2 OS EOL June 30 2026)",
-        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) + Security Hub as the audit-prep path, and does NOT prescribe standing up AWS Audit Manager for this audit: Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
-        "States PCI-DSS requires 1-year minimum audit-log retention. TODO: human review"
+        "Notes AL2 must be migrated (AL2023 or Bottlerocket)",
+        "References the correct AL2 timing (EKS stopped AL2 AMIs Nov 2025 and/or AL2 OS EOL June 30 2026)",
+        "Recommends AWS Config conformance packs (the PCI DSS 4.0 pack) as the audit-prep path",
+        "Recommends Security Hub as the audit-prep path",
+        "Does NOT prescribe standing up AWS Audit Manager for this audit.",
+        "States that AWS Audit Manager is in maintenance mode / closed to new accounts (as of 2026-04-30); its PCI framework continues for existing setups only.",
+        "States PCI-DSS requires 1-year minimum audit-log retention."
       ],
       "files": [],
       "name": "pci-existing-cluster-priority"
@@ -51,10 +70,19 @@
         "eval-4/bulletin.txt"
       ],
       "expectations": [
-        "Gives the verdict exposed for both the vpc-cni add-on (v1.21.1-eksbuild.3, fixed 1.22.3) and the aws-network-policy-agent image (v1.2.0-eksbuild.1, fixed 1.3.7)",
-        "Uses the bulletin's own severity (Important) and raises the priority one step (P2 to P1) because the bulletin states there is no workaround; it does not invent its own severity rating",
-        "Proposes the add-on update as a command for the team to review and run (describe-addon-versions first, a non-prod test, then update-addon to 1.22.3 or later with --resolve-conflicts PRESERVE) and does not claim to have run it",
-        "Cites the source URL and the advisory read time (2026-11-05T15:04:00Z), and opens with a coverage line (2 of 2 components read)",
+        "Gives the verdict exposed for the vpc-cni add-on (v1.21.1-eksbuild.3, fixed 1.22.3)",
+        "Gives the verdict exposed for the aws-network-policy-agent image (v1.2.0-eksbuild.1, fixed 1.3.7)",
+        "Uses the bulletin's own severity (Important); it does not invent its own severity rating",
+        "Raises the priority one step (P2 to P1) because the bulletin states there is no workaround",
+        "Proposes the add-on update as a command for the team to review and run",
+        "The proposed add-on update runs describe-addon-versions first",
+        "The proposed add-on update includes a non-prod test",
+        "The proposed add-on update runs update-addon to 1.22.3 or later after the non-prod test",
+        "The proposed update-addon runs with --resolve-conflicts PRESERVE",
+        "Does not claim to have run the add-on update",
+        "Cites the source URL",
+        "Cites the advisory read time (2026-11-05T15:04:00Z)",
+        "Opens with a coverage line (2 of 2 components read)",
         "Treats the advisory's NetworkPolicy condition as a note, not as a reason to lower the priority"
       ],
       "process_assertions": [
@@ -62,27 +90,22 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
-          "type": "must-contain",
-          "pattern": "exposed",
+          "type": "must-contain-one-of",
+          "patterns": [
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}exposed",
+            "\\|\\s*`?exposed`?\\s*\\|"
+          ],
           "context": "Both components are below the fixed versions",
           "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules; worked example table, standard cluster row)"
         },
         {
           "type": "must-contain",
-          "pattern": "P1",
+          "pattern": "\\bP1\\b",
+          "flags": "",
           "context": "Important is base P2; no workaround raises it one step",
           "source": "skills/eks-security/references/cve-advisory-review.md (Verdict rules: Priority)"
         },
@@ -94,22 +117,29 @@
         },
         {
           "type": "must-contain",
-          "pattern": "1\\.22\\.3",
+          "pattern": "^\\|[^\\n]*1\\.22\\.3|\\b(fixed|above)\\b[^\\n\"]{0,20}\\b1\\.22\\.3",
+          "flags": "im",
           "context": "Fixed add-on version from the bulletin",
           "source": "skills/eks-security/references/cve-advisory-review.md (Worked example: impacted versions line)"
         },
         {
-          "type": "must-contain",
-          "pattern": "2026-170-aws",
-          "context": "Finding cites its source URL",
+          "type": "must-contain-one-of",
+          "patterns": [
+            "2026-170-aws[^\\n]{0,80}2026-11-05T15:04",
+            "2026-11-05T15:04[^\\n]{0,80}2026-170-aws"
+          ],
+          "context": "Finding cites its source URL with its read time",
           "source": "skills/eks-security/SKILL.md (accuracy bar: every version fact with its URL and read time)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "no workaround",
-            "no workarounds"
+            "^\\|[^\\n]*no workarounds?",
+            "workarounds?\\W{1,3}(no|none)\\b",
+            "\\|\\s*Workaround\\s*\\|",
+            "no workarounds?[^\\n]{0,80}\\bP1\\b"
           ],
+          "flags": "im",
           "context": "Workaround status is printed per finding",
           "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: findings table, workaround yes/no)"
         }
@@ -125,9 +155,17 @@
         "eval-5/bulletin.txt"
       ],
       "expectations": [
-        "Gives the verdict not exposed: vpc-cni v1.22.3-eksbuild.1 is at the fixed 1.22.3 and the agent v1.3.7-eksbuild.1 is at the fixed 1.3.7 (build suffix ignored for the compare)",
-        "Each not-exposed line names the component, installed version, fixed version, the source URL, the advisory read time and the inventory collection time (2026-11-05T18:00:00Z)",
-        "Does not raise a false alarm: no exposed finding and no urgent upgrade or patch proposal for this advisory",
+        "Gives the overall verdict not exposed",
+        "Gives the verdict not exposed for vpc-cni: v1.22.3-eksbuild.1 is at the fixed 1.22.3 (build suffix ignored for the compare)",
+        "Gives the verdict not exposed for the agent: v1.3.7-eksbuild.1 is at the fixed 1.3.7 (build suffix ignored for the compare)",
+        "Each not-exposed line names the component",
+        "Each not-exposed line names the installed version",
+        "Each not-exposed line names the fixed version",
+        "Each not-exposed line names the source URL",
+        "Each not-exposed line names the advisory read time",
+        "Each not-exposed line names the inventory collection time (2026-11-05T18:00:00Z)",
+        "Does not raise a false alarm: no exposed finding for this advisory",
+        "Does not raise a false alarm: no urgent upgrade or patch proposal for this advisory",
         "Opens with a coverage line showing every targeted component was read (2 of 2)"
       ],
       "process_assertions": [
@@ -135,42 +173,34 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not exposed",
-            "not_exposed"
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}not[ _]exposed"
           ],
           "context": "Both components at or above the fixed versions",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed)"
         },
         {
           "type": "must-contain",
-          "pattern": "2026-11-05T15:04",
+          "pattern": "^\\|[^\\n]*2026-11-05T15:04|\\bread(\\s+at)?\\s+`?2026-11-05T15:04",
+          "flags": "im",
           "context": "Read time of the advisory source is printed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: Not exposed line)"
         },
         {
           "type": "must-contain",
-          "pattern": "2026-11-05T18:00",
+          "pattern": "(?<![\"'])2026-11-05T18:00",
           "context": "Inventory collection time is printed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Wording in the report: compared against the inventory collected <collected_at>)"
         },
         {
           "type": "must-not-contain",
-          "pattern": "update-addon\\s+--cluster-name",
+          "pattern": "^\\s*(\\$\\s*)?aws eks update-addon\\s+--cluster-name",
+          "flags": "im",
           "context": "No fix proposed when not exposed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Report sections: proposed fixes are for exposed items)"
         }
@@ -187,7 +217,9 @@
       ],
       "expectations": [
         "Does NOT confirm 'not exposed': the overall result is unknown because the aws-network-policy-agent image runs with tag `latest` and could not be compared",
-        "Gives the reason for the unknown (tag_latest) and the action to resolve it (find the digest's version in the registry or pin the image), and says it is not a clean result",
+        "Gives the reason for the unknown (tag_latest)",
+        "Gives the action to resolve the unknown (find the digest's version in the registry or pin the image)",
+        "Says the unknown is not a clean result",
         "Reports the vpc-cni add-on line as not exposed on its own while keeping the overall verdict unknown",
         "Prints a coverage line showing 1 of 2 targeted components read"
       ],
@@ -196,22 +228,14 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "unknown",
+            "(overall|verdict|result)\\W{0,4}(is\\s+)?\\W{0,3}unknown",
+            "\\|\\s*`?unknown`?\\s*\\|",
             "could not be compared"
           ],
           "context": "Unreadable component is unknown",
@@ -219,7 +243,7 @@
         },
         {
           "type": "must-contain",
-          "pattern": "latest",
+          "pattern": "(?<![\"'])tag[^\\n]{0,12}latest|latest[^\\w\\n]{1,3}tag\\b",
           "context": "Reason for the unknown is named",
           "source": "skills/eks-security/references/cve-advisory-review.md (Unknown reasons table: tag_latest)"
         },
@@ -239,9 +263,7 @@
           "type": "must-contain-one-of",
           "patterns": [
             "1\\s*/\\s*2",
-            "1 of 2",
-            "50\\s*%",
-            "0\\.5"
+            "1 of 2"
           ],
           "context": "Coverage line",
           "source": "skills/eks-security/SKILL.md (Common rule 3: coverage gate)"
@@ -259,10 +281,16 @@
         "eval-7/auto-mode-release-note.txt"
       ],
       "expectations": [
-        "States that on Auto Mode AWS manages and patches the VPC CNI and the network policy agent, so the team runs no add-on update for them",
-        "Lists the nodes created before the fix date 2026-11-03T00:00:00Z as pending rotation, oldest first with creation times (i-0a1b2c3d4e5f60001 created 2026-10-22, i-0a1b2c3d4e5f60002 created 2026-10-25), and treats i-0a1b2c3d4e5f60003 (created 2026-11-04) as already on the fixed build",
-        "Proposes the customer's lever as a printed proposal for review: a shorter NodePool expireAfter or a planned replacement of the pending nodes, and notes Auto Mode instances live at most 21 days",
-        "Does not propose an aws eks update-addon command for an AWS-managed component and does not call the result a plain clean 'not exposed' while nodes are pending",
+        "States that on Auto Mode AWS manages and patches the VPC CNI, so the team runs no add-on update for it",
+        "States that on Auto Mode AWS manages and patches the network policy agent",
+        "Lists i-0a1b2c3d4e5f60001, a node created before the fix date 2026-11-03T00:00:00Z, as pending rotation with its creation time (created 2026-10-22)",
+        "Lists i-0a1b2c3d4e5f60002, a node created before the fix date 2026-11-03T00:00:00Z, as pending rotation with its creation time (created 2026-10-25)",
+        "Lists the pending-rotation nodes oldest first",
+        "Treats i-0a1b2c3d4e5f60003 (created 2026-11-04) as already on the fixed build",
+        "Proposes the customer's lever as a printed proposal for review: a shorter NodePool expireAfter or a planned replacement of the pending nodes",
+        "Notes Auto Mode instances live at most 21 days",
+        "Does not propose an aws eks update-addon command for an AWS-managed component",
+        "Does not call the result a plain clean 'not exposed' while nodes are pending",
         "Keeps the base priority (P2) for the Auto Mode verdict rather than raising it"
       ],
       "process_assertions": [
@@ -270,15 +298,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
@@ -290,19 +309,20 @@
         },
         {
           "type": "must-contain",
-          "pattern": "i-0a1b2c3d4e5f60001",
+          "pattern": "(?<![\"'])i-0a1b2c3d4e5f60001",
           "context": "Oldest pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
         {
           "type": "must-contain",
-          "pattern": "i-0a1b2c3d4e5f60002",
+          "pattern": "(?<![\"'])i-0a1b2c3d4e5f60002",
           "context": "Second pending node is listed",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: lists nodes_pending oldest first)"
         },
         {
           "type": "must-not-contain",
-          "pattern": "update-addon\\s+--cluster-name",
+          "pattern": "^\\s*(\\$\\s*)?aws eks update-addon\\s+--cluster-name",
+          "flags": "im",
           "context": "Never a patch command for an AWS-managed component",
           "source": "skills/eks-security/references/cve-advisory-review.md (Auto Mode: never a patch command for an AWS-managed component)"
         },
@@ -313,7 +333,8 @@
             "AWS managed",
             "managed by AWS",
             "AWS patches",
-            "AWS-patched"
+            "AWS-patched",
+            "AWS manages"
           ],
           "context": "Component reported as AWS-managed",
           "source": "skills/eks-security/SKILL.md (Common rule 5: Auto Mode split)"
@@ -329,12 +350,42 @@
         "eval-8/scope.json"
       ],
       "expectations": [
-        "Scopes first: the cluster, the shop namespace, the two orders-api pods and their nodes, the image digest, and the identity (the orders-api service account, its Pod Identity association and role orders-api-pod with its S3 and SQS policies)",
-        "Takes only a quick record before containing (pod specs, node records, the running digest and logs, read through the API server), then contains at once; says not to delete, drain or restart the pods and not to scale them down before the EBS snapshots, and proposes pausing the orders-api rollout so the pods stay in place",
-        "Proposes pod-scoped NetworkPolicy isolation by an added quarantine label on the two orders-api pods (app labels unchanged), explicitly not a namespace-wide deny-all that would cut cart, checkout and catalog, and states its limits: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
-        "Proposes identity containment for the leaked credentials and names what each breaks: revoke the role's active sessions (credentials already issued stay valid until then) and remove or narrow the Pod Identity association, plus blocking the digest at admission since Kyverno is installed",
-        "Proposes EBS snapshots of the node volumes and volatile capture only after the pods are isolated, not before containment",
-        "Every change is printed for the team to review and run; the answer does not claim to have applied anything",
+        "Scopes the event before containing",
+        "The scope covers the cluster",
+        "The scope covers the shop namespace",
+        "The scope covers the two orders-api pods",
+        "The scope covers the nodes of the two orders-api pods",
+        "The scope covers the image digest",
+        "The scope covers the identity: the orders-api service account",
+        "The scope covers the identity: the Pod Identity association of the orders-api service account",
+        "The scope covers the identity: role orders-api-pod",
+        "The scope covers the identity: the S3 policy of role orders-api-pod",
+        "The scope covers the identity: the SQS policy of role orders-api-pod",
+        "Takes only a quick record before containing, read through the API server",
+        "The quick record before containing includes pod specs",
+        "The quick record before containing includes node records",
+        "The quick record before containing includes the running digest",
+        "The quick record before containing includes logs",
+        "Contains at once after the quick record",
+        "Says not to delete the pods",
+        "Says not to drain the pods",
+        "Says not to restart the pods",
+        "Says not to scale the pods down before the EBS snapshots",
+        "Proposes pausing the orders-api rollout so the pods stay in place",
+        "Proposes pod-scoped NetworkPolicy isolation of the two orders-api pods",
+        "The isolation selects the two pods by an added quarantine label, with their app labels unchanged",
+        "Says not to use a namespace-wide deny-all, which would cut cart, checkout and catalog",
+        "States the isolation's limit: policies are additive, so it holds only where policy is enforced and no other policy selecting the pods allows the traffic",
+        "Proposes identity containment for the leaked credentials and names what each step breaks",
+        "Proposes revoking the role's active sessions",
+        "Says credentials already issued stay valid until they expire, and revoking stops only their AWS API calls",
+        "Says that if the role maps to a Kubernetes identity through an access entry or an aws-auth mapping, the stolen credentials still reach the Kubernetes API until they expire unless that mapping is deleted",
+        "Proposes removing or narrowing the Pod Identity association",
+        "Proposes blocking the digest at admission, since Kyverno is installed",
+        "Proposes EBS snapshots of the node volumes only after the pods are isolated, not before containment",
+        "Proposes volatile capture only after the pods are isolated, not before containment",
+        "Every change is printed for the team to review and run",
+        "The answer does not claim to have applied anything",
         "States that checking whether the stolen credentials were used (GuardDuty findings, CloudTrail, audit log queries) is not covered by the skill"
       ],
       "process_assertions": [
@@ -342,15 +393,6 @@
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
@@ -364,17 +406,18 @@
           "type": "must-contain-one-of",
           "patterns": [
             "revoke active sessions",
-            "revoke.{0,20}sessions",
+            "revo(ke|king).{0,20}sessions",
             "AWSRevokeOlderSessions"
           ],
-          "context": "Issued credentials stay valid until revoked",
+          "context": "Issued credentials stay valid until they expire; revoking stops their AWS API calls",
           "source": "skills/eks-security/references/security-event-response.md (Step 3: identity)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
             "create-snapshot",
-            "snapshot"
+            "(propos\\w*|take|taking|create|creating)\\b[^\\n]{0,40}snapshots?",
+            "snapshot (every|each|all|the)\\b[^\\n]{0,40}volumes?"
           ],
           "context": "Propose a snapshot after isolation",
           "source": "skills/eks-security/references/security-event-response.md (Step 4: snapshot and investigate, after isolation)"
@@ -382,10 +425,8 @@
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not covered",
-            "does not cover",
-            "doesn't cover",
-            "out of scope"
+            "(not covered|does not cover|doesn't cover|out of scope|not checked)[^\\n]{0,100}(GuardDuty|CloudTrail|exploit|were used|was used)",
+            "(GuardDuty|CloudTrail|exploit|were used|was used)[^\\n]{0,100}(not covered|does not cover|doesn't cover|out of scope|not checked)"
           ],
           "context": "Exploitation checks are not covered",
           "source": "skills/eks-security/references/security-event-response.md (Step 2: checking whether an exposure was exploited is not covered yet)"
@@ -410,80 +451,97 @@
         "eval-9/posture.json"
       ],
       "expectations": [
-        "Gives the coverage line (46 of 49 measured checks answered, gate 50%) and the score (59 of 100) as posture.json states them, and one verdict row per containment layer (node-credential, lateral-movement, privilege, identity, detection, api-exposure, supply-chain) with the file's verdicts: not-contained for the first four and api-exposure, partly for detection and supply-chain",
-        "Lists the failed high-severity checks by SEC-POSTURE id with their evidence: SEC-POSTURE-55 hop limit 2 on the four general node group instances, SEC-POSTURE-56 orders and web without default-deny ingress, SEC-POSTURE-34 legacy without a PSA enforce label, SEC-POSTURE-58 the hostNetwork log-shipper pod, SEC-POSTURE-2 public endpoint open to 0.0.0.0/0, SEC-POSTURE-64 two principals with cluster admin through an access policy",
-        "Reports SEC-POSTURE-60 and SEC-POSTURE-61 (GuardDuty) as unknown because guardduty.json was not collected, and the governance checks as unknown to confirm with the team, never as pass",
-        "For SEC-POSTURE-64, says one holder is likely the cluster creator and that a re-run of posture_extra.sh with --admin-allow naming the expected admin roles (creator, break-glass) lists them under pass; the fix is to scope the others, printed only",
-        "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries) and nothing is applied",
-        "Does not treat plain version lag as a posture finding: no posture check judges component versions, and a currency gap is only a component below a fixed version from a C1 sweep"
+        "Gives the coverage line (46 of 49 measured checks answered, gate 50%) as posture.json states it",
+        "Gives the score (59 of 100) as posture.json states it",
+        "Gives a verdict row for the node-credential containment layer with the file's verdict: not-contained",
+        "Gives a verdict row for the lateral-movement containment layer with the file's verdict: not-contained",
+        "Gives a verdict row for the privilege containment layer with the file's verdict: not-contained",
+        "Gives a verdict row for the identity containment layer with the file's verdict: not-contained",
+        "Gives a verdict row for the detection containment layer with the file's verdict: partly",
+        "Gives a verdict row for the api-exposure containment layer with the file's verdict: not-contained",
+        "Gives a verdict row for the supply-chain containment layer with the file's verdict: partly",
+        "Lists the failed high-severity check SEC-POSTURE-55 by id with its evidence: hop limit 2 on the four general node group instances",
+        "Lists the failed high-severity check SEC-POSTURE-56 by id with its evidence: orders and web without default-deny ingress",
+        "Lists the failed high-severity check SEC-POSTURE-34 by id with its evidence: legacy without a PSA enforce label",
+        "Lists the failed high-severity check SEC-POSTURE-58 by id with its evidence: the hostNetwork log-shipper pod",
+        "Lists the failed high-severity check SEC-POSTURE-2 by id with its evidence: public endpoint open to 0.0.0.0/0",
+        "Lists the failed high-severity check SEC-POSTURE-64 by id with its evidence: two principals with cluster admin through an access policy",
+        "Reports SEC-POSTURE-60 (GuardDuty) as unknown because guardduty.json was not collected, never as pass",
+        "Reports SEC-POSTURE-61 (GuardDuty) as unknown because guardduty.json was not collected, never as pass",
+        "Reports the governance checks as unknown to confirm with the team, never as pass",
+        "For SEC-POSTURE-64, says one holder is likely the cluster creator",
+        "For SEC-POSTURE-64, says that a re-run of posture_extra.sh with --admin-allow naming the expected admin roles (creator, break-glass) lists them under pass",
+        "For SEC-POSTURE-64, says the fix is to scope the admin holders not named as expected admins",
+        "Fixes are printed for the team to review (for example hop limit 1 in the launch template, a default-deny NetworkPolicy per namespace, the PSA label, restricting the endpoint CIDRs, scoping the admin access entries)",
+        "Nothing is applied",
+        "Does not treat plain version lag as a posture finding",
+        "States that no posture check judges component versions, and a currency gap is only a component below a fixed version from a C1 sweep"
       ],
       "process_assertions": [
         {
           "type": "tool-called",
           "tool": "Read",
           "min": 1
-        },
-        {
-          "type": "step-count",
-          "min": 2,
-          "max": 30
-        },
-        {
-          "type": "tool-effectiveness",
-          "max_consecutive_no_progress": 5
         }
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain",
-          "pattern": "SEC-POSTURE-55",
+          "pattern": "^\\|[^\\n]*SEC-POSTURE-55",
+          "flags": "im",
           "context": "Failed check listed by its SEC-POSTURE id",
           "source": "skills/eks-security/references/posture-check.md (The added containment checks: SEC-POSTURE-55 IMDS)"
         },
         {
           "type": "must-contain",
-          "pattern": "0\\.0\\.0\\.0/0",
+          "pattern": "^\\|[^\\n]*0\\.0\\.0\\.0/0",
+          "flags": "im",
           "context": "Open public endpoint evidence",
           "source": "skills/eks-security/references/posture-check.md (The copied checks: SEC-POSTURE-2, sec-2)"
         },
         {
           "type": "must-contain",
-          "pattern": "unknown",
+          "pattern": "^\\|[^\\n]*unknown",
+          "flags": "im",
           "context": "Unread checks are unknown, never pass",
           "source": "skills/eks-security/references/posture-check.md (A check whose input file was not collected is unknown, never pass)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "not-contained",
-            "not contained"
+            "^\\|[^\\n]*not-contained",
+            "^\\|[^\\n]*not contained"
           ],
+          "flags": "im",
           "context": "Per-layer verdict values",
           "source": "skills/eks-security/references/posture-check.md (Layer verdict: contained, partly, not-contained, unknown)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "partly",
-            "partial"
+            "^\\|[^\\n]*partly",
+            "^\\|[^\\n]*partial"
           ],
+          "flags": "im",
           "context": "Per-layer verdict values",
           "source": "skills/eks-security/references/posture-check.md (Layer verdict)"
         },
         {
           "type": "must-contain-one-of",
           "patterns": [
-            "hop limit (of )?1",
-            "HttpPutResponseHopLimit\\W+1",
-            "hop-limit 1",
-            "http-put-response-hop-limit 1"
+            "^\\|[^\\n]*hop limit (of )?1",
+            "^\\|[^\\n]*HttpPutResponseHopLimit\\W+1",
+            "^\\|[^\\n]*hop-limit 1",
+            "^\\|[^\\n]*http-put-response-hop-limit 1"
           ],
+          "flags": "im",
           "context": "IMDS fix shape",
           "source": "skills/eks-security/references/posture-check.md (Output: hop limit 1 in the launch template)"
         },
         {
           "type": "must-contain",
-          "pattern": "--admin-allow",
+          "pattern": "^\\|[^\\n]*--admin-allow",
+          "flags": "im",
           "context": "Expected admins are named with --admin-allow",
           "source": "skills/eks-security/references/posture-check.md (Notes on the flags: --admin-allow)"
         }

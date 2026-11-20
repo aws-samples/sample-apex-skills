@@ -38,4 +38,4 @@ From `misc/evals/`:
 - `make snapshot-eks-design` — freeze current scores as baseline
 - `make regression-eks-design` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

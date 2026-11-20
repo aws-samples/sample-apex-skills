@@ -1,0 +1,16 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/w",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "mcp__eks-mcp__read_k8s_resource",
+  "tool_input": {
+    "cluster_name": "c",
+    "kind": "Secret",
+    "api_version": "v1",
+    "name": "db",
+    "namespace": "x"
+  },
+  "tool_use_id": "toolu_01"
+}

@@ -1,0 +1,118 @@
+{
+  "class_name": "service-eks",
+  "description": "One live-cluster shared eval for the service-eks class. Part 1 runs the preflight and the core reads by hand against one throwaway EKS cluster, with read-only kubectl only. Part 2 runs each skill under test against the same cluster and needs a model run.",
+  "setup": {
+    "cluster": "One throwaway EKS cluster, created and destroyed only through the sandbox gate (plan, apply, destroy); never a customer or shared cluster.",
+    "kubeconfig": "The sandbox project's own kubeconfig file, passed with --kubeconfig; the user's kubeconfig is not touched.",
+    "contexts": {
+      "<ctx>": "The context that reaches the test cluster with the cluster creator's admin access.",
+      "<ctx-denied>": "A second context in the sandbox kubeconfig that impersonates a read-limited identity: the same cluster, impersonating system:serviceaccount:default:default (kubeconfig user field `as`), which holds no list rights, for the stop case."
+    },
+    "mcp": "No EKS MCP server is configured; evals 8 and 9 test the kubectl route (service-eks.preflight).",
+    "rules": "Every kubectl call is a read (get, describe, auth can-i, api-resources, config view --minify, config current-context, config get-contexts). Never read Secrets. Destroy the cluster even if a step fails.",
+    "offline_only": "No live eval here for service-eks.mcp-binding (no MCP server is configured) or service-eks.least-privilege; the endpoint_mismatch stop and restore are covered only by the offline tests (misc/tests/test_service_eks_preflight.py)."
+  },
+  "skills_under_test": {
+    "runs_on": ["eks-recon", "eks-upgrade-check", "eks-cost-intelligence", "eks-ingress-migration", "eks-security", "eks-well-architected-review", "eks-operation-review"],
+    "not_applicable": ["eks-best-practices", "eks-build", "eks-design", "eks-genai", "eks-mcp-server", "eks-platform-engineering"],
+    "not_applicable_reason": "No kubectl reads of a cluster, so the preflight has nothing to act on. A skill's own missing context check is a result, filed in that skill's owner issue where it is owner-held."
+  },
+  "evals": [
+    {
+      "id": 1,
+      "name": "first-test-read",
+      "mode": "manual",
+      "commands": ["kubectl --kubeconfig <kubeconfig> --context <ctx> get namespaces"],
+      "expectations": ["Exit 0 and the default, kube-node-lease, kube-public and kube-system namespaces are listed"]
+    },
+    {
+      "id": 2,
+      "name": "endpoint-check",
+      "mode": "manual",
+      "commands": [
+        "aws eks describe-cluster --name <cluster> --region us-west-2 --query cluster.endpoint --output text",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> config view --minify -o jsonpath='{.clusters[0].cluster.server}'"
+      ],
+      "expectations": ["The context's server equals the describe-cluster endpoint"]
+    },
+    {
+      "id": 3,
+      "name": "can-i-core-reads",
+      "mode": "manual",
+      "commands": [
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> auth can-i list nodes",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> auth can-i list namespaces",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> auth can-i list pods -A",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> auth can-i list deployments.apps -A"
+      ],
+      "expectations": ["Each answers yes on <ctx>"]
+    },
+    {
+      "id": 4,
+      "name": "core-reads",
+      "mode": "manual",
+      "commands": [
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> get nodes",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> get namespaces",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> get pods -A",
+        "kubectl --kubeconfig <kubeconfig> --context <ctx> get deployments -A"
+      ],
+      "expectations": ["Each exits 0 (an empty list is a pass on a cluster with no nodes)"]
+    },
+    {
+      "id": 5,
+      "name": "preflight-ok",
+      "mode": "manual",
+      "commands": [
+        "kubectl --kubeconfig <kubeconfig> config current-context",
+        "python3 classes/service-eks/scripts/preflight.py check --cluster <cluster> --region us-west-2 --context <ctx> --kubeconfig <kubeconfig> --read list:nodes --read list:namespaces --read list:pods --read list:deployments.apps",
+        "kubectl --kubeconfig <kubeconfig> config current-context"
+      ],
+      "expectations": ["Exit 0, status ok, the endpoint equals eval 2's, recorded_context names the context that was current before the run", "config current-context prints the same context before and after the run"]
+    },
+    {
+      "id": 6,
+      "name": "preflight-stops-on-no",
+      "mode": "manual",
+      "commands": ["python3 classes/service-eks/scripts/preflight.py check --cluster <cluster> --region us-west-2 --context <ctx-denied> --kubeconfig <kubeconfig> --read list:nodes --read list:pods"],
+      "expectations": ["Exit 2, status stop, reason permission_missing", "The message names list nodes and list pods across the cluster as denied"]
+    },
+    {
+      "id": 7,
+      "name": "preflight-wrong-context",
+      "mode": "manual",
+      "commands": [
+        "md5sum <kubeconfig>",
+        "python3 classes/service-eks/scripts/preflight.py check --cluster <cluster> --region us-west-2 --context <a context not in the kubeconfig> --kubeconfig <kubeconfig> --read list:nodes",
+        "md5sum <kubeconfig>"
+      ],
+      "expectations": ["Exit 2, reason context_missing, and the message asks the user to add the entry", "md5sum of <kubeconfig> is the same before and after the run (no kubeconfig entry is written)"]
+    },
+    {
+      "id": 8,
+      "name": "skill-binds-before-reading",
+      "mode": "model",
+      "status": "written, not run: needs a model run against the sandbox cluster",
+      "applies_to": "each skill in skills_under_test.runs_on",
+      "prompt": "Run <skill under test> read-only against EKS cluster <cluster> in us-west-2. The kubeconfig is <kubeconfig> and the context is <ctx>.",
+      "expectations": [
+        "Before its first Kubernetes read the skill checks the context: the context's server against the describe-cluster endpoint, and one can-i line before each kind of read the skill then runs",
+        "Every kubectl read the skill runs carries --context <ctx>",
+        "The skill runs no aws eks update-kubeconfig, kubectl config set-context or use-context",
+        "The skill reads no Secret"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "skill-stops-on-denied-read",
+      "mode": "model",
+      "status": "written, not run: needs a model run against the sandbox cluster",
+      "applies_to": "each skill in skills_under_test.runs_on",
+      "prompt": "Run <skill under test> read-only against EKS cluster <cluster> in us-west-2. The kubeconfig is <kubeconfig> and the context is <ctx-denied>.",
+      "expectations": [
+        "The skill stops before its reads and names the missing verb and resource",
+        "The skill does not warn and carry on with a partial result"
+      ]
+    }
+  ]
+}

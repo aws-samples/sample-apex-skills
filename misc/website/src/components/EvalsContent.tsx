@@ -16,6 +16,8 @@ interface EvalSkill {
   model: string;
   git_head: string;
   pass_k_rate?: number | null;
+  // Mean tokens per with_skill task run (generate_eval_manifest.py); null when not recorded.
+  tokens_per_run?: number | null;
   effective_weights?: Record<string, number>;
   layers: Record<string, EvalLayer>;
 }
@@ -94,6 +96,12 @@ function ScorecardCard({skill}: {skill: EvalSkill}): ReactNode {
       </div>
       <div className="apex-eval__score">
         {skill.score.toFixed(1)} / 100
+      </div>
+      <div className="apex-eval__tokens">
+        Tokens per run:{' '}
+        {typeof skill.tokens_per_run === 'number'
+          ? skill.tokens_per_run.toLocaleString('en-US')
+          : 'not recorded'}
       </div>
       <div className="apex-eval__layers">
         {layerKeys.map((key) => {
@@ -301,8 +309,14 @@ export const evalsStyles = `
   .apex-eval__score {
     font-size: 1.4rem;
     font-weight: 700;
-    margin-bottom: 1rem;
+    margin-bottom: 0.25rem;
     color: var(--ifm-color-emphasis-800);
+  }
+
+  .apex-eval__tokens {
+    font-size: 0.8rem;
+    color: var(--ifm-color-emphasis-600);
+    margin-bottom: 1rem;
   }
 
   .apex-eval__layers {

@@ -3,75 +3,75 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Run EKS reconnaissance on the cluster currently configured in my kubeconfig. I'm planning an upgrade — focus on version info, compute strategy, and addon inventory.",
+      "prompt": "Run EKS reconnaissance on the cluster currently configured in my kubeconfig. I'm planning an upgrade: focus on version info, compute strategy, and addon inventory.",
       "expectations": [
-        "The output reports the current cluster version and platform version. TODO: human review",
-        "The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy. TODO: human review",
-        "The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns, kube-proxy). TODO: human review",
-        "The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reasoning). TODO: human review",
-        "The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, deprecated API usage). TODO: human review"
+        "The output reports the current cluster version.",
+        "The output reports the current platform version.",
+        "The output identifies whether Karpenter, managed node groups, Auto Mode, or Fargate is the primary compute strategy.",
+        "The output lists EKS-managed add-ons with their installed versions (e.g. vpc-cni, coredns, kube-proxy).",
+        "The output identifies the IaC tool managing the cluster (Terraform, CloudFormation, CDK, eksctl, or unknown with reasoning).",
+        "The output calls out at least one upgrade-relevant finding (e.g. add-on version compatibility, Karpenter version, deprecated API usage)."
       ],
       "files": [],
       "live_only": true,
       "process_assertions": [
         {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
-        {"type": "tool-called", "tool": "Bash", "min": 3},
-        {"type": "step-count", "min": 3, "max": 40}
+        {"type": "tool-called", "tool": "Bash", "min": 3}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
           "patterns": ["cluster:", "## Cluster", "\\*\\*Cluster", "Cluster Basics"],
           "context": "Report must include a cluster basics section with cluster metadata",
-          "source": "skills/eks-recon/SKILL.md — Step 4: Generate Report schema shows top-level cluster: key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, Step 4: Generate Report schema shows top-level cluster: key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["version:\\s*[\"']?1\\.", "version: \"1\\.", "Version.*1\\.", "version.*1\\."],
           "context": "Report must include the Kubernetes version of the cluster",
-          "source": "skills/eks-recon/references/cluster-basics.md — always reports cluster version"
+          "source": "skills/eks-recon/references/cluster-basics.md, always reports cluster version"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["platform_version", "platform.version", "Platform Version", "platform version"],
           "context": "Report must include the EKS platform version",
-          "source": "skills/eks-recon/references/cluster-basics.md — platform version is a core cluster-basics field"
+          "source": "skills/eks-recon/references/cluster-basics.md, platform version is a core cluster-basics field"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["compute:", "## Compute", "\\*\\*Compute", "Compute Strategy"],
+          "patterns": ["compute:", "## Compute", "\\*\\*Compute", "Compute Strategy\\s*(\\*\\*)?\\s*[:|]"],
           "context": "Report must include the compute strategy section",
-          "source": "skills/eks-recon/SKILL.md — report schema includes compute: top-level key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, report schema includes compute: top-level key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["strategy:\\s*(Karpenter|Auto Mode|MNG|Fargate|Managed Node Group)", "compute.*strategy", "Strategy.*Karpenter", "Strategy.*Auto Mode", "Strategy.*MNG", "Strategy.*Fargate"],
+          "patterns": ["strategy:\\s*(Karpenter|Auto Mode|MNG|Fargate|Managed Node Group)", "Strategy.*Karpenter", "Strategy.*Auto Mode", "Strategy.*MNG", "Strategy.*Fargate"],
           "context": "Report must identify the primary compute strategy",
-          "source": "skills/eks-recon/references/compute.md — Strategy Determination Logic section"
+          "source": "skills/eks-recon/references/compute.md, Strategy Determination Logic section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["addons:", "## Add-ons", "## Addons", "\\*\\*Add-ons", "\\*\\*Addons", "Add-on Inventory"],
           "context": "Report must include the add-ons section for upgrade planning",
-          "source": "skills/eks-recon/SKILL.md — report schema includes addons: top-level key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, report schema includes addons: top-level key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["vpc-cni", "coredns", "kube-proxy", "eks_managed", "VPC CNI", "CoreDNS"],
           "context": "Report must list at least one core EKS-managed add-on",
-          "source": "skills/eks-recon/references/addons.md — EKS-managed add-on detection"
+          "source": "skills/eks-recon/references/addons.md, EKS-managed add-on detection"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["Auto Mode", "auto_mode", "Karpenter", "karpenter", "MNG", "Managed Node Group", "Fargate", "fargate"],
           "context": "Report must name the detected compute model explicitly",
-          "source": "skills/eks-recon/references/compute.md — detection outputs one of these strategies"
+          "source": "skills/eks-recon/references/compute.md, detection outputs one of these strategies"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["upgrade", "compatibility", "deprecated", "breaking.?change"],
+          "patterns": ["upgrade[- ](relevant|blocker|risk|impact|consideration|note|finding|path)", "compatibility", "deprecated", "breaking.?change"],
           "context": "For an upgrade-focused recon, output must surface at least one upgrade-relevant observation",
-          "source": "skills/eks-recon/SKILL.md — Integration with Other Workflows / Upgrade Workflow section"
+          "source": "skills/eks-recon/SKILL.md, Integration with Other Workflows / Upgrade Workflow section"
         }
       ],
       "artifact_assertions": {
@@ -143,76 +143,89 @@
       "id": 2,
       "prompt": "Run EKS reconnaissance on my current cluster for a handoff document. I need to understand the IaC tooling, CI/CD setup, and deployment patterns in use. Use the output path prefix `reports/team-handoff`.",
       "expectations": [
-        "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable). TODO: human review",
-        "The output identifies the IaC tool and, where possible, evidence (workspace files, stack names, module references). TODO: human review",
-        "The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence. TODO: human review",
-        "The output reports on GitOps tooling (ArgoCD or Flux) including namespace and rough application / kustomization counts when available. TODO: human review",
-        "The output inspects spoke-side workload tracking without local controllers/CRDs. Complete selected reads with no matched signal yield not_observed; ambiguity or incomplete selected reads yield unconfirmed; positives survive unrelated denied reads. Workload tool output excludes raw env/args and unrelated annotation values; controller role uses projected evidence. Target ARGOCD capabilities contribute overall evidence without populating local controller fields. Shared labels need valid self-referencing tracking-id or target-specific user-confirmed label mode; chart annotations and discovered standard-key configuration alone cannot corroborate them; user-supplied unprefixed keys retain their provenance. Checked signals and optional ConfigMap exclusions are disclosed, unrelated annotation values are not quoted, and unavailable local Argo/Flux details remain null. TODO: human review",
-        "The output preserves target-cluster IaC tag evidence even when no IaC files are available in the workspace. TODO: human review",
-        "The YAML remains a secondary facts snapshot with canonical reference shapes; intended workflow use is distinguished from a versioned schema hand-off. TODO: human review",
-        "Inline and subagent assembly preserve selected failed-module keys, flag differing cluster observations, preserve facts across cosmetic endpoint differences, and exclude facts from another target. Partial modules retain canonical keys/types with null unknowns and Coverage reasons; reference-defined exceptions remain valid. TODO: human review"
+        "The output describes the compute topology of the cluster (node groups, Karpenter nodepools, or Fargate profiles as applicable).",
+        "The output identifies the IaC tool.",
+        "The output reports, where possible, evidence for the IaC tool (workspace files, stack names, module references).",
+        "The output reports on workspace CI pipelines (GitHub Actions / GitLab CI / Jenkins) with detection evidence.",
+        "The output reports on GitOps tooling (ArgoCD or Flux).",
+        "For GitOps tooling, the output includes the namespace when available.",
+        "For GitOps tooling, the output includes rough application / kustomization counts when available.",
+        "The output inspects spoke-side workload tracking without local controllers/CRDs.",
+        "In spoke-side workload tracking, complete selected reads with no matched signal yield not_observed.",
+        "In spoke-side workload tracking, workload tool output excludes raw env/args.",
+        "In spoke-side workload tracking, workload tool output excludes unrelated annotation values.",
+        "In spoke-side workload tracking, controller role uses projected evidence.",
+        "In spoke-side workload tracking, checked signals are disclosed.",
+        "In spoke-side workload tracking, optional ConfigMap exclusions are disclosed.",
+        "In spoke-side workload tracking, unrelated annotation values are not quoted.",
+        "In spoke-side workload tracking, unavailable local Argo/Flux details remain null.",
+        "The output preserves target-cluster IaC tag evidence even when no IaC files are available in the workspace.",
+        "The YAML remains a secondary facts snapshot with canonical reference shapes.",
+        "The report distinguishes the YAML's intended workflow use from a versioned schema hand-off.",
+        "Failed modules keep their selected keys.",
+        "Facts from another target are excluded.",
+        "Reference-defined exceptions to the canonical keys/types rule remain valid for partial modules."
       ],
       "files": [],
       "live_only": true,
       "process_assertions": [
         {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-recon"}},
-        {"type": "tool-called", "tool": "Bash", "min": 3},
-        {"type": "step-count", "min": 3, "max": 40}
+        {"type": "tool-called", "tool": "Bash", "min": 3}
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
           "patterns": ["compute:", "## Compute", "\\*\\*Compute", "Compute Strategy"],
           "context": "Report must include compute section documenting cluster topology",
-          "source": "skills/eks-recon/SKILL.md — report schema includes compute: top-level key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, report schema includes compute: top-level key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["nodepool", "node.?group", "fargate.?profile", "auto_mode", "Auto Mode", "NodePool", "Node Group", "Fargate Profile"],
           "context": "Compute section must detail the specific compute resources (nodepools, node groups, or Fargate profiles)",
-          "source": "skills/eks-recon/references/compute.md — detection covers all compute types"
+          "source": "skills/eks-recon/references/compute.md, detection covers all compute types"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["iac:", "## IaC", "\\*\\*IaC", "Infrastructure as Code", "## Infrastructure"],
           "context": "Report must include IaC section identifying infrastructure management tool",
-          "source": "skills/eks-recon/SKILL.md — report schema includes iac: top-level key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, report schema includes iac: top-level key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["Terraform", "CloudFormation", "CDK", "eksctl", "Pulumi", "unknown"],
+          "patterns": ["Terraform", "CloudFormation", "CDK", "eksctl", "Pulumi", "(iac|tool)[^\\n]{0,40}\\bunknown", "\\bunknown\\b[^\\n]{0,20}(iac|tool)"],
           "context": "IaC section must name the detected tool or state unknown",
-          "source": "skills/eks-recon/references/iac.md — detection covers Terraform, CloudFormation, CDK, eksctl, Pulumi"
+          "source": "skills/eks-recon/references/iac.md, detection covers Terraform, CloudFormation, CDK, eksctl, Pulumi"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["confidence:", "evidence:", "Confidence", "Evidence"],
           "context": "IaC detection should include confidence level or evidence for the determination",
-          "source": "skills/eks-recon/SKILL.md — IaC output schema includes confidence and evidence fields"
+          "source": "skills/eks-recon/SKILL.md, IaC output schema includes confidence and evidence fields"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["cicd:", "## CI/CD", "\\*\\*CI/CD", "## CI", "## Deployment", "CI/CD"],
+          "patterns": ["cicd:", "## CI/CD", "\\*\\*CI/CD", "## CI", "## Deployment", "CI/CD\\s*(\\*\\*)?\\s*[:|]"],
           "context": "Report must include CI/CD section covering pipelines and GitOps",
-          "source": "skills/eks-recon/SKILL.md — report schema includes cicd: top-level key or equivalent markdown section"
+          "source": "skills/eks-recon/SKILL.md, report schema includes cicd: top-level key or equivalent markdown section"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["github_actions", "gitlab_ci", "jenkins", "GitHub Actions", "GitLab", "Jenkins"],
           "context": "CI/CD section must report on workspace pipeline detection",
-          "source": "skills/eks-recon/references/cicd.md — workspace pipeline detection covers GitHub Actions, GitLab CI, Jenkins"
+          "source": "skills/eks-recon/references/cicd.md, workspace pipeline detection covers GitHub Actions, GitLab CI, Jenkins"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["argocd", "flux", "ArgoCD", "Flux", "gitops", "GitOps", "Argo CD"],
           "context": "CI/CD section must report on GitOps tooling (ArgoCD or Flux) detection",
-          "source": "skills/eks-recon/references/cicd.md — GitOps detection covers ArgoCD and Flux"
+          "source": "skills/eks-recon/references/cicd.md, GitOps detection covers ArgoCD and Flux"
         },
         {
           "type": "must-contain-one-of",
           "patterns": ["detected:\\s*(true|false)", "detected:", "Detected", "not detected", "not found"],
           "context": "Detection results should use detected: true/false pattern or equivalent prose for each component",
-          "source": "skills/eks-recon/SKILL.md — report schema uses detected: boolean for each sub-component"
+          "source": "skills/eks-recon/SKILL.md, report schema uses detected: boolean for each sub-component"
         }
       ],
       "artifact_assertions": {
@@ -276,12 +289,17 @@
       "id": 3,
       "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
       "expectations": [
-        "Classifies green as Added, retired as Removed, and blue desired_size as Changed from 2 to 3.",
-        "Reports vpc-cni version v1.19.0-eksbuild.1 to v1.19.2-eksbuild.1, subnet-a free IPs 200 to 199, removed/added access principal ARNs, and reader role v1 to v2.",
-        "Does not report list reordering, coredns, subnet-b, viewer, storage, or report metadata as changed facts.",
-        "Preserves prior.yaml and retains current facts in YAML, with no historical delta inside module blocks.",
-        "Reports the add-on service_account_role ARN to null as a confirmed absence change and reports orderedStages array reversal, while ignoring inventory reordering.",
-        "Preserves current security.image_security.admission_policies: true and lists that path under Comparison coverage because the selector semantics changed across revisions. Other confirmed security deltas still appear."
+        "Does not report list reordering as changed facts.",
+        "Does not report coredns as changed facts.",
+        "Does not report subnet-b as changed facts.",
+        "Does not report viewer as changed facts.",
+        "Does not report storage as changed facts.",
+        "Does not report report metadata as changed facts.",
+        "Leaves prior.yaml unmodified: it still holds the retired node group, the role/retired access principal and the reader-v1 Pod Identity role.",
+        "Retains current facts in YAML.",
+        "The YAML has no historical delta inside its module blocks.",
+        "Lists security.image_security.admission_policies under Comparison coverage because the selector semantics changed across revisions.",
+        "Other confirmed security deltas still appear."
       ],
       "files": [
         "eval-3/prior.yaml",
@@ -318,12 +336,12 @@
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=green\\][^|\\n]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*$"
+            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=green\\][^|\\n]*\\|[ \\t]*`?(?:\u2014|-|null|none|absent|not present|n/a)?`?[ \\t]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=retired\\][^|\\n]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*$"
+            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*compute\\.mng\\.groups\\[name=retired\\][^|\\n]*\\|[ \\t]*(?=[^|\\n]*version[\\\"\\x27 ]*:[\\\"\\x27 ]*1\\.34[\\\"\\x27 ,}])(?=[^|\\n]*desired_size[\\\"\\x27 ]*:[\\\"\\x27 ]*1(?:[\\\"\\x27 ,}]|`))[^|\\n]+[ \\t]*\\|[ \\t]*`?(?:\u2014|-|null|none|absent|not present|n/a)?`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
@@ -343,12 +361,12 @@
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/retired`?[ \\t]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*$"
+            "pattern": "(?im)^\\|[ \\t]*Removed[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/retired`?[ \\t]*\\|[ \\t]*`?(?:\u2014|-|null|none|absent|not present|n/a)?`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
             "file": "reports/delta.md",
-            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?(?:—|-|null|none|absent|not present)`?[ \\t]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/new\\-viewer`?[ \\t]*\\|[ \\t]*$"
+            "pattern": "(?im)^\\|[ \\t]*Added[ \\t]*\\|[^|\\n]*security\\.authentication\\.access_entries\\.principal_arns[^|\\n]*\\|[ \\t]*`?(?:\u2014|-|null|none|absent|not present|n/a)?`?[ \\t]*\\|[ \\t]*`?arn:aws:iam::111122223333:role/new\\-viewer`?[ \\t]*\\|[ \\t]*$"
           },
           {
             "type": "contains",
@@ -413,11 +431,20 @@
       "id": 4,
       "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
       "expectations": [
-        "Labels the legacy prior timestamp unknown and discloses missing machine coverage metadata.",
-        "Marks compute.mng.groups, addons.helm_releases, storage, security.authentication.access_entries and the null subnet free count as not comparable, without claiming removals.",
+        "Labels the legacy prior timestamp unknown.",
+        "Discloses missing machine coverage metadata.",
+        "Marks compute.mng.groups as not comparable, without claiming removals.",
+        "Marks addons.helm_releases as not comparable, without claiming removals.",
+        "Marks storage as not comparable, without claiming removals.",
+        "Marks security.authentication.access_entries as not comparable, without claiming removals.",
+        "Marks the null subnet free count as not comparable, without claiming removals.",
         "Does not claim a newly observed fixed-schema iam_for_pods field was newly deployed; it was omitted from the prior selective snapshot.",
-        "Still reports the confirmed vpc-cni version and subnet-a free-count changes; preserves prior.yaml.",
-        "GitOps status unconfirmed invalidates sibling results including tools_detected and nullable local Argo fields, without claiming removal."
+        "Still reports the confirmed vpc-cni version change.",
+        "Still reports the confirmed subnet-a free-count change.",
+        "Leaves prior.yaml unmodified: it still has no report block, so no generated_at or coverage metadata is written back into the legacy prior.",
+        "GitOps status unconfirmed invalidates every sibling result, without claiming removal.",
+        "GitOps status unconfirmed invalidates the sibling result tools_detected, without claiming removal.",
+        "GitOps status unconfirmed invalidates the sibling nullable local Argo fields, without claiming removal."
       ],
       "files": [
         "eval-4/prior.yaml",
@@ -519,8 +546,10 @@
       "id": 5,
       "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
       "expectations": [
-        "Produces both current fact reports, but makes comparison unavailable because the prior cluster ARN belongs to a different account.",
-        "Does not emit Added, Removed, or Changed inventory rows from the mismatched prior; preserves prior.yaml.",
+        "Produces both current fact reports.",
+        "Makes comparison unavailable because the prior cluster ARN belongs to a different account.",
+        "Does not emit Added, Removed, or Changed inventory rows from the mismatched prior.",
+        "Leaves prior.yaml unmodified: its cluster.arn still names account 999900001111.",
         "Current YAML retains the current cluster ARN rather than copying the prior cluster identity."
       ],
       "files": [
@@ -594,9 +623,12 @@
       "prompt": "This is an offline report-generation test, not a live cluster task. The selected modules have already been collected in current.yaml; use those supplied facts without calling AWS, Kubernetes, or module subagents. Fields not present in these selective synthetic snapshots are unknown. Generate the eks-recon Markdown and YAML report with output prefix reports/delta, using prior.yaml as the prior report. The supplied current report.generated_at is the capture time to retain for this fixture.",
       "expectations": [
         "States No changes in comparable facts despite reordered resource and principal lists.",
-        "Excludes report.generated_at from the delta and preserves prior.yaml.",
-        "Writes both reports with the requested prefix and the correct machine-artifact link.",
-        "Excluded or omitted modules are disclosed as not comparable; a changed capped GitOps evidence sample is not a delta."
+        "Excludes report.generated_at from the delta.",
+        "Leaves prior.yaml unmodified: its list order and its generated_at 2026-10-20T10:00:00Z are not rewritten to match current.yaml.",
+        "Writes both reports with the requested prefix.",
+        "The Markdown report carries the correct machine-artifact link to the YAML.",
+        "Excluded or omitted modules are disclosed as not comparable.",
+        "A changed capped GitOps evidence sample is not a delta."
       ],
       "files": [
         "eval-6/prior.yaml",

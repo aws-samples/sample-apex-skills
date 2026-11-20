@@ -9,9 +9,12 @@
 #        - Secret kube-system/evals-readonly-token (SA-bound token)
 #   2. In misc/evals/.secrets/ (gitignored):
 #        - kubeconfig.readonly   — auths as the SA; read-only
-#        - readonly-session-policy.json — IAM session policy the runner
-#                                         uses when minting an STS federation
-#                                         token for the subject subprocess
+#        - readonly-session-policy.json: IAM session policy for the read-only
+#                                         operating profile's own federation
+#                                         token (its section 2). The eval runner
+#                                         does not use it: the only AWS
+#                                         credentials handed to the subject are
+#                                         the eval-role session
 #
 # Both outputs are generated from the checked-in declarative sources under
 # misc/evals/setup/ — no secret material is ever committed.
@@ -19,7 +22,9 @@
 # Idempotent: re-running leaves the SA, bindings and token unchanged and picks
 # up a new cluster endpoint. To rotate the token:
 # `kubectl -n kube-system delete secret evals-readonly-token`, then re-run this
-# script. Exit non-zero on any step so CI wrappers can gate on it.
+# script. Exit non-zero on any step so CI wrappers can gate on it, except the
+# final federation-token check, which only warns: the kubeconfig is usable
+# without it.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -59,7 +64,6 @@ TOKEN="$(kubectl get secret -n kube-system evals-readonly-token -o jsonpath='{.d
 # Cluster endpoint + CA — pulled from whatever cluster the current kubeconfig
 # has as current-context. Works for EKS, GKE, AKS, or any other
 # kubeconfig-accessible cluster; nothing here is EKS-specific.
-CLUSTER_NAME="$(kubectl config view --minify -o jsonpath='{.contexts[0].context.cluster}')"
 CLUSTER_API="$(kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.server}')"
 CA_DATA="$(kubectl config view --minify --flatten -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
 
@@ -94,8 +98,8 @@ EOF
 chmod 600 "${KUBECONFIG_OUT}"
 log "wrote ${KUBECONFIG_OUT}"
 
-# The session policy is static — copy it into .secrets/ so the Makefile
-# defaults find it in the same place as the kubeconfig. Copying instead of
+# The session policy is static: copy it into .secrets/ so the read-only
+# operating profile's section 2 command finds it beside the kubeconfig. Copying instead of
 # symlinking keeps the .secrets/ directory self-contained if someone moves
 # the repo.
 POLICY_OUT="${SECRETS_DIR}/readonly-session-policy.json"
@@ -118,6 +122,10 @@ if KUBECONFIG="${KUBECONFIG_OUT}" kubectl auth can-i list secrets --all-namespac
   die "readonly kubeconfig is allowed to LIST secrets; another binding grants this ServiceAccount or its groups secrets"
 fi
 
+log "kubeconfig ready. With the eval role set up (misc/evals/README.md), you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"
+
+# The check below is for the read-only operating profile's own federation
+# token (its section 2) only; the eval runner does not use it.
 # The apex-run session tag labels the minted session in CloudTrail.
 log "verifying AWS federation-token minting..."
 if ! aws sts get-federation-token \
@@ -126,8 +134,7 @@ if ! aws sts get-federation-token \
        --duration-seconds 900 \
        --tags "Key=apex-run,Value=$(date -u +%Y%m%dT%H%M%SZ)-$$" \
        --output text --query Credentials.AccessKeyId >/dev/null 2>&1; then
-  die "aws sts get-federation-token failed; it needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it) and sts:TagSession; the kubeconfig above is written and usable"
+  log "WARNING: aws sts get-federation-token failed. The read-only operating profile's own token (its section 2) needs IAM-user long-term credentials with sts:GetFederationToken (a role or Identity Center session cannot call it) and sts:TagSession. The kubeconfig and the session policy are written and the kubeconfig is usable, evals included."
 fi
 
-log "done. both artefacts are in ${SECRETS_DIR}/ (gitignored)."
-log "you can now run: make task-eks-recon INCLUDE_LIVE_ONLY=1 (or task-eks-operation-review)"
+log "done. ${KUBECONFIG_OUT} and ${POLICY_OUT} are written (gitignored)."

@@ -1,0 +1,14 @@
+{
+  "exit": 2,
+  "decision": "block",
+  "stderr_contains": "CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE must be true or false, got 'off'",
+  "args": [
+    "--mode",
+    "ask",
+    "--id",
+    "operator.confirm-before-change"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE": "off"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "exit": 2,
+  "decision": "block",
+  "stderr_contains": "CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS must be true or false, got ''",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "apex.no-secrets"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS": ""
+  }
+}

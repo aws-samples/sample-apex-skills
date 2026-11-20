@@ -29,4 +29,4 @@ From `misc/evals/`:
 - `make artifact-<REPLACE>` — artifact validation against outputs/ (deterministic)
 - `make composite-<REPLACE>` — weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

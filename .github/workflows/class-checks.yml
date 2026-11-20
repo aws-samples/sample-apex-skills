@@ -1,0 +1,91 @@
+name: class-checks
+
+on:
+  # No paths filter on pull_request: a required check whose workflow is
+  # skipped by a paths filter stays Pending and blocks the merge. The job
+  # runs on every pull request and skips its real work when no watched path
+  # changed (see .github/scripts/ci-gate.sh).
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: class-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  class-checks:
+    name: class checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate finds the base commit, and the metadata.version check
+          # diffs the base commit against the head commit.
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'skills/**'
+          'devops-agent/**'
+          'classes/**'
+          'misc/safe_frontmatter.py'
+          '.github/workflows/class-checks.yml'
+          '.github/scripts/ci-gate.sh'
+      - name: No-op (no watched path changed)
+        if: steps.changes.outputs.relevant == 'false'
+        run: echo "No change to skills or classes; class checks not needed."
+      # Anything but an explicit 'false' runs the real check.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          python-version: '3.x'
+      - name: Install pyyaml
+        if: steps.changes.outputs.relevant != 'false'
+        run: pip install 'pyyaml>=6,<7'
+      - name: Test the runner, the checks and the hook-test skeleton
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B classes/steward/scripts/run_checks.py --self-test
+      # Report only: lists what would fail if every skill joined apex-base.
+      # It skips the hook tests. --report exits 0, and continue-on-error keeps even a crash from
+      # failing the job.
+      - name: Report what would fail if every skill were an apex-base member (never fails)
+        if: steps.changes.outputs.relevant != 'false'
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 -B classes/steward/scripts/run_checks.py --report apex-base
+      - name: Run every class check on every member skill, then the hook tests
+        id: run
+        if: steps.changes.outputs.relevant != 'false'
+        env:
+          # On a push the version check compares with the commit before it.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 -B classes/steward/scripts/run_checks.py
+      - name: How to fix a class check (shown on failure)
+        if: failure() && steps.run.outcome == 'failure'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## A class check failed
+
+          `classes/steward/scripts/run_checks.py` runs each `checks:` entry of every `classes/<class>/class.yaml` on each skill whose frontmatter names that class in `metadata.apex-classes`, then the hook tests under `classes/*/hooks/*/tests/`. Each `FAIL` line in the job log names the check, the file and the reason:
+
+          - `AB-FM`: frontmatter parses, `name` equals the folder name, `description` is 1 to 1024 characters
+          - `AB-RULE`: every rule id in `classes/apex-base/rules.md` is inside the `APEX_CLASSES` marker block (re-run the class sync)
+          - `AB-PATH`: name another skill by its name, never by a `../` path into its folder
+          - `AB-VER`: `metadata.version` is X.Y.Z and is raised whenever the skill's SKILL.md, `agents/`, `scripts/`, `tools/` or `references/` change
+          - `AB-SIZE`: SKILL.md is under 500 lines
+          - `AB-LINK`: every relative Markdown link resolves inside the skill's own folder
+          - `HOOK-TEST`: a hook script's result differs from its fixture's `.expected.json`
+
+          Run it locally with `python3 classes/steward/scripts/run_checks.py` (set `BASE_SHA` to the base commit for the version check).
+          EOF

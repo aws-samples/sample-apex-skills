@@ -13,7 +13,7 @@ Usage (from a skill folder where the class sync copied this tool to
 scripts/script_validate_output.py, the skill folder is found by itself):
   validate_output.py [--skill-dir <skill>] <output.yaml|output.json>...
 
-It imports the apex-base class tool schema_check (the class sync (planned)
+It imports the apex-base class tool schema_check (the class sync
 rewrites the import to the flat copy's name). In this repo, run it with
 PYTHONPATH=classes/apex-base/scripts.
 Exit codes: 0 valid; 1 invalid (do not hand it on); 2 the check could not run.

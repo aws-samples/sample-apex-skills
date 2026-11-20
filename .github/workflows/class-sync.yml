@@ -1,0 +1,95 @@
+name: class-sync
+
+on:
+  # No paths filter on pull_request: a required check whose workflow is
+  # skipped by a paths filter stays Pending and blocks the merge. The job
+  # runs on every pull request and skips its real work when no watched path
+  # changed (see .github/scripts/ci-gate.sh).
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: class-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  class-sync:
+    name: class copies in member skills are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Load-bearing: at depth 1 ci-gate.sh cannot find the base commit, so it
+          # reports relevant=true on every pull request (fails safe, saves nothing).
+          fetch-depth: 0
+      - name: Decide whether this change needs the check
+        id: changes
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: >-
+          bash .github/scripts/ci-gate.sh changed
+          'classes/**'
+          'skills/**'
+          'misc/sync-classes.py'
+          'plugins/apex/hooks/**'
+          'plugins/apex/kiro/apex-hooks.json'
+          'plugins/apex/.claude-plugin/plugin.json'
+          'plugins/apex/.codex-plugin/plugin.json'
+          'misc/safe_frontmatter.py'
+          'misc/tests/test_sync_classes.py'
+          'misc/tests/fixtures/sync_classes_cases.json'
+          'misc/tests/test_report_tool.py'
+          'misc/tests/fixtures/report_tool_cases.json'
+          '.github/workflows/class-sync.yml'
+          '.github/scripts/ci-gate.sh'
+      - name: No-op (no watched path changed)
+        if: steps.changes.outputs.relevant == 'false'
+        run: echo "No change to classes, skills, the plugin hook files or a plugin manifest; class sync check not needed."
+      # Anything but an explicit 'false' runs the real check.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.relevant != 'false'
+        with:
+          python-version: '3.x'
+      - name: Install PyYAML
+        if: steps.changes.outputs.relevant != 'false'
+        run: pip install 'pyyaml>=6,<7'
+      - name: Test the class sync
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B misc/tests/test_sync_classes.py -v
+      - name: Test the shared report tool
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B misc/tests/test_report_tool.py -v
+      - name: Class copies match classes/
+        id: sync
+        if: steps.changes.outputs.relevant != 'false'
+        # The class-text checks run on every class, member or not. The skill
+        # checks cover only skills that declare metadata.apex-classes; a skill
+        # joins in its own rebuild step, so today no skill is a member. The
+        # plugin checks cover the hook files under plugins/apex/, its one
+        # plugin manifest (.claude-plugin/plugin.json) and a
+        # .codex-plugin/plugin.json if one is added.
+        run: python3 misc/sync-classes.py --check
+      - name: Skill pages are in sync
+        if: steps.changes.outputs.relevant != 'false'
+        run: ./misc/update-pages.sh --check
+      - name: How to fix stale class copies (shown on failure)
+        if: failure() && steps.sync.outcome == 'failure'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Class copies are stale
+
+          A member skill's copy of a class file, or a plugin hook file under `plugins/apex/`, differs from `classes/`, or the sync refused its inputs. The exact paths are in the job log above. Never edit a copy by hand: edit the class file, then regenerate and commit the class change and its copies in one pull request:
+
+          ```bash
+          python3 misc/sync-classes.py && git add skills/<member>/ plugins/apex/hooks/ plugins/apex/kiro/
+          ./misc/update-all-references.sh && ./misc/update-pages.sh
+          git add classes/ skills/<member>/ plugins/apex/hooks/ plugins/apex/kiro/ misc/website/ README.md skills/README.md devops-agent/README.md
+          ```
+
+          A `hooks` key in `plugins/apex/.claude-plugin/plugin.json`, or in a `plugins/apex/.codex-plugin/plugin.json` if one is added, also fails the check: remove it by hand, since a re-sync does not.
+          EOF
