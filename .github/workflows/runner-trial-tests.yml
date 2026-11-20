@@ -44,4 +44,4 @@ jobs:
           python-version: '3.x'
       - name: Run the C1 driver tests (no model call)
         if: steps.changes.outputs.relevant != 'false'
-        run: python3 -B -m unittest misc.tests.test_drive_c1 -v
+        run: pip install 'pyyaml>=6,<7' && python3 -B -m unittest misc.tests.test_drive_c1 -v
