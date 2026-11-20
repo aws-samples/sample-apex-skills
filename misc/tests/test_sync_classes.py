@@ -217,5 +217,65 @@ class ClassTextNoMember(unittest.TestCase):
                       "classes/a/references/b-x.md and classes/a-b/references/x.md", out)
 
 
+class KiroTimeout(unittest.TestCase):
+    """A hooks entry's kiro_timeout becomes the Kiro hook's timeout and its --kiro-timeout (R318)."""
+
+    SCRIPT = ("#!/usr/bin/env python3\nimport argparse\np = argparse.ArgumentParser()\n"
+              "p.add_argument(\"--mode\", choices=[\"block\"])\np.add_argument(\"--id\")\n")
+
+    def tree(self, field, script=None):
+        tmp = tempfile.mkdtemp(prefix="sync-classes-kiro-timeout-")
+        self.addCleanup(shutil.rmtree, tmp)
+        for rel, text in DATA["bases"]["std"]["files"].items():
+            if not rel.startswith("skills/"):
+                write_file(tmp, rel, text)
+        write_file(tmp, "classes/script/class.yaml", "name: script\nparents: [operator]\nhooks:\n"
+                   "  - id: script.stop-test\n    event: Stop\n    script: hooks/stop-test/stop_test.py\n"
+                   f"    mode: block\n    enabled: false\n{field}")
+        write_file(tmp, "classes/script/hooks/stop-test/stop_test.py",
+                   script if script is not None else self.SCRIPT + "p.add_argument(\"--kiro-timeout\", type=int)\n")
+        return tmp
+
+    def kiro_hook(self, tmp):
+        with open(os.path.join(tmp, "plugins/apex/kiro/apex-hooks.json"), encoding="utf-8") as fh:
+            (hook,) = json.load(fh)["hooks"]
+        with open(os.path.join(tmp, "plugins/apex/hooks/hooks.json"), encoding="utf-8") as fh:
+            (group,) = json.load(fh)["hooks"]["Stop"]
+        return hook, group["hooks"][0]["command"]
+
+    def test_the_timeout_is_written_and_passed(self):
+        tmp = self.tree("    kiro_timeout: 600\n")
+        rc, out = run_sync(tmp, "write")
+        self.assertEqual(rc, 0, out)
+        hook, cc_command = self.kiro_hook(tmp)
+        self.assertEqual(hook["timeout"], 600)
+        self.assertTrue(hook["action"]["command"].endswith(" --mode block --kiro-timeout 600 || exit 3"),
+                        hook["action"]["command"])
+        self.assertNotIn("--kiro-timeout", cc_command)
+        rc, out = run_sync(tmp, "check")
+        self.assertEqual(rc, 0, out)
+
+    def test_no_kiro_timeout_writes_no_timeout(self):
+        tmp = self.tree("")
+        rc, out = run_sync(tmp, "write")
+        self.assertEqual(rc, 0, out)
+        hook, _ = self.kiro_hook(tmp)
+        self.assertNotIn("timeout", hook)
+        self.assertNotIn("--kiro-timeout", hook["action"]["command"])
+
+    def test_a_bad_kiro_timeout_stops_the_sync(self):
+        for value in ("0", "29", "\"600\"", "true", "600.5"):
+            with self.subTest(value=value):
+                rc, out = run_sync(self.tree(f"    kiro_timeout: {value}\n"), "write")
+                self.assertEqual(rc, 1, out)
+                self.assertIn("kiro_timeout must be a whole number of seconds, at least 30", out)
+
+    def test_a_script_without_the_argument_stops_the_sync(self):
+        rc, out = run_sync(self.tree("    kiro_timeout: 600\n", script=self.SCRIPT), "write")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("kiro_timeout needs an add_argument(\"--kiro-timeout\") call in "
+                      "classes/script/hooks/stop-test/stop_test.py", out)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -54,7 +54,10 @@ headed as above, to plugins/apex/hooks/<class>/<hook>/<file>.py, and every
 entry is written into plugins/apex/hooks/hooks.json (Claude Code and Codex:
 python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 --id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
-__APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). A Stop command
+__APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). An entry's
+optional `kiro_timeout` (whole seconds, at least 30) is written as the Kiro
+hook's `timeout` and passed to its command as --kiro-timeout <n>; with none,
+the Kiro hook has no `timeout`. A Stop command
 ends ` || exit 3` and has no matcher. Entries go in class folder order, then
 file order. Codex keys a user's saved per-hook disables by position, so a
 new class that sorts earlier shifts them onto other hooks, and a shifted
@@ -738,6 +741,16 @@ TOKEN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]*\Z")
 PART = r"([A-Za-z0-9_][A-Za-z0-9._-]*)"
 HOOK_SCRIPT = re.compile(rf"(?:\.\./{PART}/)?hooks/{PART}/{PART}\.py\Z")
 STOP_TAIL = " || exit 3"
+# The smallest Kiro timeout an entry may set: the gate keeps 5 s of it for itself, so 30 leaves today's 25 s.
+KIRO_TIMEOUT_MIN = 30
+
+
+def script_takes(root, src, flag):
+    """True when the hook script has an add_argument(<flag>, ...) call."""
+    tree = ast.parse(read_text(os.path.join(root, src)))
+    return any(isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and c.func.attr == "add_argument"
+               and c.args and isinstance(c.args[0], ast.Constant) and c.args[0].value == flag
+               for c in ast.walk(tree))
 
 
 def script_modes(root, src):
@@ -790,6 +803,10 @@ def hook_entries(raw, classes, root):
                                 f"../<class>/hooks/<hook>/<file>.py, found {h.get('script')!r}")
             if not isinstance(h.get("enabled"), bool):
                 raise SyncError(f"{who}: enabled must be true or false, found {h.get('enabled')!r}")
+            kiro_timeout = h.get("kiro_timeout")
+            if kiro_timeout is not None and (type(kiro_timeout) is not int or kiro_timeout < KIRO_TIMEOUT_MIN):
+                raise SyncError(f"{who}: kiro_timeout must be a whole number of seconds, at least "
+                                f"{KIRO_TIMEOUT_MIN}, found {kiro_timeout!r}")
             matcher = None
             if h["event"] != "Stop":
                 ms = h.get("matchers")
@@ -807,6 +824,9 @@ def hook_entries(raw, classes, root):
             modes = script_modes(root, src)
             if h["mode"] not in modes:
                 raise SyncError(f"{who}: mode {h['mode']} is not one of {src}'s --mode choices {modes}")
+            if kiro_timeout is not None and not script_takes(root, src, "--kiro-timeout"):
+                raise SyncError(f"{who}: kiro_timeout needs an add_argument(\"--kiro-timeout\") call in {src}, "
+                                "since the Kiro command passes it")
             hid, key = h["id"], re.sub(r"[.-]", "_", h["id"]).upper()
             if hid in ids:
                 raise SyncError(f"duplicate hooks entry id {hid} from classes/{ids[hid]} and classes/{cls}")
@@ -818,7 +838,7 @@ def hook_entries(raw, classes, root):
                                 "so --check cannot tell their commands apart")
             ids[hid], keys[key], forms[form] = cls, hid, hid
             entries.append({"id": hid, "class": cls, "event": h["event"], "mode": h["mode"],
-                            "enabled": h["enabled"], "matcher": matcher, "src": src,
+                            "enabled": h["enabled"], "kiro_timeout": kiro_timeout, "matcher": matcher, "src": src,
                             "path": f"{rc}/{hook}/{fname}"})
     return entries
 
@@ -844,8 +864,12 @@ def hook_outputs(root, entries):
              "trigger": e["event"]}
         if e["matcher"]:
             k["matcher"] = e["matcher"]["kiro"]
+        kt = e["kiro_timeout"]
+        flag = f" --kiro-timeout {kt}" if kt is not None else ""
         k["action"] = {"type": "command",
-                       "command": f'python3 "__APEX_HOOKS_DIR__/{e["path"]}" --mode {e["mode"]}{tail}'}
+                       "command": f'python3 "__APEX_HOOKS_DIR__/{e["path"]}" --mode {e["mode"]}{flag}{tail}'}
+        if kt is not None:
+            k["timeout"] = kt
         k["enabled"] = e["enabled"]
         kiro.append(k)
     for path, doc in ((HOOKS_JSON, {"description": "generated from classes/*/class.yaml, do not edit",

@@ -68,16 +68,20 @@ sandbox.
 Exit 0 is a pass, 1 a fail; any other exit, a timeout or a tool that cannot
 start is no verdict, which counts as a fail. All runs share one budget, set
 by the --id: with one, 570 s (Claude Code and Codex, under their 600 s
-command-hook default, as of 2026-11-19); with none, 25 s (Kiro, under the Kiro
-CLI's 30 s default). The output shape is set by the event instead (no
-stop_hook_active: Kiro's), so a hand run with no --id and a Claude Code event
-gets Claude Code's output and Kiro's budget. Kiro documents hooks[].timeout
-(seconds, default 60) for the .kiro/hooks file the installer copies; the Kiro
-CLI 3.4.0 binary on this host shows no such field (read from its strings, not
-run). No Kiro Stop entry exists yet, so the 25 s budget stands until one
-lands (SPIKE.md): on Kiro a check slower than 25 s gets no verdict, and the
-gate does not back operator.artifact-checks for eks-build. Design E's settable
-Kiro budget is not built; it waits on the maintainer's call. Each check runs
+command-hook default, as of 2026-11-19); with none (Kiro), the --kiro-timeout
+value less 5 s, or 25 s when it is not passed (under the 30 s default of a
+Kiro agent-config hook and the 60 s Kiro documents for a .kiro/hooks entry).
+The output shape is set by the event instead (no stop_hook_active: Kiro's), so
+a hand run with no --id and a Claude Code event gets Claude Code's output and
+Kiro's budget. Kiro documents hooks[].timeout (seconds, default 60) for the
+.kiro/hooks file the installer copies, and the hook file schema in a Kiro CLI
+3.4.0 binary's v3 engine takes it (read from its program text, not run). The
+class sync writes an entry's kiro_timeout as that timeout and as the
+command's --kiro-timeout, so both limits come from one value (SPIKE.md). No
+Kiro Stop entry exists yet: once one lands with a kiro_timeout longer than a
+check runs, that check gets a verdict on Kiro too, so the gate can back
+operator.artifact-checks for eks-build there; with none set, a check slower
+than 25 s gets no verdict on Kiro. Each check runs
 in its own process group. A timeout of the gate's budget kills the whole
 group, so no terraform or provider it started keeps running, and so does a
 SIGTERM or SIGINT to the gate or an error while a check runs. Any other signal
@@ -172,9 +176,10 @@ STATE = ".apex-stop-gate"
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 # Seconds for all runs: under Claude Code's and Codex's 600 s command-hook default.
 BUDGET = 570.0
-# Kiro (no --id): under the Kiro CLI's 30 s default. Kiro documents hooks[].timeout (seconds, default 60)
-# for .kiro/hooks; the Kiro CLI 3.4.0 binary shows no such field. No Kiro Stop entry exists yet.
+# Kiro (no --id) with no --kiro-timeout: under the 30 s default of a Kiro agent-config hook.
 KIRO_BUDGET = 25.0
+# Kiro with --kiro-timeout <n> (the hook's own timeout, written by the class sync): the budget is n less this.
+KIRO_MARGIN = 5.0
 MAX_AGE = 24 * 3600
 MAX_DETAIL = 4000
 MAX_REPORT = 9000
@@ -435,7 +440,7 @@ def gate(args, event):
     guard = guard_path(folder, work_dir)
     if not records:
         return 0
-    deadline = time.monotonic() + (KIRO_BUDGET if args.id is None else BUDGET)
+    deadline = time.monotonic() + budget(args)
     failed, dropped = [], []
     for path, rec in records:
         why = stale(rec)
@@ -487,11 +492,20 @@ def stopped(signum, frame):
     raise SystemExit(3)
 
 
+def budget(args):
+    """Seconds for all runs: BUDGET with an --id; on Kiro, its hook timeout less KIRO_MARGIN, else KIRO_BUDGET."""
+    if args.id is not None:
+        return BUDGET
+    kiro_timeout = getattr(args, "kiro_timeout", None)
+    return KIRO_BUDGET if kiro_timeout is None else max(kiro_timeout - KIRO_MARGIN, 0.0)
+
+
 def main(argv):
     signal.signal(signal.SIGTERM, stopped)
     parser = argparse.ArgumentParser(description="Re-run a skill's output and artifact checks before a turn ends (Stop).")
     parser.add_argument("--mode", choices=["block", "warn"], required=True)
     parser.add_argument("--id")
+    parser.add_argument("--kiro-timeout", type=int, help="the Kiro hook's timeout in seconds (the class sync passes it)")
     args = parser.parse_args(argv)
     try:
         off = switch_off(args.id)

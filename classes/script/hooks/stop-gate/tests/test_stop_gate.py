@@ -195,10 +195,10 @@ def guards(w):
     return sorted(p.name for p in w.state.glob("guard-*")) if w.state.is_dir() else []
 
 
-def in_process(world, monkeypatch, capsys, event, mode="block", hook_id=None):
+def in_process(world, monkeypatch, capsys, event, mode="block", hook_id=None, kiro_timeout=None):
     """Run gate() in this process, with the scratch repo's skills root; return its JSON stdout (or None) and stderr."""
     monkeypatch.setattr(GATE, "SKILLS_ROOT", os.path.realpath(world.repo / "skills"))
-    assert GATE.gate(GATE.argparse.Namespace(mode=mode, id=hook_id), event) == 0
+    assert GATE.gate(GATE.argparse.Namespace(mode=mode, id=hook_id, kiro_timeout=kiro_timeout), event) == 0
     out = capsys.readouterr()
     return (json.loads(out.out) if out.out else None), out.err
 
@@ -764,6 +764,31 @@ def test_no_time_left_is_no_verdict(world, monkeypatch, capsys):
     monkeypatch.setattr(GATE, "KIRO_BUDGET", 0.0)
     out, _ = in_process(world, monkeypatch, capsys, cc_event(str(world.project)))
     assert out["decision"] == "block" and "no time left" in out["reason"]
+
+
+def test_the_kiro_budget_comes_from_the_kiro_timeout():
+    # R318: on Kiro the budget is the hook's timeout (passed by the class sync) less KIRO_MARGIN; 25 s without it.
+    ns = GATE.argparse.Namespace
+    assert GATE.budget(ns(mode="warn", id=None, kiro_timeout=600)) == 595.0
+    assert GATE.budget(ns(mode="warn", id=None, kiro_timeout=None)) == GATE.KIRO_BUDGET == 25.0
+    assert GATE.budget(ns(mode="warn", id=None)) == 25.0
+    assert GATE.budget(ns(mode="warn", id=GATE.HOOK_ID, kiro_timeout=600)) == GATE.BUDGET
+
+
+def test_a_kiro_timeout_gives_a_slow_check_its_verdict(world, monkeypatch, capsys):
+    slow = world.skill_tool("script_validate_output.py", "import time\ntime.sleep(2)\n")
+    world.record("good.yaml", tool=str(slow))
+    monkeypatch.setattr(GATE, "KIRO_BUDGET", 1.0)
+    monkeypatch.setattr(GATE, "KIRO_MARGIN", 27.0)  # a 30 s timeout leaves 3 s, more than the 2 s check
+    out, _ = in_process(world, monkeypatch, capsys, cc_event(str(world.project)), kiro_timeout=30)
+    assert out is None and records(world) == []
+
+
+def test_the_kiro_command_the_sync_writes_parses(world):
+    # The Kiro command form: --mode <m> --kiro-timeout <n>, no --id.
+    p = subprocess.run([sys.executable, "-B", HOOK, "--mode", "warn", "--kiro-timeout", "600"], input="{}",
+                       capture_output=True, text=True, timeout=60, cwd=str(world.project))
+    assert p.returncode == 0, p.stderr
 
 
 def test_a_check_that_cannot_start_is_no_verdict(world, monkeypatch, capsys):
