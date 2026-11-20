@@ -6,7 +6,7 @@ description: "How to author and contribute APEX skills: the skill-creator skill,
 
 # Contributing
 
-APEX skills are authored using the [`skill-creator`](../skills/index.md) skill (a maintainer skill: a default install leaves it out, and `npx apex-skills@1.4.0 --maintainer --branch main` links it), which encodes the [Agent Skills](https://agentskills.io/) spec: frontmatter constraints, the `scripts/` / `references/` / `assets/` layout, and the iterate-with-evals loop.
+APEX skills are authored using the [`skill-creator`](../skills/index.md) skill (a maintainer skill: the installer on `main` leaves it out unless it is given `--maintainer`, and `node misc/installer/bin/cli.mjs --maintainer --branch main`, run from a clone of `main`, links it), which encodes the [Agent Skills](https://agentskills.io/) spec: frontmatter constraints, the `scripts/` / `references/` / `assets/` layout, and the iterate-with-evals loop.
 
 See [`CONTRIBUTING.md`](https://github.com/aws-samples/sample-apex-skills/blob/main/CONTRIBUTING.md) in the repo for the full contribution flow.
 
