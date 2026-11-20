@@ -296,6 +296,30 @@ class DeepInput(Tmp):
 
 
 @NEEDS_DEPS
+@NEEDS_DEPS
+class YamlLoader(Tmp):
+    """schema_check.loads keeps the safe loader's rules: duplicate keys raise,
+    and a python tag is refused before its module is imported or called."""
+
+    def test_duplicate_key_raises(self):
+        with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: duplicate key 'a' at line 2"):
+            schema_check.loads("a: 1\na: 2\n", "x.yaml")
+
+    def test_python_tags_are_refused(self):
+        self.write("apex_yaml_probe.py", "import builtins\nbuiltins.APEX_YAML_PROBE = True\n"
+                   "class Probe:\n    pass\ndef boom():\n    builtins.APEX_YAML_PROBE = True\n")
+        sys.path.insert(0, self.tmp)
+        self.addCleanup(sys.path.remove, self.tmp)
+        for text in ("!!python/object:apex_yaml_probe.Probe {}\n",
+                     "!!python/object/apply:apex_yaml_probe.boom []\n",
+                     "!!python/object/apply:os.system ['true']\n"):
+            with self.subTest(text=text):
+                with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: not valid YAML"):
+                    schema_check.loads(text, "x.yaml")
+                self.assertNotIn("apex_yaml_probe", sys.modules)
+                self.assertFalse(hasattr(__import__("builtins"), "APEX_YAML_PROBE"))
+
+
 class ReconSchemaMatchesSkill(unittest.TestCase):
     """The hand-written schema stays in step with SKILL.md."""
 
