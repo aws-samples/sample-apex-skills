@@ -378,9 +378,10 @@ def assume_profile_role(profile: str, config_file: str, seconds: int) -> dict:
     file and the boto config are /dev/null and the instance metadata lookup
     is off, so no host key and no credentials or config file in ~/.aws is
     read; the CLI still uses ~/.aws/cli (its cache and any alias file) and
-    looks for ~/.aws/models. The source profile must sign in through
-    credential_process: an SSO or aws login source reads its token under
-    ~/.aws. Returns the STS Credentials dict."""
+    looks for ~/.aws/models. The credential_process helper runs as you,
+    with your HOME; what it reads is your choice. The source profile must
+    sign in through credential_process: an SSO or aws login source reads its
+    token under ~/.aws. Returns the STS Credentials dict."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
     env.update(AWS_CONFIG_FILE=config_file, AWS_SHARED_CREDENTIALS_FILE=os.devnull, AWS_EC2_METADATA_DISABLED="true",
                BOTO_CONFIG=os.devnull)
@@ -582,7 +583,8 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p.add_argument("--cluster-aws-config", help="AWS config file outside ~/.aws holding the kubeconfig's aws profile "
                                                 "in role_arn plus source_profile form, its source profile signing in "
                                                 "through credential_process; the driver mints T7's session from it "
-                                                "only (without it T7 reads 'cannot run')")
+                                                "only (without it, a kubeconfig whose exec runs aws with AWS_PROFILE "
+                                                "reads 'cannot run')")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]
@@ -633,7 +635,7 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
     if args.cluster_aws_config:
         acp = Path(args.cluster_aws_config).resolve()
         if not acp.is_file():
-            print(f"cluster aws config not found: {acp}", file=sys.stderr)
+            print(f"cluster aws config is not a file: {acp}", file=sys.stderr)
             return 2
         aws_config = str(acp)
     refused = check_commits()

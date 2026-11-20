@@ -421,7 +421,7 @@ class LiveSession(unittest.TestCase):
             rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc),
                                  "--cluster-aws-config", str(Path(k) / "missing"))
         self.assertEqual((rc, calls), (2, []))
-        self.assertIn("cluster aws config not found", err)
+        self.assertIn("cluster aws config is not a file", err)
 
     def test_cluster_aws_config_must_be_a_file_and_is_resolved(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
@@ -430,7 +430,7 @@ class LiveSession(unittest.TestCase):
             calls = []
             rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-aws-config", k)
         self.assertEqual((rc, calls), (2, []))   # a directory is refused before any run
-        self.assertIn("cluster aws config not found", err)
+        self.assertIn("cluster aws config is not a file", err)
         asked = []
         rc, recs, seen, _, op_cfg = self.run_t7(lambda p, c, s: asked.append(c) or session(), relative=True)
         self.assertEqual((rc, len(seen)), (0, 6))
