@@ -14,6 +14,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -326,15 +327,18 @@ users:
 """
 
 
-def session():
-    return {"AccessKeyId": "ASIATEST", "SecretAccessKey": "s3cret", "SessionToken": "tok",
-            "Expiration": "2026-01-01T00:00:00Z"}
+def minted(left=3600, extra="", profile="cluster-ro"):
+    """A --cluster-credentials file body: the minted session, `left` seconds to expiry."""
+    import datetime
+    exp = datetime.datetime.fromtimestamp(time.time() + left, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (f"[{profile}]\naws_access_key_id = ASIATEST\naws_secret_access_key = s3cret\n"
+            f"aws_session_token = tok\nexpiration = {exp}\n{extra}")
 
 
 class LiveSession(unittest.TestCase):
-    """T7: the subject gets a short cluster session, never the host's profile path."""
+    """T7: the subject gets the minted cluster session, never the host's profile path."""
 
-    def run_t7(self, assume, with_config=True, relative=False):
+    def run_t7(self, body=None, relative=False, between=None):
         seen, calls = [], []
         runner = fake_runner(calls)
         inner = runner.run_subject
@@ -352,6 +356,8 @@ class LiveSession(unittest.TestCase):
                 extra=dict(extra), shim=shim, shim_text=shim.read_text() if shim.exists() else None,
                 shim_mode=shim.stat().st_mode & 0o777 if shim.exists() else None,
                 bin_mode=shim.parent.stat().st_mode & 0o777 if shim.exists() else None, ran=ran))
+            if between is not None and len(seen) == 1:
+                creds.write_text(between)   # a re-mint after the first run
             return inner(**kw)
         runner.run_subject = run_subject
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
@@ -360,29 +366,31 @@ class LiveSession(unittest.TestCase):
             kc.write_text(HOST_KUBECONFIG % host_cfg)
             fake = Path(k) / "fakebin"
             fake.mkdir()
-            (fake / "aws").write_text('#!/bin/sh\necho "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} default=${AWS_DEFAULT_PROFILE-unset} '
+            # any aws the driver itself ran would land in this log
+            log = Path(k) / "driver-aws.log"
+            (fake / "aws").write_text(f'#!/bin/sh\necho "$*" >> {log}\n'
+                                      'echo "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} default=${AWS_DEFAULT_PROFILE-unset} '
                                       'cfg=$AWS_CONFIG_FILE args=$*"\n')
             (fake / "aws").chmod(0o700)
             path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
-            op_cfg = Path(k) / "operator-aws-config"
-            op_cfg.write_text("[profile cluster-ro]\n")
-            flags = ("--cluster-aws-config", op_cfg.name if relative else str(op_cfg)) if with_config else ()
+            creds = Path(k) / "minted"
+            flags = ()
+            if body is not None:
+                creds.write_text(body)
+                flags = ("--cluster-credentials", creds.name if relative else str(creds))
             cwd = os.getcwd()
             os.chdir(k)   # a relative path, as an operator would type it
             try:
-                with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
-                        mock.patch.dict(os.environ, {"PATH": path}):
+                with mock.patch.dict(os.environ, {"PATH": path}):
                     rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc), *flags)
             finally:
                 os.chdir(cwd)
-        return rc, recs, seen, host_cfg, str(op_cfg.resolve())
+            driver_aws = log.read_text() if log.exists() else ""
+        return rc, recs, seen, host_cfg, driver_aws
 
-    def test_subject_gets_only_a_session_in_its_kubeconfig_and_aws_shim(self):
-        asked = []
-        rc, recs, seen, host_cfg, op_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
+    def test_subject_gets_only_the_minted_session_in_its_kubeconfig_and_aws_shim(self):
+        rc, recs, seen, host_cfg, driver_aws = self.run_t7(minted())
         self.assertEqual((rc, len(seen)), (0, 6))
-        # one session per live run, from the operator's config, never the kubeconfig's host config
-        self.assertEqual(asked, [("cluster-ro", op_cfg, 3600)] * 6)
         for s in seen:
             for bad in (".aws", host_cfg, "AWS_PROFILE", "cluster-ro", "host-admin"):
                 self.assertNotIn(bad, s.text)
@@ -394,113 +402,79 @@ class LiveSession(unittest.TestCase):
             self.assertEqual(sorted(s.extra), ["KUBECONFIG", "PATH"])
             self.assertEqual(s.extra["PATH"].split(os.pathsep)[0], str(s.shim.parent))
             self.assertEqual((s.shim_mode, s.bin_mode), (0o700, 0o700))
-            for bad in (".aws", host_cfg, "cluster-ro"):
+            for bad in (".aws", host_cfg, "cluster-ro", "minted"):
                 self.assertNotIn(bad, s.shim_text)
             # the shim replaces the subject's eval-role keys and drops its profile, for aws only
             self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset default=unset cfg={os.devnull} args=eks list-clusters")
             self.assertFalse(s.kc.parent.exists())   # removed when the run ended
         self.assertTrue(all(r["status"] == "ran" for r in recs))
+        # the driver signs in nowhere: the only aws calls are the subject's, through the shim
+        self.assertEqual(driver_aws, "eks list-clusters\n" * 6)
 
-    def test_failed_session_reads_cannot_run(self):
-        def fail(p, c, s):
-            raise drive_c1.LiveSessionError("aws sts assume-role exited 254")
-        rc, recs, seen, _, _ = self.run_t7(fail)
+    def test_the_file_is_read_anew_for_each_run(self):
+        remint = minted().replace("ASIATEST", "ASIAREMINT").replace("= tok", "= tok2")
+        rc, recs, seen, _, _ = self.run_t7(minted(), between=remint)
+        self.assertEqual((rc, len(seen)), (0, 6))
+        keys = [{e["name"]: e["value"] for e in json.loads(s.text)["users"][0]["user"]["exec"]["env"]}
+                for s in seen]
+        self.assertEqual([(k["AWS_ACCESS_KEY_ID"], k["AWS_SESSION_TOKEN"]) for k in keys],
+                         [("ASIATEST", "tok")] + [("ASIAREMINT", "tok2")] * 5)
+
+    def test_sign_in_lines_in_the_file_are_refused(self):
+        for line in ("credential_process = /usr/bin/env HOME=/h ada credentials print --role Admin\n",
+                     "role_arn = arn:aws:iam::000000000000:role/x\n", "source_profile = src\n"):
+            rc, recs, seen, _, _ = self.run_t7(minted(extra=line))
+            self.assertEqual((rc, seen, len(recs)), (0, [], 6))
+            key = line.split(" =")[0]
+            self.assertTrue(all(r["status"] == "cannot run" and key in r["reason"] for r in recs), recs[0])
+
+    def test_session_too_short_for_the_run_reads_cannot_run(self):
+        # fake_runner's subject timeout is 600 s, plus the 120 s margin
+        rc, recs, seen, _, _ = self.run_t7(minted(left=600 + 60))
         self.assertEqual((rc, seen), (0, []))
-        self.assertTrue(all(r["status"] == "cannot run" and "exited 254" in r["reason"] for r in recs))
+        self.assertTrue(all(r["status"] == "cannot run" and "mint it again" in r["reason"] for r in recs))
+        rc, recs, seen, _, _ = self.run_t7(minted(left=600 + 300))
+        self.assertEqual((rc, len(seen)), (0, 6))
 
-    def test_no_cluster_aws_config_reads_cannot_run_with_no_fallback(self):
-        def assume(p, c, s):
-            raise AssertionError("assumed a role without the operator's config")
-        rc, recs, seen, _, _ = self.run_t7(assume, with_config=False)
-        self.assertEqual((rc, seen, len(recs)), (0, [], 6))
-        self.assertTrue(all(r["status"] == "cannot run" and "--cluster-aws-config" in r["reason"] for r in recs))
+    def test_malformed_files_read_cannot_run(self):
+        for body, why in ((minted(profile="other"), "no [cluster-ro] section"),
+                          (minted().replace("aws_session_token = tok\n", ""), "lacks aws_session_token"),
+                          (minted().replace("expiration = ", "expiration = soon #"), "not ISO 8601"),
+                          ("not an ini file", "cannot parse")):
+            rc, recs, seen, _, _ = self.run_t7(body)
+            self.assertEqual((rc, seen), (0, []), why)
+            self.assertTrue(all(r["status"] == "cannot run" and why in r["reason"] for r in recs), (why, recs[0]))
+
+    def test_no_cluster_credentials_reads_cannot_run_with_no_fallback(self):
+        rc, recs, seen, _, driver_aws = self.run_t7(None)
+        self.assertEqual((rc, seen, len(recs), driver_aws), (0, [], 6, ""))
+        self.assertTrue(all(r["status"] == "cannot run" and "--cluster-credentials" in r["reason"] for r in recs))
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text("k")
             calls = []
             rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc),
-                                 "--cluster-aws-config", str(Path(k) / "missing"))
+                                 "--cluster-credentials", str(Path(k) / "missing"))
         self.assertEqual((rc, calls), (2, []))
-        self.assertIn("cluster aws config is not a file", err)
+        self.assertIn("cluster credentials is not a file", err)
 
-    def test_cluster_aws_config_must_be_a_file_and_is_resolved(self):
+    def test_cluster_credentials_must_be_a_file_and_is_resolved(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text("k")
             calls = []
-            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-aws-config", k)
+            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-credentials", k)
         self.assertEqual((rc, calls), (2, []))   # a directory is refused before any run
-        self.assertIn("cluster aws config is not a file", err)
-        asked = []
-        rc, recs, seen, _, op_cfg = self.run_t7(lambda p, c, s: asked.append(c) or session(), relative=True)
-        self.assertEqual((rc, len(seen)), (0, 6))
-        self.assertEqual(asked, [op_cfg] * 6)   # a relative path reaches the assume resolved
-
-
-    def test_assume_profile_role_runs_as_the_driver_without_the_parent_aws_env(self):
-        with tempfile.TemporaryDirectory() as k:
-            log = Path(k) / "log"
-            fake = Path(k) / "aws"
-            fake.write_text(
-                '#!/bin/sh\n'
-                f'echo "$* | ${{AWS_ACCESS_KEY_ID-unset}} ${{AWS_PROFILE-unset}} ${{AWS_DEFAULT_PROFILE-unset}} '
-                f'$AWS_CONFIG_FILE ${{AWS_SHARED_CREDENTIALS_FILE-unset}} ${{AWS_EC2_METADATA_DISABLED-unset}} '
-                f'${{BOTO_CONFIG-unset}}" >> {log}\n'
-                'case "$*" in\n'
-                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
-                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
-                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
-                '  *) exit 9 ;;\n'
-                'esac\n')
-            fake.chmod(0o700)
-            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "AWS_ACCESS_KEY_ID": "AKIAHOST",
-                   "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin",
-                   "AWS_SHARED_CREDENTIALS_FILE": str(Path.home() / ".aws" / "credentials"),
-                   "BOTO_CONFIG": str(Path.home() / ".boto")}
-            with mock.patch.dict(os.environ, env):
-                creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
-            lines = log.read_text().splitlines()
-        self.assertEqual(creds, {"AccessKeyId": "ASIATEST"})
-        self.assertEqual(len(lines), 3)
-        # the parent's AWS_* are stripped, only the operator's config is read, with no
-        # shared credentials file (no ~/.aws or host keys) and no instance metadata
-        for line in lines:
-            self.assertTrue(line.endswith(f"| unset unset unset /cfg/operator {os.devnull} true {os.devnull}"), line)
-        self.assertTrue(lines[2].startswith("sts assume-role --profile src --role-arn test-role-arn "
-                                            "--role-session-name apex-c1-live-"), lines[2])
-        self.assertIn("--duration-seconds 3600 --output json", lines[2])
-
-    def test_assume_profile_role_runs_aws_in_an_empty_private_home_removed_after(self):
-        with tempfile.TemporaryDirectory() as k:
-            log = Path(k) / "log"
-            fake = Path(k) / "aws"
-            fake.write_text(
-                '#!/bin/sh\n'
-                f'echo "$HOME $(stat -c %a "$HOME") $(ls -A "$HOME" | wc -l)" >> {log}\n'
-                'case "$*" in\n'
-                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
-                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
-                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
-                '  *) exit 9 ;;\n'
-                'esac\n')
-            fake.chmod(0o700)
-            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(Path.home())}
-            with mock.patch.dict(os.environ, env):
-                drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
-            homes = {tuple(line.split()) for line in log.read_text().splitlines()}
-        # one HOME for all three calls: not the parent's, mode 700, empty, and gone after
-        self.assertEqual(len(homes), 1, homes)
-        home, mode, entries = homes.pop()
-        self.assertNotEqual(Path(home), Path.home())
-        self.assertEqual((mode, entries), ("700", "0"))
-        self.assertFalse(Path(home).exists())
+        self.assertIn("cluster credentials is not a file", err)
+        rc, recs, seen, _, _ = self.run_t7(minted(), relative=True)
+        self.assertEqual((rc, len(seen)), (0, 6))   # a relative path is read resolved
 
     def test_aws_exec_without_a_profile_is_passed_through(self):
         with tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text(HOST_KUBECONFIG.replace("      - {name: AWS_PROFILE, value: cluster-ro}\n", "") % "/cfg")
-            with mock.patch.object(drive_c1, "assume_profile_role", side_effect=AssertionError("assumed")):
-                with drive_c1.live_env(str(kc), None) as extra:
+            with mock.patch.object(drive_c1, "read_minted_session", side_effect=AssertionError("read")):
+                with drive_c1.live_env(str(kc), None, 600) as extra:
                     self.assertEqual(extra, {"KUBECONFIG": str(kc)})
 
 
