@@ -57,6 +57,13 @@ def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
     base = run_summary[base_arm]["pass_rate"]
     runs_per = bench["metadata"]["runs_per_configuration"]
     pass_k_rate = compute_pass_k(latest, pass_k)
+    # Tokens, time and harness from the runner's cases.json (run_task_evals.py
+    # skill_summary); None when the run wrote none.
+    cases_path = latest / "cases.json"
+    cases = json.loads(cases_path.read_text()) if cases_path.exists() else {}
+    arms = (cases.get("skill_summary") or {}).get("arms") or {}
+    new_arm = arms.get("with_skill") or {}
+    old_arm = arms.get(base_arm) or {}
     return {
         "with_skill_mean": with_skill["mean"],
         "with_skill_stddev": with_skill["stddev"],
@@ -65,6 +72,11 @@ def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
         "base_mean": base["mean"],
         "pass_k_rate": pass_k_rate,
         "runs_per_prompt": runs_per,
+        "harness": cases.get("harness"),
+        "with_skill_tokens_per_run_mean": new_arm.get("tokens_per_run_mean"),
+        "with_skill_wall_seconds_per_run_mean": new_arm.get("wall_seconds_per_run_mean"),
+        "base_tokens_per_run_mean": old_arm.get("tokens_per_run_mean"),
+        "base_wall_seconds_per_run_mean": old_arm.get("wall_seconds_per_run_mean"),
     }
 
 
@@ -202,11 +214,13 @@ def get_git_head() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skill", required=True)
-    parser.add_argument("--pass-k", type=int, default=3)
+    parser.add_argument("--pass-k", type=int, default=None,
+                        help="runs per case for pass^k (default: the skill's regression.pass_k)")
     args = parser.parse_args()
 
     skill = args.skill
-    pass_k = args.pass_k
+    config = load_config(skill)
+    pass_k = args.pass_k if args.pass_k is not None else config.pass_k
 
     metrics = find_latest_metrics(skill)
     triggering = extract_triggering(metrics)
@@ -240,7 +254,6 @@ def main() -> None:
         "composite": None,
     }
 
-    config = load_config(skill)
     composite_result = compute_from_baseline(baseline, config)
     if composite_result:
         baseline["composite"] = {
