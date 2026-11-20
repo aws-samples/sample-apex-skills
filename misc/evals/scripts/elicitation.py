@@ -22,7 +22,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 @dataclass
@@ -156,13 +156,15 @@ def run_multiturn_subject(
     elicitation: ElicitationConfig,
     cmd_base: list[str],
     cwd: str,
-    env: dict[str, str],
+    env_for_turn: Callable[[], dict[str, str]],
     timeout_per_turn: int,
 ) -> tuple[list[dict], bool, str | None]:
     """Run a canned-multiturn session.
 
     Runs the initial prompt, detects questions, matches canned answers,
     and resumes the session until no more questions match or max_turns is hit.
+    `env_for_turn` is called before each turn, so each turn starts on an
+    eval-role session that outlasts it.
 
     Returns (all_events, timed_out, session_id).
     """
@@ -173,7 +175,7 @@ def run_multiturn_subject(
     # First turn
     cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
     )
     events, timed_out = drain_stream_for_events(process, timeout_per_turn)
     all_events.extend(events)
@@ -195,7 +197,7 @@ def run_multiturn_subject(
         turns_used += 1
         cmd = cmd_base + ["-p", answer, "--resume", session_id]
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
         )
         events, timed_out = drain_stream_for_events(process, timeout_per_turn)
         all_events.extend(events)

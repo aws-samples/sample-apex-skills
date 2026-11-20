@@ -72,7 +72,7 @@ A standalone skill works on its own, in any agent that reads the Agent Skills fo
 
 ## Classes
 
-> Status: the design for step 3, decided in [ADR 0005](../adr/0005-skill-classes.md); not built yet.
+> Status: the design for step 3, decided in [ADR 0005](../adr/0005-skill-classes.md); misc/sync-classes.py writes the class copies and --check in CI fails on any difference; no skill has joined a class yet.
 
 The goal is one source of truth: change one place and it changes everywhere. A skill holds domain knowledge, runbooks hold a customer's procedures, and shared tools and rules live in classes that skills inherit. A skill copied out alone loses its APEX parts but keeps its domain knowledge, so it still works for its own ask.
 

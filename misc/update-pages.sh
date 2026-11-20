@@ -221,6 +221,7 @@ first_sentence() {
 # on a skill with no line or no group here.
 SKILL_META="$(cat <<'META'
 apex	APEX Router: pick the right EKS or ECS skill	Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills	Set up and extend
+apex-new-skill	APEX New Skill: add a skill or a class change to the repo	Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request	Set up and extend
 dotnet-aws-ecs	.NET on Amazon ECS: Fargate with CloudFormation or CDK	Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide	Day 1 Build
 ecs-architect	ECS Architect: choose your Amazon ECS deployment model	Choose the ECS compute model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing	Day 0 Design
 ecs-build	ECS Build: apply-ready Terraform for Amazon ECS	Generate apply-ready Terraform for ECS clusters, services and task definitions on Fargate, EC2 Auto Scaling or Managed Instances	Day 1 Build
@@ -651,10 +652,19 @@ skills_in_group() {
 # --- One "- [name](link): summary" line per skill of a group ---------------
 # Links are .md file paths, relative to the page in $2's directory, so
 # Docusaurus resolves them to page URLs.
+# The installer links these only with --maintainer (MAINTAINER_SKILLS in
+# misc/installer/bin/cli.mjs; keep the two lists the same). The skill list and
+# llms.txt add the note to each.
+MAINTAINER_SKILLS="apex-new-skill skill-creator steering-workflow-creator update-docs"
+MAINTAINER_NOTE='maintainer skill, linked by the installer on `main` with `--maintainer`'
+maintainer_note() {
+  case " $MAINTAINER_SKILLS " in *" $1 "*) printf ' (%s)' "$MAINTAINER_NOTE" ;; esac
+}
+
 emit_skill_list() {
   local group="$1" prefix="$2" skill
   while IFS= read -r skill; do
-    printf -- '- [**%s**](%s%s/index.md): %s\n' "$skill" "$prefix" "$skill" "$(skill_summary "$skill")"
+    printf -- '- [**%s**](%s%s/index.md): %s%s\n' "$skill" "$prefix" "$skill" "$(skill_summary "$skill")" "$(maintainer_note "$skill")"
   done < <(skills_in_group "$group")
 }
 
@@ -793,8 +803,8 @@ PY
 
 # --- Build llms.txt (llmstxt.org) from the skills.json manifest on stdin ---
 build_llms_txt() {
-  python3 -c "$(cat <<'PY'
-import json, sys
+  MAINTAINER_SKILLS="$MAINTAINER_SKILLS" MAINTAINER_NOTE="$MAINTAINER_NOTE" python3 -c "$(cat <<'PY'
+import json, os, sys
 
 SITE = "https://aws-samples.github.io/sample-apex-skills"
 # The landing pages' descriptions (build_group_index): keep them the same.
@@ -835,7 +845,8 @@ for group, heading, landing in (
     if landing:
         print(f"- [{heading} overview]({SITE}{landing}): {LANDING[group]}")
     for s in rows:
-        print(f"- [{s['name']}]({SITE}{s['path']}): {s['summary']}")
+        note = f" ({os.environ['MAINTAINER_NOTE']})" if s["name"] in os.environ["MAINTAINER_SKILLS"].split() else ""
+        print(f"- [{s['name']}]({SITE}{s['path']}): {s['summary']}{note}")
 PY
 )"
 }

@@ -1,0 +1,2016 @@
+{
+ "_about": "Fixture trees for misc/tests/test_sync_classes.py. Each case starts from a base tree (a classes/ folder and member skills, built in a temp dir), applies `files` (null deletes a path), runs a write when `presync` is set, applies `mutate`, then runs misc/sync-classes.py in each mode of `run` and checks `expect`. `unchanged` means no file in the tree changed during the runs. Case ids follow the P-310 sketch's fixture table (F0 to F17).",
+ "bases": {
+  "std": {
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\n",
+    "classes/apex-base/rules.md": "# Base rules\n\n- **apex.alpha**: Alpha rule.\n- **apex.beta**: Beta rule.\n",
+    "classes/apex-base/references/apex-base-harness.md": "# Harness\n\nHarness notes.\n",
+    "classes/apex-base/references/notes.md": "# Notes\n\nShared notes.\n",
+    "classes/apex-base/scripts/schema_check.py": "#!/usr/bin/env python3\n# /// script\n# requires-python = \">=3.9\"\n# dependencies = [\"pyyaml>=6,<7\"]\n# ///\n\"\"\"Shared schema check.\"\"\"\n\n\nclass CheckError(Exception):\n    pass\n\n\ndef run():\n    return 0\n",
+    "classes/apex-base/scripts/helper.sh": "#!/usr/bin/env bash\n# requires: jq\nhelper() { echo helped; }\n",
+    "classes/apex-base/checks/rule-ids.txt": "run from classes/ by CI; never copied\n",
+    "classes/platform/class.yaml": "name: platform\nparents: [apex-base]\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\n",
+    "classes/operator/rules.md": "# Operator rules\n\n- **operator.confirm**: Confirm before change.\n",
+    "classes/script/class.yaml": "name: script\nparents: [operator]\n",
+    "classes/script/rules.md": "# Script rules\n\n- **script.same**: Same output.\n",
+    "classes/script/scripts/validate_output.py": "#!/usr/bin/env python3\n# /// script\n# dependencies = [\"pyyaml>=6,<7\"]\n# ///\n\"\"\"Validate output. Its docstring may name schema_check.py.\"\"\"\nimport sys\n\nimport schema_check\nfrom schema_check import CheckError\n\nprint(schema_check.run(), CheckError.__name__, len(sys.argv))\n",
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nsource \"$(dirname \"$0\")/helper.sh\"\nhelper\n",
+    "classes/service/class.yaml": "name: service\nparents: [apex-base]\n",
+    "classes/service-eks/class.yaml": "name: service-eks\nparents: [service]\n",
+    "classes/service-eks/references/context.md": "# EKS context\n\nContext notes.\n",
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"A demo member skill.\"\nmetadata:\n  apex-classes: \"service-eks script\"\n---\n\n# Demo\n\nThe skill's own text.\n",
+    "skills/plain/SKILL.md": "---\nname: plain\ndescription: \"A skill that joins no class.\"\n---\n\n# Plain\n\nOwn text only.\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "id": "F0",
+   "about": "A clean synced tree passes --check, and a second write run changes nothing",
+   "presync": true,
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "1 member skill(s) (demo)"
+    ],
+    "unchanged": true,
+    "files": {
+     "skills/demo/scripts/script_validate_output.py": [
+      "#!/usr/bin/env python3\n# generated from classes/script/scripts/validate_output.py, do not edit\n",
+      "import apex_base_schema_check as schema_check\n",
+      "from apex_base_schema_check import CheckError\n",
+      "# dependencies = [\"pyyaml>=6,<7\"]\n",
+      "may name schema_check.py"
+     ],
+     "skills/demo/scripts/script_run.sh": [
+      "# generated from classes/script/scripts/run.sh, do not edit\n",
+      "source \"$(dirname \"$0\")/apex_base_helper.sh\"\n"
+     ],
+     "skills/demo/scripts/apex_base_helper.sh": [
+      "# requires: jq\n"
+     ],
+     "skills/demo/references/apex-base-harness.md": [
+      "<!-- generated from classes/apex-base/references/apex-base-harness.md, do not edit -->\n# Harness\n"
+     ],
+     "skills/demo/references/apex-base-notes.md": [
+      "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+     ],
+     "skills/demo/references/service-eks-context.md": [
+      "<!-- generated from classes/service-eks/references/context.md, do not edit -->\n"
+     ],
+     "skills/demo/SKILL.md": [
+      "---\n\n<!-- APEX_CLASSES_START -->\n<!-- generated from classes/apex-base/rules.md, do not edit -->\n",
+      "<!-- APEX_CLASSES_END -->\n\n# Demo\n"
+     ]
+    },
+    "absent": [
+     "skills/plain/references",
+     "skills/plain/scripts",
+     "skills/demo/checks",
+     "skills/demo/references/apex-base-apex-base-harness.md"
+    ],
+    "same_as_base": [
+     "skills/plain/SKILL.md"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-real-shape",
+   "about": "No member skill (the real tree today): both modes exit 0 and write nothing",
+   "files": {
+    "skills/demo": null
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "0 member skill(s) (none)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-python-ok",
+   "about": "An importlib call with a constant non-class module name passes",
+   "files": {
+    "classes/script/scripts/ok.py": "import importlib\n\njson = importlib.import_module(\"json\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0
+   },
+   "base": "std"
+  },
+  {
+   "id": "F0-real-harness",
+   "about": "The real apex-base harness reference passes the apex-pointer check and is copied",
+   "files": {
+    "classes/apex-base/references/apex-base-harness.md": "# Harness notes\n\nAPEX skills run in several harnesses. They differ in four places: how the user asks for a skill, the ask tool, path variables, and what to do without subagents. This file holds those differences, so a skill's own text stays the same in every harness (rule `apex.harness-notes`).\n\n## How a skill is invoked\n\n| Harness | How the user reaches a skill |\n|---|---|\n| Claude Code | `/<skill> <request>`, for example `/eks-recon <request>`; the text typed after the command follows the skill as `ARGUMENTS:`. A skill can also load on its own when its description matches. |\n| Codex | `$<skill> <request>`, once the skills are copied into a Codex skills folder (the APEX installer does not set this up). |\n| Kiro | `/<skill> <request>` in Kiro CLI (tested on 2.35.1, checked on 2026-10-28; 1.27.0 rejected it), or by asking for the skill by name in the chat. |\n| AWS DevOps Agent | Through its own skill ports. A zip upload with a `scripts/` folder is rejected; a repository import keeps all files. With Sandbox (preview) enabled, a skill can include executable code the agent runs in the sandbox. |\n\n## Asking the user\n\nAsk with the harness's ask tool where it has one; else ask in plain text (rule `apex.one-way-to-ask`).\n\n| Harness | Ask tool |\n|---|---|\n| Claude Code | `AskUserQuestion` |\n| Codex | `request_user_input` (one to three short questions), in Plan mode only; in Default mode ask in plain text. Source: openai/codex `codex-rs/core/src/tools/handlers/request_user_input_spec.rs` (\"This tool is only available in {allowed_modes}\") and `codex-rs/protocol/src/config_types.rs` (`allows_request_user_input`: Plan only), checked on 2026-11-16. |\n| Kiro | None: Kiro's built-in tools (https://kiro.dev/docs/tools/, checked on 2026-11-16) include no ask tool, so ask in plain text in the chat. |\n| AWS DevOps Agent | None a skill can call: ask in plain text in the chat; the agent shows its own clarification options there (\"Disambiguation cards in chat\", May 13, 2026, https://docs.aws.amazon.com/devopsagent/latest/userguide/whats-new.html, checked on 2026-11-16). A scheduled or event-triggered run has no chat to ask in, so it states what it assumed. |\n\n## Path variables\n\n- Claude Code: `${CLAUDE_SKILL_DIR}` is the installed skill's own folder, for example `${CLAUDE_SKILL_DIR}/references/<file>.md`. It points only at this skill's folder, never at another skill.\n- Other harnesses: give paths relative to the skill root, one level deep (`references/<file>.md`), as the Agent Skills format defines file references.\n- A hook command runs in the current directory, so a relative path in a hook resolves from there, not from the skill folder.\n\n## Without subagents\n\nWhen the harness has no subagent (Agent) tool, run the steps inline, one after another, in the same session. A skill that offers a subagent mode names its inline fallback.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/apex-base-harness.md": [
+      "<!-- generated from classes/apex-base/references/apex-base-harness.md, do not edit -->\n# Harness notes\n",
+      "for example `/eks-recon <request>`"
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F1",
+   "about": "Two classes in one chain both define rule id apex.alpha",
+   "files": {
+    "classes/operator/rules.md": "# Operator rules\n\n- **apex.alpha**: Again.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate rule id apex.alpha from classes/apex-base and classes/operator"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F2-reference",
+   "about": "service/eks-context.md and service-eks/context.md both give references/service-eks-context.md",
+   "files": {
+    "classes/service/references/eks-context.md": "# Other\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate target path references/service-eks-context.md"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F2-script",
+   "about": "service/eks_check.py and service-eks/check.py both give scripts/service_eks_check.py",
+   "files": {
+    "classes/service/scripts/eks_check.py": "X = 1\n",
+    "classes/service-eks/scripts/check.py": "Y = 2\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "duplicate target path scripts/service_eks_check.py"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-not-rewritten",
+   "about": "A copy whose class import was put back to the class name",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "import apex_base_schema_check as schema_check\n",
+      "import schema_check\n"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: import of schema_check not rewritten to the flat name"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-imported-file-missing",
+   "about": "The copy of an imported class file was removed",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/apex_base_schema_check.py",
+     "delete": true
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/scripts/apex_base_schema_check.py: missing; imported by skills/demo/scripts/script_validate_output.py"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-outside-chain-python",
+   "about": "A service-eks script imports a Script class file, which is not in its own chain",
+   "files": {
+    "classes/service-eks/scripts/probe.py": "import validate_output\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service-eks/scripts/probe.py:1: an import of validate_output, a class file outside this class's chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-outside-chain-shell",
+   "about": "A service-eks shell script sources a Script class file",
+   "files": {
+    "classes/service-eks/scripts/probe.sh": "#!/usr/bin/env bash\nsource run.sh\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service-eks/scripts/probe.sh:2: sources run.sh, a class file outside this class's chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-comment",
+   "about": "A sourced class file whose name is repeated in a trailing comment is rewritten in the sourced word",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nsource \"$(dirname \"$0\")/helper.sh\"  # loads helper.sh\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/scripts/script_run.sh": [
+      "source \"$(dirname \"$0\")/apex_base_helper.sh\"  # loads helper.sh\n"
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-operator",
+   "about": "A source or . after && and after then is rewritten to the flat name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n[ -f x ] && . \"$(dirname \"$0\")/helper.sh\"\nif true; then source \"$(dirname \"$0\")/helper.sh\"; fi\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/scripts/script_run.sh": [
+      "[ -f x ] && . \"$(dirname \"$0\")/apex_base_helper.sh\"\n",
+      "if true; then source \"$(dirname \"$0\")/apex_base_helper.sh\"; fi\n"
+     ]
+    },
+    "count": {
+     "path": "skills/demo/scripts/script_run.sh",
+     "text": "/helper.sh",
+     "n": 0
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-two-imports-one-line",
+   "about": "Two imports of one class module on one line: the second is left under its old name, so the sync refuses",
+   "files": {
+    "classes/script/scripts/validate_output.py": "from schema_check import CheckError; from schema_check import run\nprint(run, CheckError)\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/validate_output.py: import of schema_check not rewritten to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-string-then-import",
+   "about": "A string holding the import text, then the import, on one line: the string is not the import, so the sync refuses",
+   "files": {
+    "classes/script/scripts/validate_output.py": "x = 'from schema_check'; from schema_check import run\nprint(x, run)\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/validate_output.py: import of schema_check not rewritten to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-or",
+   "about": "A . after || still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\ntrue || . helper.sh\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-brace-group",
+   "about": "A . inside { ...; } still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n{ . helper.sh; }\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-shell-after-do",
+   "about": "A . after do still names the class file by its old name",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\nfor f in a; do . helper.sh; done\nhelper\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: names the class file helper.sh where the sync cannot rewrite it to the flat name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3a-ambiguous",
+   "about": "Two classes in one script's chain ship a module of the same name",
+   "files": {
+    "classes/operator/scripts/schema_check.py": "Z = 3\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "schema_check.py is in two classes of its chain"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3b-python",
+   "about": "A Python copy lost its PEP 723 dependency line",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "# dependencies = [\"pyyaml>=6,<7\"]\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: declared dependencies missing: # dependencies = [\"pyyaml>=6,<7\"]"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F3b-shell",
+   "about": "A shell copy lost its requires line",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/apex_base_helper.sh",
+     "replace": [
+      "# requires: jq\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex_base_helper.sh: declared dependencies missing: # requires: jq"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-computed-importlib",
+   "about": "importlib.import_module with a computed name",
+   "files": {
+    "classes/script/scripts/dyn.py": "import importlib\n\nmod = importlib.import_module(\"schema_\" + \"check\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:3: a dynamic import (import_module)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-dunder-import",
+   "about": "__import__ of a class module",
+   "files": {
+    "classes/script/scripts/dyn.py": "mod = __import__(\"schema_check\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a dynamic import (__import__)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-path-string",
+   "about": "A string path to a class file",
+   "files": {
+    "classes/script/scripts/dyn.py": "import runpy\n\nrunpy.run_path(\"schema_check.py\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:3:"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-computed-run-path",
+   "about": "runpy.run_path with a computed argument",
+   "files": {
+    "classes/script/scripts/dyn.py": "import runpy\nimport sys\n\nrunpy.run_path(sys.argv[1])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.py:4: a dynamic import (run_path)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-path-constant",
+   "about": "A path constant naming a class file",
+   "files": {
+    "classes/script/scripts/dyn.py": "TOOL = \"lib/schema_check.py\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a path to the class file schema_check.py"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-dotted",
+   "about": "A dotted import of a class module",
+   "files": {
+    "classes/script/scripts/dyn.py": "import schema_check.sub\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a dotted import of schema_check.sub"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-relative",
+   "about": "A relative import in a class script",
+   "files": {
+    "classes/script/scripts/dyn.py": "from . import schema_check\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "a relative import"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-shared-line",
+   "about": "A class import that shares its line with another statement",
+   "files": {
+    "classes/script/scripts/dyn.py": "import os; import schema_check\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "an import that shares its line or spans lines"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F4-shell-computed",
+   "about": "A shell source of a computed file name",
+   "files": {
+    "classes/script/scripts/dyn.sh": "#!/usr/bin/env bash\nsource \"$LIB/$NAME\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/dyn.sh:2: a sourced file with a computed name"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-dotdot-path",
+   "about": "A class reference links into ../apex/",
+   "files": {
+    "classes/apex-base/references/notes.md": "# Notes\n\nSee [the router](../apex/SKILL.md).\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/references/notes.md:3: copied class text points to the apex skill (a path into ../apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-skills-path",
+   "about": "A class rule names a path into skills/apex/",
+   "files": {
+    "classes/operator/rules.md": "- **operator.confirm**: Read skills/apex/runbooks first.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/operator/rules.md:1: copied class text points to the apex skill (a path into skills/apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-bare-path",
+   "about": "A class reference names apex/runbooks/",
+   "files": {
+    "classes/service-eks/references/context.md": "Use apex/runbooks/eks.md.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "(a path into apex/)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-slash-command",
+   "about": "A class reference tells the user to type /apex",
+   "files": {
+    "classes/apex-base/references/apex-base-harness.md": "Type `/apex <request>`.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "(the /apex or $apex command)"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5-dollar-command",
+   "about": "A class script comment names the $apex command",
+   "files": {
+    "classes/script/scripts/run.sh": "#!/usr/bin/env bash\n# then run $apex\nsource \"$(dirname \"$0\")/helper.sh\"\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/script/scripts/run.sh:2: copied class text points to the apex skill"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F5b",
+   "about": "A rule id label, the skill's name and another skill's command are not pointers",
+   "files": {
+    "classes/apex-base/rules.md": "- **apex.alpha**: Follow apex.mcp-first; the `apex` skill routes by name; /apex-new-skill is another skill.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-header-missing",
+   "about": "A copy lost its generated-from header",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: header missing or wrong; expected: <!-- generated from classes/apex-base/references/notes.md, do not edit -->"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-header-wrong",
+   "about": "A copy's header names the wrong class file",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "classes/apex-base/references/notes.md",
+      "classes/apex-base/references/other.md"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: header missing or wrong"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-script-header",
+   "about": "A script copy lost its header under the shebang",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/scripts/script_validate_output.py",
+     "replace": [
+      "# generated from classes/script/scripts/validate_output.py, do not edit\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "script_validate_output.py: header missing or wrong"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F6-skill-owned",
+   "about": "A skill's own file sits at a class copy's path: the report says to rename or move it, since a sync run overwrites it",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-harness.md",
+     "write": "# my own harness notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-harness.md: header missing or wrong",
+     "if this is the skill's own file, not a class copy, rename or move it first: a sync run overwrites it"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F7",
+   "about": "A copy hand-edited under a correct header",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base-notes.md",
+     "replace": [
+      "Shared notes.",
+      "Edited by hand."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: differs from classes/apex-base/references/notes.md (a hand edit, or a class change not synced)"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-reference",
+   "about": "A class reference edited without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/apex-base/references/notes.md",
+     "replace": [
+      "Shared notes.",
+      "New shared notes."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-base-notes.md: differs from classes/apex-base/references/notes.md"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-rules",
+   "about": "A class rule edited without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/script/rules.md",
+     "replace": [
+      "Same output.",
+      "Same output, every run."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: marker block differs from the class rules"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-new-class-file",
+   "about": "A class file added without re-running the sync",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/service-eks/references/limits.md",
+     "write": "# Limits\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/service-eks-limits.md: missing"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F8-repaired",
+   "about": "A write run repairs a stale copy, then --check passes",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "classes/apex-base/references/notes.md",
+     "replace": [
+      "Shared notes.",
+      "New shared notes."
+     ]
+    }
+   ],
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/apex-base-notes.md": [
+      "New shared notes."
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-two-blocks",
+   "about": "SKILL.md with two marker blocks",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "append": "\n<!-- APEX_CLASSES_START -->\nextra\n<!-- APEX_CLASSES_END -->\n"
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: more than one marker block"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-hand-edit",
+   "about": "A marker block edited by hand",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "Alpha rule.",
+      "Alpha rule, loosened."
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: marker block differs from the class rules"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-damaged-marker",
+   "about": "A marker line with trailing text",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "<!-- APEX_CLASSES_END -->\n",
+      "<!-- APEX_CLASSES_END --> \n"
+     ]
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "damaged marker line"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F9-unpaired",
+   "about": "A start marker with no end marker",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/SKILL.md",
+     "replace": [
+      "<!-- APEX_CLASSES_END -->\n",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check",
+    "write"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "marker block start and end do not pair"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10",
+   "about": "A class copy written under a nested name",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base/notes.md",
+     "write": "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/apex-base/notes.md: a class copy under a non-flat name"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10-delete-hint",
+   "about": "A nested class copy: the report says to delete it by hand, since the sync never deletes",
+   "presync": true,
+   "mutate": [
+    {
+     "path": "skills/demo/references/apex-base/notes.md",
+     "write": "<!-- generated from classes/apex-base/references/notes.md, do not edit -->\n# Notes\n"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/references/apex-base/notes.md: a class copy under a non-flat name",
+     "the sync does not delete files: delete it by hand"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F10-nested-source",
+   "about": "A nested class reference is copied under one flat name",
+   "files": {
+    "classes/service-eks/references/eks/limits.md": "# Limits\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "files": {
+     "skills/demo/references/service-eks-eks-limits.md": [
+      "<!-- generated from classes/service-eks/references/eks/limits.md, do not edit -->\n"
+     ]
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F11",
+   "about": "service-eks script resolves parents first, each class once, in the order apex-base, platform, operator, script, service, service-eks",
+   "files": {
+    "classes/platform/rules.md": "- **platform.p**: P.\n",
+    "classes/service/rules.md": "- **service.s**: S.\n",
+    "classes/service-eks/rules.md": "- **service-eks.e**: E.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "order": {
+     "path": "skills/demo/SKILL.md",
+     "items": [
+      "<!-- APEX_CLASSES_START -->",
+      "classes/apex-base/rules.md",
+      "classes/platform/rules.md",
+      "classes/operator/rules.md",
+      "classes/script/rules.md",
+      "classes/service/rules.md",
+      "classes/service-eks/rules.md",
+      "<!-- APEX_CLASSES_END -->",
+      "# Demo"
+     ]
+    },
+    "count": {
+     "path": "skills/demo/SKILL.md",
+     "text": "classes/apex-base/rules.md",
+     "n": 1
+    }
+   },
+   "base": "std"
+  },
+  {
+   "id": "F15",
+   "kind": "update-pages",
+   "about": "The CI step's update-pages.sh --check fails on a skill with no SKILL_META line",
+   "skill": "zz-no-meta-skill",
+   "expect": {
+    "rc": 1,
+    "output": [
+     "ERROR: skills/zz-no-meta-skill has no SKILL_META line in misc/update-pages.sh"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-classes",
+   "about": "classes/ absent",
+   "files": {
+    "classes": null
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "error: classes/ not found"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-class-yaml",
+   "about": "A class folder with no class.yaml",
+   "files": {
+    "classes/extra/rules.md": "- **extra.x**: X.\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/extra/class.yaml: missing"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-yaml",
+   "about": "A class.yaml that does not parse",
+   "files": {
+    "classes/service/class.yaml": "name: [service\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: unreadable"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-no-name",
+   "about": "A class.yaml with no name",
+   "files": {
+    "classes/service/class.yaml": "parents: [apex-base]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: name must be 'service'"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-parents",
+   "about": "A class.yaml whose parents is not a list",
+   "files": {
+    "classes/service/class.yaml": "name: service\nparents: apex-base\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/service/class.yaml: parents must be a list"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-other-entry",
+   "about": "A class folder entry the sync does not copy (schemas/) is ignored, not refused",
+   "files": {
+    "classes/apex-base/schemas/x.json": "{}\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "absent": [
+     "skills/demo/schemas",
+     "skills/demo/references/apex-base-x.json"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-non-md-reference",
+   "about": "A class reference that is not markdown",
+   "files": {
+    "classes/apex-base/references/data.json": "{}\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/references/data.json: a class reference must be a .md file"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F16-bad-declaration",
+   "about": "metadata.apex-classes given as a list, not a string",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: [script]\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "metadata.apex-classes must be a space-separated string"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-unknown-class",
+   "about": "A skill declares a class not under classes/",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"service-eks nope\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares class 'nope', which is not under classes/"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-cycle",
+   "about": "Two classes are each other's parent",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: [script]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "class cycle:"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-unknown-parent",
+   "about": "A class names a parent not under classes/",
+   "files": {
+    "classes/platform/class.yaml": "name: platform\nparents: [ghost]\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "parent 'ghost' is not under classes/"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-declared-twice",
+   "about": "A skill declares the same class twice",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: the declared class order contradicts the classes' parents"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-key-typo",
+   "about": "A misspelled apex-classes key is refused, not read as no membership",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-class: \"script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo/SKILL.md: metadata key 'apex-class' is not apex-classes"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-other-apex-key",
+   "about": "Another apex- metadata key beside apex-classes is not read as a typo",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script\"\n  apex-inputs: \"in.schema.json\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "1 member skill(s) (demo)"
+    ]
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-parent-first",
+   "about": "A class listed before its own child is refused",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"operator script\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares 'operator' beside 'script', which already has it as a parent; declare leaf classes only"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "F17-parent-after",
+   "about": "A class listed after its own child is refused the same way",
+   "files": {
+    "skills/demo/SKILL.md": "---\nname: demo\ndescription: \"Demo.\"\nmetadata:\n  apex-classes: \"script operator\"\n---\n\n# Demo\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "skills/demo: declares 'operator' beside 'script', which already has it as a parent; declare leaf classes only"
+    ],
+    "unchanged": true
+   },
+   "base": "std"
+  },
+  {
+   "id": "P344-hooks-pass",
+   "about": "A synced hooks entry passes --check: hooks.json carries --mode block --id apex.no-secrets and the Kiro file the entry's enabled",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "--check OK"
+    ],
+    "files": {
+     "plugins/apex/hooks/hooks.json": [
+      "--mode block --id apex.no-secrets"
+     ],
+     "plugins/apex/kiro/apex-hooks.json": [
+      "\"enabled\": false"
+     ],
+     "plugins/apex/hooks/apex-base/secret-deny/secret_deny.py": [
+      "# generated from classes/apex-base/hooks/secret-deny/secret_deny.py, do not edit"
+     ]
+    }
+   }
+  },
+  {
+   "id": "P344-id-missing",
+   "about": "Rule (a): a hooks.json command with no --id fails --check",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/hooks/hooks.json",
+     "replace": [
+      "--mode block --id apex.no-secrets",
+      "--mode block"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks.json: PreToolUse command for apex.no-secrets must carry --id 'apex.no-secrets', found no --id"
+    ]
+   }
+  },
+  {
+   "id": "P344-id-wrong",
+   "about": "Rule (a): a command carrying another entry's --id fails; mode, not --id, tells the two mutation_guard.py entries apart",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/advisor/class.yaml": "name: advisor\nparents: []\nhooks:\n  - id: advisor.no-side-effects\n    event: PreToolUse\n    script: ../operator/hooks/mutation-guard/mutation_guard.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/hooks/hooks.json",
+     "replace": [
+      "--mode ask --id operator.confirm-before-change",
+      "--mode ask --id advisor.no-side-effects"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "PreToolUse command for operator.confirm-before-change must carry --id 'operator.confirm-before-change', found 'advisor.no-side-effects'"
+    ]
+   }
+  },
+  {
+   "id": "P344-kiro-enabled",
+   "about": "Rule (c): a Kiro enabled that differs from class.yaml fails",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/kiro/apex-hooks.json",
+     "replace": [
+      "\"enabled\": false",
+      "\"enabled\": true"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "apex-hooks.json: Kiro hook 'apex.no-secrets' enabled must be false as in classes/apex-base/class.yaml, found true"
+    ]
+   }
+  },
+  {
+   "id": "P344-today-form",
+   "about": "Negative control: the outputs in the form prep.md wrote before --id and enabled (no --id, Kiro enabled true) fail on rules (a) and (c), not only the byte diff",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "plugins/apex/hooks/hooks.json": "{\"description\": \"generated from classes/*/class.yaml, do not edit\", \"hooks\": {\"PreToolUse\": [{\"matcher\": \"^(Bash|mcp__.*)$\", \"hooks\": [{\"type\": \"command\", \"command\": \"python3 \\\"${CLAUDE_PLUGIN_ROOT}/hooks/apex-base/secret-deny/secret_deny.py\\\" --mode block\"}]}]}}",
+    "plugins/apex/kiro/apex-hooks.json": "{\"version\": \"v1\", \"hooks\": [{\"name\": \"apex.no-secrets\", \"description\": \"generated from classes/apex-base/class.yaml, do not edit\", \"trigger\": \"PreToolUse\", \"matcher\": \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\", \"action\": {\"type\": \"command\", \"command\": \"python3 \\\"__APEX_HOOKS_DIR__/apex-base/secret-deny/secret_deny.py\\\" --mode block\"}, \"enabled\": true}]}"
+   },
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks.json: PreToolUse command for apex.no-secrets must carry --id 'apex.no-secrets', found no --id",
+     "apex-hooks.json: Kiro hook 'apex.no-secrets' enabled must be false as in classes/apex-base/class.yaml, found true"
+    ]
+   }
+  },
+  {
+   "id": "P344-match-break",
+   "about": "Rule (b): advisor's command turned to ask mode matches operator's entry, so one entry has two commands and the other none",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/advisor/class.yaml": "name: advisor\nparents: []\nhooks:\n  - id: advisor.no-side-effects\n    event: PreToolUse\n    script: ../operator/hooks/mutation-guard/mutation_guard.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/hooks/hooks.json",
+     "replace": [
+      "--mode block --id advisor.no-side-effects",
+      "--mode ask --id advisor.no-side-effects"
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "entry operator.confirm-before-change must have exactly one command, found 2",
+     "entry advisor.no-side-effects must have exactly one command, found 0"
+    ]
+   }
+  },
+  {
+   "id": "P344-id-dup",
+   "about": "Rule (a): a second token that starts with --i (argparse would read it as --id) fails",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/hooks/hooks.json",
+     "replace": [
+      "--id apex.no-secrets",
+      "--id apex.no-secrets --i="
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "PreToolUse command for apex.no-secrets must carry --id 'apex.no-secrets', found a token that starts with --i"
+    ]
+   }
+  },
+  {
+   "id": "P344-manifest-hooks",
+   "about": "Rule (d): a hooks key in a plugin manifest Codex reads fails",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "plugins/apex/.codex-plugin/plugin.json": "{\"name\": \"apex\", \"hooks\": \"./hooks/hooks.json\"}"
+   },
+   "presync": true,
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "plugins/apex/.codex-plugin/plugin.json: hooks key must be absent, found one"
+    ]
+   }
+  },
+  {
+   "id": "P344-kiro-name",
+   "about": "Rule (b): a Kiro name that is no class.yaml id fails, and the id it replaced is missing",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/kiro/apex-hooks.json",
+     "replace": [
+      "\"name\": \"apex.no-secrets\"",
+      "\"name\": \"apex.no-secret\""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "Kiro hook 'apex.no-secrets' must appear once, found 0",
+     "Kiro hook 'apex.no-secret' must be a class.yaml hooks id, found no entry"
+    ]
+   }
+  },
+  {
+   "id": "P344-kiro-enabled-missing",
+   "about": "Rule (c): a Kiro hook with no enabled key fails, since Kiro runs it by default",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/kiro/apex-hooks.json",
+     "replace": [
+      ",\n      \"enabled\": false",
+      ""
+     ]
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "Kiro hook 'apex.no-secrets' enabled must be false as in classes/apex-base/class.yaml, found no enabled key"
+    ]
+   }
+  },
+  {
+   "id": "P344-malformed",
+   "about": "A truncated hooks.json stops --check with an error naming the file, not a traceback",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "mutate": [
+    {
+     "path": "plugins/apex/hooks/hooks.json",
+     "write": "{\"hooks\": {"
+    }
+   ],
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "sync-classes: error: plugins/apex/hooks/hooks.json"
+    ]
+   }
+  },
+  {
+   "id": "P344-stop-tail",
+   "about": "A Stop entry's command ends || exit 3 and has no matcher, and --check reads its --id past that tail",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n  - id: operator.stop-test\n    event: Stop\n    script: hooks/stop-test/stop_test.py\n    mode: block\n    enabled: false\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "classes/operator/hooks/stop-test/stop_test.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "presync": true,
+   "run": [
+    "check"
+   ],
+   "expect": {
+    "rc": 0,
+    "output": [
+     "--check OK"
+    ],
+    "files": {
+     "plugins/apex/hooks/hooks.json": [
+      "--mode block --id operator.stop-test || exit 3\""
+     ],
+     "plugins/apex/kiro/apex-hooks.json": [
+      "stop-test/stop_test.py\\\" --mode block || exit 3\""
+     ]
+    },
+    "count": {
+     "path": "plugins/apex/hooks/hooks.json",
+     "text": "\"matcher\"",
+     "n": 2
+    }
+   }
+  },
+  {
+   "id": "P344-mode-rejected",
+   "about": "A mode the script's --mode choices do not hold stops the sync, since that hook would exit 2 (a block) with its option unset",
+   "base": "std",
+   "files": {
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: operator.confirm-before-change\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: warn\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry operator.confirm-before-change: mode warn is not one of classes/operator/hooks/mutation-guard/mutation_guard.py's --mode choices ['ask', 'block']"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-key-case",
+   "about": "Two ids whose userConfig keys differ only in case stop the sync: the scripts upper-case the key, so they share one switch",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n",
+    "classes/operator/class.yaml": "name: operator\nparents: [platform]\nhooks:\n  - id: APEX.no-secrets\n    event: PreToolUse\n    script: hooks/mutation-guard/mutation_guard.py\n    mode: ask\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|use_aws|mcp__.*)$\"\n      codex: \"^(Bash|use_aws|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$\"\n",
+    "classes/operator/hooks/mutation-guard/mutation_guard.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"ask\", \"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry APEX.no-secrets: its userConfig key APEX_NO_SECRETS is also apex.no-secrets's"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-same-form",
+   "about": "Two entries with one event, script and mode stop the sync, since --check could not tell their commands apart",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n  - id: apex.no-secrets-2\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets-2: same event, script and mode as apex.no-secrets"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-script-not-py",
+   "about": "A hooks script that is not a .py file stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.sh\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets: script must be hooks/<hook>/<file>.py"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-enabled-not-bool",
+   "about": "A hooks entry whose enabled is not true or false stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: \"yes\"\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex.no-secrets: enabled must be true or false, found 'yes'"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-not-word",
+   "about": "A hooks id that is not a plain word stops the sync",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "hooks entry apex no-secrets: id must be a word of letters, digits, '.', '_' or '-', found 'apex no-secrets'"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-id-arg-missing",
+   "about": "A hook script with no --id argument stops the sync, since its hooks.json command would exit 2 (a block) with its option unset",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/hooks/secret-deny/secret_deny.py: it needs one add_argument(\"--id\") call that is not required"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-id-arg-required",
+   "about": "A hook script whose --id is required stops the sync, since the Kiro command, which has no --id, would exit 2",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nargparse.ArgumentParser().add_argument(\"--mode\", choices=[\"block\"])\nargparse.ArgumentParser().add_argument(\"--id\", required=True)\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/hooks/secret-deny/secret_deny.py: it needs one add_argument(\"--id\") call that is not required"
+    ],
+    "unchanged": true
+   }
+  },
+  {
+   "id": "P344-choices-unreadable",
+   "about": "A hook script whose --mode choices are not a literal list stops the sync, since its modes cannot be read",
+   "base": "std",
+   "files": {
+    "classes/apex-base/class.yaml": "name: apex-base\nparents: []\nhooks:\n  - id: apex.no-secrets\n    event: PreToolUse\n    script: hooks/secret-deny/secret_deny.py\n    mode: block\n    enabled: false\n    matchers:\n      claude-code: \"^(Bash|mcp__.*)$\"\n      codex: \"^(Bash|mcp__.*)$\"\n      kiro: \"^(execute_bash|execute_pwsh|run_command|mcp_.*)$\"\n",
+    "classes/apex-base/hooks/secret-deny/secret_deny.py": "#!/usr/bin/env python3\nimport argparse\nMODES = [\"block\"]\nargparse.ArgumentParser().add_argument(\"--mode\", choices=MODES)\nargparse.ArgumentParser().add_argument(\"--id\")\n"
+   },
+   "run": [
+    "write",
+    "check"
+   ],
+   "expect": {
+    "rc": 1,
+    "output": [
+     "classes/apex-base/hooks/secret-deny/secret_deny.py: its --mode choices cannot be read"
+    ],
+    "unchanged": true
+   }
+  }
+ ]
+}

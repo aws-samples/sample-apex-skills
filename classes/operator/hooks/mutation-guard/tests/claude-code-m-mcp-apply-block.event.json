@@ -1,0 +1,14 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/w",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "mcp__eks-mcp__apply_yaml",
+  "tool_input": {
+    "yaml_path": "/w/app.yaml",
+    "cluster_name": "c",
+    "namespace": "x"
+  },
+  "tool_use_id": "toolu_01"
+}

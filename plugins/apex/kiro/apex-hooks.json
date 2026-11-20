@@ -1,0 +1,38 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "advisor.no-side-effects",
+      "description": "generated from classes/advisor/class.yaml, do not edit",
+      "trigger": "PreToolUse",
+      "matcher": "^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$",
+      "action": {
+        "type": "command",
+        "command": "python3 \"__APEX_HOOKS_DIR__/operator/mutation-guard/mutation_guard.py\" --mode block"
+      },
+      "enabled": false
+    },
+    {
+      "name": "apex.no-secrets",
+      "description": "generated from classes/apex-base/class.yaml, do not edit",
+      "trigger": "PreToolUse",
+      "matcher": "^(execute_bash|execute_pwsh|run_command|mcp_.*)$",
+      "action": {
+        "type": "command",
+        "command": "python3 \"__APEX_HOOKS_DIR__/apex-base/secret-deny/secret_deny.py\" --mode block"
+      },
+      "enabled": false
+    },
+    {
+      "name": "operator.confirm-before-change",
+      "description": "generated from classes/operator/class.yaml, do not edit",
+      "trigger": "PreToolUse",
+      "matcher": "^(execute_bash|execute_pwsh|run_command|use_aws|mcp_.*)$",
+      "action": {
+        "type": "command",
+        "command": "python3 \"__APEX_HOOKS_DIR__/operator/mutation-guard/mutation_guard.py\" --mode ask"
+      },
+      "enabled": false
+    }
+  ]
+}

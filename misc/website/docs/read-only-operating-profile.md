@@ -17,7 +17,7 @@ The profile has three layers. The first two are the guardrail only when the agen
 | IAM session policy | [`misc/evals/setup/readonly-session-policy.json`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/readonly-session-policy.json) | Scopes a temporary STS session to read calls (`Describe*`, `List*`, `Get*` and log filtering) on EKS, EC2, CloudFormation, Auto Scaling, ELB, CloudWatch and Logs, plus Bedrock model invocation |
 | Claude Code hook | [`misc/evals/setup/deny-write-hook.example.sh`](https://github.com/aws-samples/sample-apex-skills/blob/main/misc/evals/setup/deny-write-hook.example.sh) | Denies Bash commands such as `kubectl apply` or `aws ... delete-*` before they run |
 
-The kit started as the read-only sandbox for the repo's live-cluster evals, and the eval runner still uses it.
+The kit started as the read-only sandbox for the repo's live-cluster evals. The eval runner now uses only its kubeconfig; the only AWS credentials handed to the subject are an eval-role session (`misc/evals/README.md`), and it still runs as your OS user.
 
 ## 1. Create the read-only kubeconfig
 
@@ -27,7 +27,7 @@ Point `kubectl` at the target cluster with credentials that can create RBAC obje
 ./misc/evals/setup/bootstrap-readonly.sh
 ```
 
-It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, spot-checks with `kubectl auth can-i` that it cannot create pods or list Secrets (it stops only on a `yes` answer, so a can-i error passes), and checks that your AWS identity can mint a federation token (IAM-user credentials only).
+It applies `readonly-rbac.yaml` (ServiceAccount `kube-system/evals-readonly`, its ClusterRole and binding, and a token Secret), then writes `misc/evals/.secrets/kubeconfig.readonly` (gitignored, mode 600). Before it finishes, it checks that the new kubeconfig can list nodes, spot-checks with `kubectl auth can-i` that it cannot create pods or list Secrets (it stops only on a `yes` answer, so a can-i error passes), and checks that your AWS identity can mint a federation token (IAM-user credentials only; a failure only warns, and the kubeconfig is still written).
 
 Hand the agent that kubeconfig:
 
@@ -73,7 +73,7 @@ aws sts get-federation-token \
 
 Calls made with these credentials show up in CloudTrail with `userIdentity.type` `FederatedUser`, and their ARN carries the name you passed: `arn:aws:sts::<account-id>:federated-user/apex-readonly-<user>`. Pick a `--name` that says who ran the agent and why.
 
-The kit tags the sessions it mints: the eval runner (`misc/evals/scripts/run_task_evals.py`, which prints it) and the bootstrap check pass `apex-run` (UTC time and process id). The section 2 command takes the same flag:
+The bootstrap check tags the session it mints with `apex-run` (UTC time and process id). The section 2 command takes the same flag:
 
 ```bash
   --tags Key=apex-run,Value="$(date -u +%Y%m%dT%H%M%SZ)"

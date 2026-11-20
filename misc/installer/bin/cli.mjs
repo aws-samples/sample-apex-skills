@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readdirSync, symlinkSync, readlinkSync, unlinkSync, lstatSync, statSync, readFileSync, writeFileSync, renameSync, realpathSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, symlinkSync, readlinkSync, unlinkSync, rmdirSync, lstatSync, statSync, readFileSync, writeFileSync, renameSync, realpathSync } from 'fs';
 import { join, resolve, dirname, basename, sep, relative, isAbsolute } from 'path';
 import { homedir, platform } from 'os';
 import { execFileSync } from 'child_process';
@@ -69,8 +69,10 @@ class UsageError extends Error {}
 const BOOL_FLAGS = {
   '--claude-only': 'claudeOnly',
   '--kiro-only': 'kiroOnly',
+  '--kiro-hooks': 'kiroHooks',
   '--project': 'project',
   '--no-steering': 'noSteering',
+  '--maintainer': 'maintainer',
   '--update': 'update',
   '--uninstall': 'uninstall',
   '--yes': 'yes',
@@ -105,6 +107,8 @@ function parseArgs(argv) {
     throw new UsageError('Use --claude-only or --kiro-only, not both (with neither, every detected tool is installed).');
   }
   if (flags.branch && flags.version) throw new UsageError('Cannot use --branch and --version together. Pick one.');
+  if (flags.kiroHooks && flags.claudeOnly) throw new UsageError('--kiro-hooks installs Kiro hooks, so it cannot be combined with --claude-only.');
+  if (flags.kiroHooks && flags.uninstall) throw new UsageError('--kiro-hooks is an install flag: --uninstall removes the Kiro hooks with the rest of the Kiro install.');
   if (flags.uninstall && (flags.update || flags.branch || flags.version)) {
     throw new UsageError('--uninstall cannot be combined with --update, --branch or --version.');
   }
@@ -570,10 +574,15 @@ function cloneSource(ref) {
   return { url: REPO_URL, ref: ref || null, commit };
 }
 
-function getSkills() {
+// Skills for people who maintain this repository, not for its users: linked
+// only with --maintainer, or while an install base's record holds that choice.
+const MAINTAINER_SKILLS = ['skill-creator', 'steering-workflow-creator', 'update-docs', 'apex-new-skill'];
+
+function getSkills(maintainer = true) {
   const skillsDir = join(INSTALL_DIR, 'skills');
   if (!existsSync(skillsDir)) return [];
   return readdirSync(skillsDir).filter((name) => {
+    if (!maintainer && MAINTAINER_SKILLS.includes(name)) return false;
     if (name === 'README.md' || name.startsWith('.')) return false;
     const full = join(skillsDir, name);
     try { return statSync(full).isDirectory(); } catch { return false; }
@@ -727,7 +736,7 @@ const STATE_DIR = (() => {
 })();
 const MANIFEST_FILE = join(STATE_DIR, 'manifest.json');
 const MANIFEST_VERSION = 1;
-const AREAS = ['claude-skills', 'claude-steering', 'kiro-skills', 'kiro-steering'];
+const AREAS = ['claude-skills', 'claude-steering', 'kiro-skills', 'kiro-steering', 'kiro-hooks'];
 
 function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
@@ -827,7 +836,7 @@ function entryMatches(p, e) {
 }
 
 // The current run: entries written per area, merged into the manifest at the end.
-const run = { manifest: null, base: null, prev: null, areas: {}, source: null, steering: undefined, touched: false };
+const run = { manifest: null, base: null, prev: null, areas: {}, source: null, steering: undefined, maintainer: undefined, touched: false };
 
 function record(area, p, entry) {
   if (!run.areas[area]) run.areas[area] = {};
@@ -853,6 +862,7 @@ function saveRun(crashed = false) {
   const rec = { ...prev, areas, updatedAt: new Date().toISOString() };
   if (run.source) rec.source = run.source;
   if (run.steering !== undefined) rec.steering = run.steering;
+  if (run.maintainer) rec.maintainer = true;
   run.manifest.bases[run.base] = rec;
   saveManifest(run.manifest);
   run.touched = false;
@@ -925,7 +935,12 @@ function safeSymlink(area, target, linkPath) {
   return 'created';
 }
 
-function symlinkSkills(area, targetDir, skills) {
+// drop: skill names this run does not link (the maintainer skills without
+// --maintainer); an installer link at one is removed even with no record of
+// it (an install made before the manifest), while a link of the user's that
+// does not point into the clone stays. It runs before the prune, so the prune
+// does not count those links as skills missing from this version.
+function symlinkSkills(area, targetDir, skills, drop = []) {
   if (!prepareDir(targetDir)) return null;
   startArea(area);
   let count = 0;
@@ -935,6 +950,12 @@ function symlinkSkills(area, targetDir, skills) {
     if (result === 'created') count++;
     if (result !== 'conflict') linked++;
   }
+  let dropped = 0;
+  for (const name of drop) {
+    const p = join(targetDir, name);
+    if (isInstallerLink(p) && tryUnlink(p)) dropped++;
+  }
+  if (dropped > 0) info(`Removed ${dropped} maintainer skill links (not linked without --maintainer)`);
   const pruned = pruneArea(area, targetDir);
   if (pruned > 0) info(`Removed ${pruned} links to skills that are not in this version`);
   // The line names the links in place (new or already there), not the skills
@@ -1052,6 +1073,97 @@ function installSteeringKiro(steeringDir) {
   success(`Steering workflows copied to ${c.dim}${steeringDir}${c.reset} as manual steering (${written} files)`);
 }
 
+// Kiro hooks (--kiro-hooks, opt-in; --update keeps an installed set current).
+// The class sync writes plugins/apex/kiro/apex-hooks.json, whose commands name
+// each script as "__APEX_HOOKS_DIR__/<class>/<hook>/<file>", and copies the
+// scripts to plugins/apex/hooks/<class>/<hook>/<file>. The scripts are copied
+// to <base>/.kiro/apex-hooks/ and the hook file to <base>/.kiro/hooks/, with
+// the placeholder filled in each command: .kiro/apex-hooks for --project (Kiro
+// runs a command in the project root, so the file still works after the project
+// moves), else the absolute path. Each hook is turned on or off by its
+// "enabled" field in that file. The copies are recorded by SHA-256 (a JSON file
+// cannot carry KIRO_MARKER): a file the installer did not write is never
+// overwritten, and an edited copy is kept and listed (exit code 3).
+const KIRO_HOOKS_PLACEHOLDER = '__APEX_HOOKS_DIR__';
+
+// The scripts under root, as <class>/<hook>/<file>: hooks.json beside the class
+// folders is the Claude Code and Codex file, not a script.
+function kiroHookScripts(root) {
+  const out = [];
+  for (const cls of listDir(root)) {
+    for (const hook of listDir(join(root, cls))) {
+      for (const file of listDir(join(root, cls, hook))) {
+        const st = lstatOrNull(join(root, cls, hook, file));
+        if (st && st.isFile()) out.push(join(cls, hook, file));
+      }
+    }
+  }
+  return out;
+}
+
+// One recorded copy: true when dest holds text afterwards.
+function writeKiroCopy(area, dest, text, prev) {
+  const current = { kind: 'copy', sha256: sha256(text) };
+  const was = prev && prev[dest];
+  const st = lstatOrNull(dest);
+  if (st && entryMatches(dest, current)) { record(area, dest, current); return true; }
+  if (st && !was) { conflicts.push(dest); return false; }
+  if (st && keepIfEdited(area, dest, was)) return false;
+  if (!prepareDir(dirname(dest))) return false;
+  try {
+    writeFileSync(dest, text);
+  } catch (e) {
+    if (!writeBlocked(e)) throw e;
+    cannotWrite(dest, e);
+    if (was && lstatOrNull(dest)) record(area, dest, was);
+    return false;
+  }
+  record(area, dest, current);
+  return true;
+}
+
+function installKiroHooks(kiroBase, project) {
+  const area = 'kiro-hooks';
+  const source = join(INSTALL_DIR, 'plugins', 'apex');
+  const hookFile = join(source, 'kiro', 'apex-hooks.json');
+  const scriptsDir = join(kiroBase, 'apex-hooks');
+  const dirInCommand = project ? '.kiro/apex-hooks' : scriptsDir;
+  startArea(area);
+  let text = null;
+  if (!existsSync(hookFile)) warn('No Kiro hook file (plugins/apex/kiro/apex-hooks.json) in this version of the repo, so no hooks were installed');
+  else if (/["\\$`]/.test(dirInCommand)) warn(`The hook scripts' folder ${dirInCommand} holds a ", \\, $ or backtick, which a hook command cannot carry safely, so no hooks were installed`);
+  else {
+    try {
+      const doc = JSON.parse(readFileSync(hookFile, 'utf8'));
+      for (const h of Array.isArray(doc.hooks) ? doc.hooks : []) {
+        if (h && h.action && typeof h.action.command === 'string') h.action.command = h.action.command.split(KIRO_HOOKS_PLACEHOLDER).join(dirInCommand);
+      }
+      text = `${JSON.stringify(doc, null, 2)}\n`;
+    } catch (e) { warn(`Could not read ${hookFile} (${e.message}), so no hooks were installed`); }
+  }
+  // With no hook file to write, unchanged recorded copies are pruned.
+  if (text === null) { pruneArea(area, null); return; }
+  const prev = prevArea(area);
+  let written = 0;
+  // The scripts first, so the hook file never names a script that is not there.
+  for (const rel of kiroHookScripts(join(source, 'hooks'))) {
+    if (writeKiroCopy(area, join(scriptsDir, rel), readFileSync(join(source, 'hooks', rel), 'utf8'), prev)) written++;
+  }
+  const dest = join(kiroBase, 'hooks', 'apex-hooks.json');
+  const fileOk = writeKiroCopy(area, dest, text, prev);
+  pruneArea(area, null);
+  if (fileOk) success(`Kiro hooks installed to ${c.dim}${dest}${c.reset} (${written} scripts in ${c.dim}${scriptsDir}${c.reset}); turn each hook on or off with its "enabled" field there`);
+  else info(`Kiro hook file not written to ${c.dim}${dest}${c.reset} (listed below)`);
+}
+
+// The folders the Kiro hook scripts sat in, once empty (bottom-up; a symlink is not followed).
+function removeEmptyDirs(dir) {
+  const st = lstatOrNull(dir);
+  if (!st || !st.isDirectory()) return;
+  for (const entry of listDir(dir)) removeEmptyDirs(join(dir, entry));
+  try { rmdirSync(dir); } catch { /* not empty, or not ours to remove */ }
+}
+
 function reportConflicts() {
   if (conflicts.length > 0) {
     warn(`Skipped ${conflicts.length} path(s) that already exist and were not created by this installer:`);
@@ -1127,16 +1239,19 @@ function uninstall(flags) {
     'claude-steering': () => { removeIfInstalled(join(claudeBase, 'commands', 'apex')); removeIfInstalled(join(claudeBase, 'apex-steering')); },
     'kiro-skills': () => sweep(join(kiroBase, 'skills')),
     'kiro-steering': () => sweep(join(kiroBase, 'steering'), true),
+    'kiro-hooks': () => {}, // installers before kiro-hooks wrote no hooks
   };
   const areaPaths = {
     'claude-skills': join(claudeBase, 'skills'),
     'claude-steering': `${join(claudeBase, 'commands', 'apex')} and ${join(claudeBase, 'apex-steering')}`,
     'kiro-skills': join(kiroBase, 'skills'),
     'kiro-steering': join(kiroBase, 'steering'),
+    'kiro-hooks': `${join(kiroBase, 'hooks', 'apex-hooks.json')} and ${join(kiroBase, 'apex-hooks')}`,
   };
   const areas = AREAS.filter((a) => (a.startsWith('claude') ? !flags.kiroOnly : !flags.claudeOnly));
   for (const area of areas) {
     const entries = rec && rec.areas[area];
+    if (!entries && area === 'kiro-hooks') continue; // opt-in: nothing to say when it was never installed
     if (!entries) {
       if (!rec) fallback[area]();
       else info(`Nothing recorded for ${areaPaths[area]} in this install's record; anything there is left as it is.`);
@@ -1149,12 +1264,17 @@ function uninstall(flags) {
       if (entryMatches(p, e)) { if (tryUnlink(p)) removed++; else keep[p] = e; } else if (lstatOrNull(p)) { changed.push(p); keep[p] = e; } else if (keepUnreadable(p)) keep[p] = e;
     }
     if (areaDir[area]) sweepDangling(areaDir[area]);
+    if (area === 'kiro-hooks') removeEmptyDirs(join(kiroBase, 'apex-hooks'));
     if (Object.keys(keep).length > 0) rec.areas[area] = keep; else delete rec.areas[area];
     if (area === 'kiro-steering') {
       const dir = join(kiroBase, 'steering');
       if (existsSync(dir)) for (const entry of listDir(dir)) { const full = join(dir, entry); if (isKiroCopy(full) && !changed.includes(full) && !blocked.includes(full)) keptCopies.push(full); }
     }
   }
+  // A full --uninstall clears the --maintainer choice, even when it keeps a
+  // changed path, so the next install links no maintainer skill; a scoped one
+  // (--claude-only or --kiro-only) keeps it while the base stays recorded.
+  if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;
   if (rec) {
     if (Object.keys(rec.areas).length === 0) delete manifest.bases[base];
     saveManifest(manifest);
@@ -1189,11 +1309,18 @@ function showHelp() {
   log(`                       unless --no-steering or a saved no-steering choice`);
   log(`  --kiro-only          Install for Kiro CLI only; asks no steering question: steering is installed`);
   log(`                       unless --no-steering or a saved no-steering choice`);
+  log(`  --kiro-hooks         Also install the opt-in APEX guard hooks for Kiro: .kiro/hooks/apex-hooks.json`);
+  log(`                       and its scripts in .kiro/apex-hooks; turn each hook on or off with its`);
+  log(`                       "enabled" field in that file. --update keeps an installed set current`);
   log(`  --project            Install to current project instead of global`);
   log(`  --no-steering        Skip steering/commands setup. Steering an earlier run installed is not removed:`);
   log(`                       the Kiro copies stay and are not updated (they go stale), while the Claude Code`);
   log(`                       links stay and follow the clone. To remove it, run --uninstall, then install`);
   log(`                       with --no-steering`);
+  log(`  --maintainer         Also link the maintainer skills (skill-creator, steering-workflow-creator,`);
+  log(`                       update-docs, apex-new-skill), which a default install leaves out. The choice`);
+  log(`                       is saved for this install: later runs, --update included, keep the links;`);
+  log(`                       a full --uninstall removes them and clears the choice`);
   log(`  --update             Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
   log(`                       links and steering copies (non-interactive; a branch chosen with --branch is`);
   log(`                       followed). It keeps a saved no-steering choice (--no-steering or n), as`);
@@ -1205,6 +1332,7 @@ function showHelp() {
   log(`  --branch <name>      Follow a branch (e.g. main) instead of the latest v1 release`);
   log(`  --uninstall          Remove installed links and steering copies (keeps cloned repo); honours`);
   log(`                       --project, --claude-only and --kiro-only`);
+  log(`                       It removes the Kiro hooks --kiro-hooks installed too`);
   log(`  -y, --yes            Take the default answer to every question (no prompts)`);
   log(`  -h, --help           Show this help\n`);
   log(`${c.bold}Exit codes:${c.reset}`);
@@ -1326,14 +1454,20 @@ async function main() {
   run.base = installBase;
   run.prev = run.manifest.bases[installBase] || null;
   run.source = cloneSource(sourceRef);
+  // Maintainer skills: linked on --maintainer, and on every later run while the
+  // record holds that choice (--update included); without it the drop loop removes
+  // the installer links an earlier install made. A full --uninstall clears the choice.
+  run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);
+  const linkSkills = getSkills(run.maintainer);
+  const heldBack = skills.filter((name) => !linkSkills.includes(name));
 
   // Determine skill target directories
   const claudeSkillsDir = join(installBase, '.claude', 'skills');
   const kiroSkillsDir = join(installBase, '.kiro', 'skills');
 
   // Install skills
-  if (installClaude) symlinkSkills('claude-skills', claudeSkillsDir, skills);
-  if (installKiro) symlinkSkills('kiro-skills', kiroSkillsDir, skills);
+  if (installClaude) symlinkSkills('claude-skills', claudeSkillsDir, linkSkills, heldBack);
+  if (installKiro) symlinkSkills('kiro-skills', kiroSkillsDir, linkSkills, heldBack);
 
   // Steering. A no-steering choice (--no-steering or answering n) is remembered
   // per install base in the manifest. --update, --claude-only and --kiro-only
@@ -1385,6 +1519,9 @@ async function main() {
       installSteeringKiro(join(installBase, '.kiro', 'steering'));
     }
   }
+  // Kiro hooks: on --kiro-hooks, and on every later run while the record holds them.
+  if (flags.kiroHooks && !installKiro) warn('--kiro-hooks: this run installs nothing for Kiro (no ~/.kiro), so no hooks were installed');
+  if (installKiro && (flags.kiroHooks || prevArea('kiro-hooks'))) installKiroHooks(join(installBase, '.kiro'), flags.project);
   saveRun();
   reportConflicts();
 
@@ -1397,7 +1534,7 @@ async function main() {
     : skippedSomething()
       ? `${c.bold}${c.yellow}Done, with skipped paths (listed above); exit code ${EXIT_SKIPPED}.${c.reset}\n`
       : `${c.bold}${c.green}Done!${c.reset}\n`);
-  log(`${c.dim}  Skills: ${skills.join(', ')}${c.reset}\n`);
+  log(`${c.dim}  Skills: ${linkSkills.join(', ')}${c.reset}\n`);
   if (installClaude) log(`  ${c.bold}Claude Code:${c.reset} ask your agent about EKS best practices`);
   if (installKiro) {
     log(doSteering && steeringInTree

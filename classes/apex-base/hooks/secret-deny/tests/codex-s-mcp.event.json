@@ -1,0 +1,19 @@
+{
+  "session_id": "s1",
+  "turn_id": "t1",
+  "transcript_path": null,
+  "cwd": "/w",
+  "hook_event_name": "PreToolUse",
+  "model": "m",
+  "permission_mode": "default",
+  "tool_name": "mcp__awslabs_eks_mcp_server__manage_k8s_resource",
+  "tool_input": {
+    "operation": "read",
+    "cluster_name": "c",
+    "kind": "Secret",
+    "api_version": "v1",
+    "name": "db",
+    "namespace": "x"
+  },
+  "tool_use_id": "call_1"
+}

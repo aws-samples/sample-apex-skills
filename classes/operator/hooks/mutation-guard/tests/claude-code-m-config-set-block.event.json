@@ -1,0 +1,12 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/w",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "kubectl config set-context x --namespace y"
+  },
+  "tool_use_id": "toolu_01"
+}

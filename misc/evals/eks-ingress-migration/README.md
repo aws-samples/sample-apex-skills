@@ -31,4 +31,4 @@ From `misc/evals/`:
 - `make artifact-eks-ingress-migration` — artifact validation against outputs/ (deterministic)
 - `make composite-eks-ingress-migration` — weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

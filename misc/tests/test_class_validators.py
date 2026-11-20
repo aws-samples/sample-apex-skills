@@ -28,10 +28,8 @@ try:
     MISSING = None if "date-time" in jsonschema.FormatChecker().checkers else "jsonschema's format-nongpl extra"
 except ImportError as e:
     MISSING = e.name
-if MISSING:
-    print(f"skipped: {MISSING} is not installed; install jsonschema and pyyaml:"
-          " pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'")
-    sys.exit(0)
+NEEDS_DEPS = unittest.skipUnless(not MISSING, f"{MISSING} is not installed; install jsonschema and pyyaml:"
+                                 " pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'")
 
 sys.dont_write_bytecode = True
 
@@ -90,6 +88,7 @@ def output_case(case):
 OUTPUTS = {c["id"]: c for c in CASES["output_cases"]}
 
 
+@NEEDS_DEPS
 class Tmp(unittest.TestCase):
     def setUp(self):
         self._td = tempfile.TemporaryDirectory(prefix="class-validators-")
@@ -169,7 +168,7 @@ class OutputValidator(Tmp):
         self.assertIn("inside the skill's assets/", out)
 
     def test_copied_tool_finds_its_skill(self):
-        """A copied tool in <skill>/scripts/, no --skill-dir, under source names; the flat names and the import rewrite come with the class sync (planned)."""
+        """A copied tool in <skill>/scripts/, no --skill-dir, under source names; the flat names and the import rewrite come with the class sync (misc/sync-classes.py)."""
         d = self.skill("copied", {"name": "copied", "description": "x",
                                   "metadata": {"apex-outputs": "assets/recon-output.schema.json"}})
         os.makedirs(os.path.join(d, "scripts"))
@@ -296,6 +295,24 @@ class DeepInput(Tmp):
                 self.assertNotIn("Traceback", out, case["id"])
 
 
+class YamlLoader(Tmp):
+    """schema_check.loads keeps the safe loader's rules: duplicate keys raise,
+    and a python tag is refused."""
+
+    def test_duplicate_key_raises(self):
+        with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: duplicate key 'a' at line 2"):
+            schema_check.loads("a: 1\na: 2\n", "x.yaml")
+
+    def test_python_tags_are_refused(self):
+        for text in ("!!python/object:collections.OrderedDict {}\n",
+                     "!!python/object/apply:os.getcwd []\n",
+                     "!!python/name:os.system\n"):
+            with self.subTest(text=text):
+                with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: not valid YAML"):
+                    schema_check.loads(text, "x.yaml")
+
+
+@NEEDS_DEPS
 class ReconSchemaMatchesSkill(unittest.TestCase):
     """The hand-written schema stays in step with SKILL.md."""
 

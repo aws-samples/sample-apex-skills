@@ -60,7 +60,7 @@ git clone https://github.com/aws-samples/sample-apex-skills.git
 mkdir -p ~/.agents/skills && cp -r sample-apex-skills/skills/* ~/.agents/skills/
 ```
 
-In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses: [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/). [classes/](classes/) holds the shared rules; the class sync (planned) copies them into each skill.
+In Codex the router is `$apex`. `/apex` in Kiro CLI was tested on 2.35.1 (2026-10-28); 1.27.0 rejected it. Other harnesses: [Getting started](https://aws-samples.github.io/sample-apex-skills/docs/getting-started/). [classes/](classes/) holds the shared rules; the class sync (`misc/sync-classes.py`) copies them into each skill that joins a class.
 
 ## See it work
 
@@ -160,6 +160,7 @@ Connect tools, write your own skills, keep docs in sync.
 
 | Skill | What it does |
 |---|---|
+| [apex-new-skill](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex-new-skill/) | Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request |
 | [apex](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/apex/) | Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills |
 | [eks-mcp-server](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-mcp-server/) | Set up and troubleshoot the EKS MCP Server in your AI assistant; for cluster work once MCP works, use eks-recon, eks-operation-review or eks-upgrade-check |
 | [skill-creator](https://aws-samples.github.io/sample-apex-skills/docs/skills/general/skill-creator/) | Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy |

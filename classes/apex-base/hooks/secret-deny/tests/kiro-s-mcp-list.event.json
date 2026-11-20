@@ -1,0 +1,12 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "session_id": "s1",
+  "tool_name": "mcp_eks_mcp_list_k8s_resources",
+  "tool_input": {
+    "cluster_name": "c",
+    "kind": "Secret",
+    "api_version": "v1",
+    "namespace": "x"
+  }
+}

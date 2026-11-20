@@ -1,0 +1,17 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "session_id": "s1",
+  "tool_name": "mcp_eks_mcp_manage_k8s_resource",
+  "tool_input": {
+    "operation": "create",
+    "cluster_name": "c",
+    "kind": "Deployment",
+    "api_version": "apps/v1",
+    "name": "x",
+    "namespace": "x",
+    "body": {
+      "kind": "Deployment"
+    }
+  }
+}
