@@ -258,20 +258,30 @@ def test_reentry_guard_codex(world):
     assert records(world) == []
 
 
-def test_kiro_fail_blocks_on_two_successive_stops(world):
-    # Kiro CLI 3.4.0 and 3.5.0 run Stop hooks at most once per user turn, so each Kiro Stop is a new turn's.
+def test_reentry_guard_kiro(world):
     world.record("bad.yaml")
     kev = kiro_event(str(world.project))
-    for _ in range(2):
-        p = world.raw(["--mode", "block"], kev)
-        assert p.returncode == 0 and BLOCKS in p.stdout, p.stderr
-    assert len(records(world)) == 1
+    assert BLOCKS in world.raw(["--mode", "block"], kev).stdout
+    assert len(guards(world)) == 1 and (world.state / guards(world)[0]).read_text() == ""
+    p = world.raw(["--mode", "block"], kev)
+    assert p.stdout == "" and "already continued once" in p.stderr
+    assert guards(world) == [] and records(world) == []
 
 
-def test_kiro_block_makes_no_guard_file(world):
+def test_kiro_pass_clears_a_left_guard(world):
     world.record("bad.yaml")
-    assert BLOCKS in world.raw(["--mode", "block"], kiro_event(str(world.project))).stdout
+    world.raw(["--mode", "block"], kiro_event(str(world.project)))
+    assert len(guards(world)) == 1
+    for p in world.state.glob("run-*.json"):
+        p.unlink()
+    world.record("good.yaml")
+    p = world.raw(["--mode", "block"], kiro_event(str(world.project)))
+    assert p.returncode == 0 and p.stdout == ""
     assert guards(world) == []
+
+
+def test_the_guard_is_per_working_folder(world):
+    assert GATE.guard_path("/s", "/a") != GATE.guard_path("/s", "/b")
 
 
 def test_warn_mode_never_continues(world):
@@ -488,6 +498,8 @@ def test_an_installed_copy_never_runs_a_skill_planted_in_the_project(world, tmp_
         assert not marker.exists()
         assert '"decision": "block"' in p.stdout and "not one the gate runs" in p.stdout
         path.unlink()
+        for g in world.state.glob("guard-*"):
+            g.unlink()
 
 
 def test_a_skill_planted_in_the_clone_itself_is_run(world, tmp_path):
@@ -820,7 +832,7 @@ def test_non_utf8_check_output_is_replaced_not_an_error(world):
 
 def test_gate_own_error_ends_the_turn(world):
     world.record("bad.yaml")
-    os.chmod(world.state, 0o300)
+    os.chmod(world.state, 0o500)
     try:
         assert world.run("kiro-g-crash", kiro_event(str(world.project)),
                          {"exit": 3, "args": ["--mode", "block"], "stderr_contains": "internal error"}) == ("PASS", "ok")

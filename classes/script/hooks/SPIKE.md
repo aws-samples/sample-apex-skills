@@ -105,11 +105,8 @@ re-run, and a tool that sees it writes no record, so the gate's own run does
 not leave a new one.
 
 A pass deletes its record. A blocked fail keeps it, so the retry is checked
-again. A warn, or a fail with the reentry guard spent (Claude Code and Codex),
-deletes it, so the next turn starts clean. Kiro has no guard: Kiro CLI 3.4.0
-and 3.5.0 run Stop hooks at most once per user turn, so a fail in block mode
-always blocks there, and a record that keeps failing blocks once in each
-later Kiro turn in that project until it passes or is 24 hours old.
+again. A warn, or a fail with the reentry guard spent, deletes it, so the
+next turn starts clean.
 
 ## Who writes the record
 
@@ -129,8 +126,7 @@ turn with no decision.
   folder, an undeclared schema, a missing artifact), so such a run is not
   checked at Stop.
 - Records are per project, not per session: two sessions in one project see
-  each other's records. That can cost a retry; the guard keeps it to one (on
-  Kiro, Kiro's once-per-turn Stop does). A
+  each other's records. That can cost a retry; the guard keeps it to one. A
   warn, or a Stop with the guard spent, deletes every record under the root,
   another session's included, so that session's failed check is no longer
   checked at its own Stop.
@@ -170,13 +166,10 @@ turn with no decision.
   Claude Code event gets Claude Code's output and Kiro's budget. Kiro
   documents `hooks[].timeout` for the `.kiro/hooks` file the installer copies
   (kiro.dev/docs/hooks/, "Hook file schema": "Timeout in seconds for command
-  actions (default: 60). 0 disables the timeout.", read 2026-11-20). In a
-  Kiro CLI 3.5.0 (V3 engine) run on 2026-11-20 Kiro rejected a `timeout` of
-  -1 ("timeout must be >= 0 seconds") and ran no hook from that file; a 30 s
-  `timeout` ended the hook at 30.0 s;
-  and the gate's budget held (a block at 35.1 s under a 40 s `timeout` with
-  `--kiro-timeout 40`, and at 25.1 s with neither set, under the 60 s
-  default). The class sync
+  actions (default: 60). 0 disables the timeout.", read 2026-11-20), and the
+  hook file schema of the v3 engine bundled with Kiro CLI 3.4.0 (its kas
+  acp-server.js) takes it as a whole number of seconds, 0 or more (read from
+  its program text, not run; that engine drops a whole hook file that fails its schema). The class sync
   writes a `class.yaml` hooks entry's `kiro_timeout` (whole seconds, at least
   30) as the Kiro hook's `timeout` and as its command's `--kiro-timeout`, so
   Kiro's limit and the gate's budget come from one value. No Kiro Stop entry
@@ -201,7 +194,8 @@ turn with no decision.
   not a JSON object, cannot be read or is not a regular file; a record whose
   `time` is missing, not a number, not finite or later than now; and a state
   folder that is a link, not a folder, not this user's or writable by others.
-  Skipped records stay until removed.
+  Skipped records stay until removed; a Kiro guard left behind spends the next
+  block in that folder.
 - A `stop_hook_active` that is not the boolean true (such as the string
   `"true"`) does not spend the guard, so the gate blocks again at that Stop.
 - An installed copy drops a record by its tool's file name only: a tool named
@@ -214,15 +208,9 @@ turn with no decision.
   each Stop.
 - Under a read-only project root the gate cannot make the state folder, so each
   Stop with the switch on is the gate's own error (exit 3).
-- Kiro's Agent Stop page documents no surface for a hook's stderr, and in a
-  Kiro CLI 3.5.0 (V3 engine) run on 2026-11-20 gate stderr was not seen
-  anywhere (not in the chat output, Kiro's log or its session record; the
-  warn path did not run there), so a Kiro user may see no warning and no
-  bad-switch line. Kiro did not log the block reason's text either; the
-  model's replies only paraphrase it.
-- In that run the model, told to use no tools, tried to act on the block
-  reason by writing shell commands as plain text; none ran, because the
-  test agent allowed no tools.
+- Kiro's Agent Stop page documents no surface for a hook's stderr, so a Kiro
+  user may see no warning and no bad-switch line. Not yet run on Kiro, as of
+  2026-11-19; that run uses Kiro's own login and needs no eval account.
 - The hook-test runner's three run-record fixtures
   (`claude-code-g-block-record`, `claude-code-g-warn-record` and
   `claude-code-g-guard-spent-record`) give their record through
