@@ -376,12 +376,13 @@ def assume_profile_role(profile: str, config_file: str, seconds: int) -> dict:
     as the driver, never the subject, from the operator's AWS config file
     only: the parent's AWS_* variables are dropped, the shared credentials
     file and the boto config are /dev/null and the instance metadata lookup
-    is off, so no host key and no credentials or config file in ~/.aws is
-    read; the CLI still uses ~/.aws/cli (its cache and any alias file) and
-    looks for ~/.aws/models. The credential_process helper runs as you,
-    with your HOME; what it reads is your choice. The source profile must
-    sign in through credential_process: an SSO or aws login source reads its
-    token under ~/.aws. Returns the STS Credentials dict."""
+    is off, and HOME is an empty private temp dir removed after the call, so
+    nothing in ~/.aws is read, the CLI's cache, alias file and models
+    included. The source profile must sign in through a credential_process
+    line that gives the helper its home back (/usr/bin/env HOME=<your home>
+    <command>); the helper runs as you, and what it reads is your choice. An
+    SSO or aws login source reads its token under ~/.aws. Returns the STS
+    Credentials dict."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
     env.update(AWS_CONFIG_FILE=config_file, AWS_SHARED_CREDENTIALS_FILE=os.devnull, AWS_EC2_METADATA_DISABLED="true",
                BOTO_CONFIG=os.devnull)
@@ -395,11 +396,13 @@ def assume_profile_role(profile: str, config_file: str, seconds: int) -> dict:
             raise LiveSessionError(f"aws {argv[0]} {argv[1]} exited {r.returncode}")
         return r.stdout.strip()
 
-    role_arn, source = aws("configure", "get", "role_arn", "--profile", profile), \
-        aws("configure", "get", "source_profile", "--profile", profile)
-    out = aws("sts", "assume-role", "--profile", source, "--role-arn", role_arn,
-              "--role-session-name", f"apex-c1-live-{os.getpid()}",
-              "--duration-seconds", str(seconds), "--output", "json")
+    with tempfile.TemporaryDirectory(prefix="drive-c1-home-") as home:   # mode 700
+        env["HOME"] = home
+        role_arn, source = aws("configure", "get", "role_arn", "--profile", profile), \
+            aws("configure", "get", "source_profile", "--profile", profile)
+        out = aws("sts", "assume-role", "--profile", source, "--role-arn", role_arn,
+                  "--role-session-name", f"apex-c1-live-{os.getpid()}",
+                  "--duration-seconds", str(seconds), "--output", "json")
     try:
         return json.loads(out)["Credentials"]
     except (ValueError, KeyError, TypeError) as e:
@@ -582,9 +585,10 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
     p.add_argument("--cluster-aws-config", help="AWS config file outside ~/.aws holding the kubeconfig's aws profile "
                                                 "in role_arn plus source_profile form, its source profile signing in "
-                                                "through credential_process; the driver mints T7's session from it "
-                                                "only (without it, a kubeconfig whose exec runs aws with AWS_PROFILE "
-                                                "reads 'cannot run')")
+                                                "through a credential_process line that gives the helper its home "
+                                                "back (/usr/bin/env HOME=<your home> <command>); the driver mints "
+                                                "T7's session from it only (without it, a kubeconfig whose exec runs "
+                                                "aws with AWS_PROFILE reads 'cannot run')")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]

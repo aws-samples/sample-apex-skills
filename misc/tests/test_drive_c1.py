@@ -470,6 +470,31 @@ class LiveSession(unittest.TestCase):
                                             "--role-session-name apex-c1-live-"), lines[2])
         self.assertIn("--duration-seconds 3600 --output json", lines[2])
 
+    def test_assume_profile_role_runs_aws_in_an_empty_private_home_removed_after(self):
+        with tempfile.TemporaryDirectory() as k:
+            log = Path(k) / "log"
+            fake = Path(k) / "aws"
+            fake.write_text(
+                '#!/bin/sh\n'
+                f'echo "$HOME $(stat -c %a "$HOME") $(ls -A "$HOME" | wc -l)" >> {log}\n'
+                'case "$*" in\n'
+                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
+                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
+                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
+                '  *) exit 9 ;;\n'
+                'esac\n')
+            fake.chmod(0o700)
+            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(Path.home())}
+            with mock.patch.dict(os.environ, env):
+                drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
+            homes = {tuple(line.split()) for line in log.read_text().splitlines()}
+        # one HOME for all three calls: not the parent's, mode 700, empty, and gone after
+        self.assertEqual(len(homes), 1, homes)
+        home, mode, entries = homes.pop()
+        self.assertNotEqual(Path(home), Path.home())
+        self.assertEqual((mode, entries), ("700", "0"))
+        self.assertFalse(Path(home).exists())
+
     def test_aws_exec_without_a_profile_is_passed_through(self):
         with tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
