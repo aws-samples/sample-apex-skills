@@ -463,7 +463,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
-- **EKS Auto Mode** — the branch-ENI `SecurityGroupPolicy` path is not supported (as of 2026-08-04). On Auto Mode, attach security groups to pods by setting `podSecurityGroupSelectorTerms` on the NodeClass instead.
+- **EKS Auto Mode** below Kubernetes 1.36: branch-ENI `SecurityGroupPolicy` is not supported; use NodeClass `podSecurityGroupSelectorTerms` (one SG set per NodeClass). On 1.36+, Auto Mode supports its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)).
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 
