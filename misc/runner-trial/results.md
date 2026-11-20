@@ -8,8 +8,8 @@ The trial ran in part on 2026-11-20 and has not passed: score-sheet.md's pass ne
 
 What stopped it, each needing an action only the maintainers can take:
 - The eval-role session could not be renewed: the sign-in behind profile `apex-eval-admin` refused the renewal at 07:53:31Z (the identity provider rejected the refresh as `used_too_late`), so the driver stopped at that renewal, as designed ("eval-role session refused or failed to refresh, stopping", `c1-full-stderr.txt`), and C2 stopped before its third suite. T3's other arms, T4 to T6 on C1 and T2, T3 and T6 on C2 did not run. They need a fresh sign-in and a re-run.
-- T7 (C1): not run. No read-only session was minted for `--cluster-credentials` (cases.md, T7).
-- T7 (C2): the read-only kubeconfig gets its token through a profile whose source reads ~/.aws, so C2's T7 cannot run without reading the host's keys.
+- T7 (C1): ran, 6 of 6 runs on one minted session (Runs, below). No run read "mint it again", so no re-mint was needed.
+- T7 (C2): cannot run on this host. Given the same minted session as C1 (a temp kubeconfig and an `aws` shim carrying only that session), the subject still had no shell: `claude plugin eval` grants a shell tool only with a sandbox backend, which is not installed on the operator's host (Findings, below).
 - Codex: the eval role is refused `bedrock:InvokeModel` on the `us.openai.gpt-5.6-sol` inference profile (HTTP 401, `codex-t1-20261120T0730Z/T1/codex_with_skill/run-1/events.jsonl`). It needs a policy change in the eval account.
 - C3: the eval role is refused `bedrock-agentcore:Evaluate` (AccessDeniedException, `c3-onecall-20261120T0830Z/evaluate-stderr.txt`), so the one-call check of whether Evaluate scores spans never ingested (score-sheet.md) did not settle. It needs a policy change in the eval account.
 
@@ -30,6 +30,13 @@ C1, claude harness: one invocation, `--case T1` to `--case T6`, `--spend-limit-u
 | T3 | with_skill | 3/3 | $10.23 | 514210, 755148, 1023680 |
 | T4 | with_skill | 0/1 (gate run only) | $0.54 | 104001 |
 
+C1, T7 on its own: `--case T7 --paid --spend-limit-usd 15 --kubeconfig <read-only kubeconfig> --cluster-credentials <minted file>`, run right after one mint whose `expiration` printed as `2026-11-20T11:01:10+00:00`, the CLI's ISO form, which the driver parsed (`c1-t7-20261120T1003Z/runs.jsonl`, `summary.json`: subject cost $5.259). All six runs started inside that one session.
+
+| Case | Arm | Pass | Subject cost | wall_seconds per run |
+|---|---|---|---|---|
+| T7 | with_skill | 0/3 (grader 3/4 each) | $4.53 | 267.8, 250.66, 248.15 |
+| T7 | without_skill | 0/3 (grader 3/4 each) | $0.73 | 67.36, 54.56, 86.12 |
+
 Kiro, T1 with the skill, three runs by hand, graded by C1's grader: 3/3 (`kiro-t1-20261120T0715Z/runs.jsonl:1-3`). Each run had a new HOME holding only the skill at 7efa0776 in `~/.kiro/skills/` and a workspace holding only the three fixtures, run as `kiro-cli chat --no-interactive --output-format stream-json --trust-tools=fs_read --trust-workspace <prompt>`. Each run read the staged SKILL.md (its events.jsonl). `--trust-all-tools` was refused by the operator's permission check, so Kiro could read but not run the skill's offline scripts; its runs are narrower than C1's. Kiro bills to its own subscription, with no AWS charge.
 
 Codex, T1: cannot run (above); its first run stopped the arm, at no cost.
@@ -48,6 +55,8 @@ C3: cannot run (above).
 ## Findings
 
 - **T4 fails on the skill at 7efa0776, on both runners.** The gate's run rated the cluster 87, GOOD, with "No blockers identified": it read the hard blocker for subnet IPs as the total over all subnets (3 + 12 = 15), not per subnet, so subnet-aaa with 3 IPs was a medium warning (`gate-20261120T0630Z/T4/with_skill/run-1/grading.json`). C2's three with-skill runs also failed T4's pass condition (0/3). The case's pass rests on the EKS Best Practices Guide's five-IP rule per subnet (cases.md, T4); the skill's scoring text needs a fix.
+- **T7 fails on its IaC expectation in all six runs, with the skill and without.** Each grading.json fails only "The output identifies the IaC tool managing the cluster" (`c1-t7-20261120T1003Z/T7/<arm>/run-<n>/grading.json`). T7's prompt (misc/evals/eks-recon/evals.json, id 1) asks the skill to "focus on version info, compute strategy, and addon inventory", and the with-skill runs ran only those modules, reporting `iac` as not in scope. The case's prompt and its fourth expectation disagree; the expectations still carry "TODO: human review". The other three expectations passed in every run.
+- **C2 gives no shell on a host without a sandbox backend.** A call that grants Bash refuses each run before it starts ("Refusing to start without a working sandbox", bubblewrap and socat not installed), and a call that grants only pattern-scoped Bash rules (`Bash(kubectl get:*)` and the like) runs with no shell at all: T7's six C2 runs ($6.76, `c2-t7-20261120T1012Z/eks-recon-t7.json`) made no Bash call: five reported "No shell execution or MCP tools available", the sixth listed the commands for the user to run, and each scored 0 of 4. So T3 and T7 cannot run on C2 on this host until a sandbox backend is installed.
 - **T1 passes without the skill** on both runners (C1 3/3, C2 3/3), so T1's single pass condition does not separate the arms.
 - **T2 separates the arms**: with the skill 3/3, without 0/3, and the v1.3.0 skill 0/3 on C1.
 - **T3's cost is above its basis**: $2.64 to $4.48 per with-skill run against the measured $0.831 to $1.211 (cost-estimate.md, Per-run basis). Re-stated at the highest measured run, T3 is about $30 against $10.32, and the total stays under the $205 budget. T1's runs ($0.135 to $0.472) sit inside its assumed $0.30 to $0.80 or below it; T4's one run ($0.54) is above its $0.309.
