@@ -11,8 +11,8 @@ re-runs a Script skill's output check, or an Operator skill's declared artifact
 checks, on the files the skill's own check run named, and never trusts the
 agent's or the tool's earlier verdict. If the check fails, the gate continues
 the turn once (none, if another Stop hook already continued it, on Claude Code
-and Codex), then lets it end with a warning (on Kiro, at the next
-user turn's Stop: SPIKE.md); it checks only runs that left a
+and Codex), then lets it end with a warning (on Kiro, ending at the next
+user turn's Stop, where the warning goes to stderr only: SPIKE.md); it checks only runs that left a
 record, and its switch is off by default. A guardrail, not a guarantee. It is
 not registered yet: its Stop entries, its rule bullet and its userConfig key
 land in later changes (SPIKE.md beside this folder).
@@ -51,7 +51,7 @@ real path of ~/.apex-skills/skills, the clone the installer
 .claude/skills or .kiro/skills entry that is not such a link included, is
 never run. With no ~/.apex-skills clone (a marketplace-only plugin install,
 and Codex, which the installer does not set up) every record is no verdict
-and blocks once (on Kiro, with the warning at the next user turn's Stop). With no sandbox (Claude Code's default), or with the agent
+and blocks once (on Kiro, ending at the next user turn's Stop). With no sandbox (Claude Code's default), or with the agent
 working in the home folder, the root is not a boundary: the agent can make or
 relink ~/.apex-skills and add a check the gate runs.
 A --project --kiro-hooks install copies the gate itself into the project,
@@ -125,15 +125,18 @@ Results (every exit 0 prints one JSON object or nothing, as Codex requires):
   without it the gate makes an empty guard-<hash of the cwd> file in the state
   folder when it blocks, and at the next Stop finds it, deletes it and does not
   block. Kiro runs Stop hooks once per execution (Kiro CLI 3.5.0, run
-  2026-11-20; 3.4.0 and 3.3.0 read from the engine code, not run; that this
-  resets each user turn is read from the code), so on Kiro the turn goes on
-  once and the warning comes at the next user turn's Stop (SPIKE.md).
+  2026-11-20, where a second user turn of the same session ran them again;
+  3.4.0 and 3.3.0 read from the engine code, not run), so on Kiro the turn goes on
+  once, ending at the next user turn's Stop, where the warning goes to stderr,
+  which Kiro CLI 3.5.0's code passes neither to the model nor to the turn
+  (read from the code, and in a 2026-11-20 two-turn run it reached neither;
+  whether Kiro's interactive screen shows it is not tested: SPIKE.md).
 - a fail in warn mode, or with the guard spent: the records are deleted and the
   turn ends. Claude Code and Codex get {"systemMessage": ...}, a warning to the
   user; Kiro gets nothing on stdout and the warning on stderr, and Kiro's Agent
   Stop page documents no surface for stderr, so a Kiro user may see no warning
-  and no bad-switch line (not tested by a run; read from the Kiro CLI 3.5.0
-  engine code: SPIKE.md).
+  and no bad-switch line (in a 2026-11-20 two-turn run, not interactive, the
+  warning reached neither the model nor the turn's output: SPIKE.md).
 - an event it cannot read, a hook_event_name other than Stop, or a working
   folder with no existing project root at or above it: no decision (exit 0, no
   output; one stderr line for the first two). An event with no
