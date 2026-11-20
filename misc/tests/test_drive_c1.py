@@ -334,7 +334,7 @@ def session():
 class LiveSession(unittest.TestCase):
     """T7: the subject gets a short cluster session, never the host's profile path."""
 
-    def run_t7(self, assume):
+    def run_t7(self, assume, with_config=True):
         seen, calls = [], []
         runner = fake_runner(calls)
         inner = runner.run_subject
@@ -364,16 +364,20 @@ class LiveSession(unittest.TestCase):
                                       'cfg=$AWS_CONFIG_FILE args=$*"\n')
             (fake / "aws").chmod(0o700)
             path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
+            op_cfg = Path(k) / "operator-aws-config"
+            op_cfg.write_text("[profile cluster-ro]\n")
+            flags = ("--cluster-aws-config", str(op_cfg)) if with_config else ()
             with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
                     mock.patch.dict(os.environ, {"PATH": path}):
-                rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc))
-        return rc, recs, seen, host_cfg
+                rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc), *flags)
+        return rc, recs, seen, host_cfg, str(op_cfg.resolve())
 
     def test_subject_gets_only_a_session_in_its_kubeconfig_and_aws_shim(self):
         asked = []
-        rc, recs, seen, host_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
+        rc, recs, seen, host_cfg, op_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
         self.assertEqual((rc, len(seen)), (0, 6))
-        self.assertEqual(asked, [("cluster-ro", host_cfg, 3600)] * 6)   # one session per live run
+        # one session per live run, from the operator's config, never the kubeconfig's host config
+        self.assertEqual(asked, [("cluster-ro", op_cfg, 3600)] * 6)
         for s in seen:
             for bad in (".aws", host_cfg, "AWS_PROFILE", "cluster-ro", "host-admin"):
                 self.assertNotIn(bad, s.text)
@@ -395,9 +399,24 @@ class LiveSession(unittest.TestCase):
     def test_failed_session_reads_cannot_run(self):
         def fail(p, c, s):
             raise drive_c1.LiveSessionError("aws sts assume-role exited 254")
-        rc, recs, seen, _ = self.run_t7(fail)
+        rc, recs, seen, _, _ = self.run_t7(fail)
         self.assertEqual((rc, seen), (0, []))
         self.assertTrue(all(r["status"] == "cannot run" and "exited 254" in r["reason"] for r in recs))
+
+    def test_no_cluster_aws_config_reads_cannot_run_with_no_fallback(self):
+        def assume(p, c, s):
+            raise AssertionError("assumed a role without the operator's config")
+        rc, recs, seen, _, _ = self.run_t7(assume, with_config=False)
+        self.assertEqual((rc, seen, len(recs)), (0, [], 6))
+        self.assertTrue(all(r["status"] == "cannot run" and "--cluster-aws-config" in r["reason"] for r in recs))
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
+            kc = Path(k) / "kc"
+            kc.write_text("k")
+            calls = []
+            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc),
+                                 "--cluster-aws-config", str(Path(k) / "missing"))
+        self.assertEqual((rc, calls), (2, []))
+        self.assertIn("cluster aws config not found", err)
 
 
     def test_assume_profile_role_runs_as_the_driver_without_the_parent_aws_env(self):
@@ -407,7 +426,7 @@ class LiveSession(unittest.TestCase):
             fake.write_text(
                 '#!/bin/sh\n'
                 f'echo "$* | ${{AWS_ACCESS_KEY_ID-unset}} ${{AWS_PROFILE-unset}} ${{AWS_DEFAULT_PROFILE-unset}} '
-                f'$AWS_CONFIG_FILE" >> {log}\n'
+                f'$AWS_CONFIG_FILE ${{AWS_SHARED_CREDENTIALS_FILE-unset}} ${{AWS_EC2_METADATA_DISABLED-unset}}" >> {log}\n'
                 'case "$*" in\n'
                 '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
                 '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
@@ -416,14 +435,17 @@ class LiveSession(unittest.TestCase):
                 'esac\n')
             fake.chmod(0o700)
             env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "AWS_ACCESS_KEY_ID": "AKIAHOST",
-                   "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin"}
+                   "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin",
+                   "AWS_SHARED_CREDENTIALS_FILE": str(Path.home() / ".aws" / "credentials")}
             with mock.patch.dict(os.environ, env):
-                creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/host", 3600)
+                creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
             lines = log.read_text().splitlines()
         self.assertEqual(creds, {"AccessKeyId": "ASIATEST"})
         self.assertEqual(len(lines), 3)
-        for line in lines:   # the parent's AWS_* are stripped and only the kubeconfig's config file is set
-            self.assertTrue(line.endswith("| unset unset unset /cfg/host"), line)
+        # the parent's AWS_* are stripped, only the operator's config is read, with no
+        # shared credentials file (no ~/.aws or host keys) and no instance metadata
+        for line in lines:
+            self.assertTrue(line.endswith(f"| unset unset unset /cfg/operator {os.devnull} true"), line)
         self.assertTrue(lines[2].startswith("sts assume-role --profile src --role-arn test-role-arn "
                                             "--role-session-name apex-c1-live-"), lines[2])
         self.assertIn("--duration-seconds 3600 --output json", lines[2])
@@ -433,7 +455,7 @@ class LiveSession(unittest.TestCase):
             kc = Path(k) / "kc"
             kc.write_text(HOST_KUBECONFIG.replace("      - {name: AWS_PROFILE, value: cluster-ro}\n", "") % "/cfg")
             with mock.patch.object(drive_c1, "assume_profile_role", side_effect=AssertionError("assumed")):
-                with drive_c1.live_env(str(kc)) as extra:
+                with drive_c1.live_env(str(kc), None) as extra:
                     self.assertEqual(extra, {"KUBECONFIG": str(kc)})
 
 

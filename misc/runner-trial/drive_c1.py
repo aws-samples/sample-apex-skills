@@ -371,13 +371,16 @@ class LiveSessionError(RuntimeError):
     """The driver could not mint the live run's cluster session."""
 
 
-def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> dict:
+def assume_profile_role(profile: str, config_file: str, seconds: int) -> dict:
     """Assume the role of `profile` (its role_arn, through its source_profile)
-    as the driver, from the host's credentials, never the subject. Returns
-    the STS Credentials dict."""
+    as the driver, never the subject, from the operator's AWS config file
+    only: the parent's AWS_* variables are dropped, the shared credentials
+    file is /dev/null and the instance metadata lookup is off, so no host
+    key and no credentials or config file in ~/.aws is read (the CLI keeps
+    only its own cache under ~/.aws/cli); the source profile signs in by its
+    own means, such as a credential_process. Returns the STS Credentials dict."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
-    if config_file:
-        env["AWS_CONFIG_FILE"] = config_file
+    env.update(AWS_CONFIG_FILE=config_file, AWS_SHARED_CREDENTIALS_FILE=os.devnull, AWS_EC2_METADATA_DISABLED="true")
 
     def aws(*argv: str) -> str:
         try:
@@ -400,11 +403,12 @@ def assume_profile_role(profile: str, config_file: str | None, seconds: int) -> 
 
 
 @contextlib.contextmanager
-def live_env(kubeconfig: str):
+def live_env(kubeconfig: str, aws_config: str | None):
     """Yield the extra env a live subject gets. A kubeconfig whose current
-    user runs `aws` with AWS_PROFILE in its exec env reaches its role through
-    the host's keys, which the subject's empty HOME lacks: the driver assumes
-    that role once for this run and writes, into a private temp dir removed
+    user runs `aws` with AWS_PROFILE in its exec env needs a session the
+    subject's empty HOME lacks: the driver assumes that profile's role once
+    for this run, from `aws_config` (--cluster-aws-config; with none the run
+    cannot run, with no fallback), and writes, into a private temp dir removed
     when the run ends, a kubeconfig whose exec carries only that session (no
     profile, no config file, no host path) and `bin/aws`, a shim that runs
     the real aws on the same session. PATH puts the shim first, so an `aws`
@@ -427,7 +431,9 @@ def live_env(kubeconfig: str):
     if ex.get("command") != "aws" or "AWS_PROFILE" not in exec_env:
         yield {"KUBECONFIG": kubeconfig}
         return
-    creds = assume_profile_role(exec_env["AWS_PROFILE"], exec_env.get("AWS_CONFIG_FILE"), LIVE_SESSION_SECONDS)
+    if not aws_config:
+        raise LiveSessionError("no --cluster-aws-config for the kubeconfig's aws profile")
+    creds = assume_profile_role(exec_env["AWS_PROFILE"], aws_config, LIVE_SESSION_SECONDS)
     real_aws = shutil.which("aws")
     session = (("AWS_ACCESS_KEY_ID", creds["AccessKeyId"]), ("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"]),
                ("AWS_SESSION_TOKEN", creds["SessionToken"]), ("AWS_CONFIG_FILE", os.devnull),
@@ -455,7 +461,7 @@ def live_env(kubeconfig: str):
 
 
 def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: str, kubeconfig: str | None,
-            root: Path) -> dict:
+            root: Path, aws_config: str | None = None) -> dict:
     rec = {"case": case["id"], "arm": item["arm"], "run": item["run"], "status": None, "pass": None,
            "tokens": None, "duration_ms": None, "wall_seconds": None, "total_cost_usd": None, "reason": None}
     kind, value = case["grade"]
@@ -481,7 +487,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
     timeout = runner.subject_timeout(case["skill"])
     try:
         # Only live_env raises LiveSessionError, before its yield.
-        with (live_env(kubeconfig) if case.get("live") else contextlib.nullcontext()) as live, \
+        with (live_env(kubeconfig, aws_config) if case.get("live") else contextlib.nullcontext()) as live, \
                 (archived(OLD, f"skills/{case['skill']}") if item["arm"] == "old_skill"
                  else contextlib.nullcontext(root)) as tree:
             skill_dir = tree / "skills" / case["skill"]
@@ -512,7 +518,7 @@ def run_one(runner, case: dict, spec: dict, item: dict, out_dir: Path, model: st
 
 
 def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit: float,
-            kubeconfig: str | None, root: Path, head: str) -> dict:
+            kubeconfig: str | None, root: Path, head: str, aws_config: str | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     by_id = {c["id"]: c for c in cases}
     specs = check_specs(cases, root)
@@ -525,7 +531,7 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
                        "pass": None, "tokens": None, "duration_ms": None, "wall_seconds": None,
                        "total_cost_usd": None, "reason": f"spend limit ${spend_limit} reached (${spent:.2f})"}
             else:
-                rec = run_one(runner, case, specs[case["id"]], item, out_dir, model, kubeconfig, root)
+                rec = run_one(runner, case, specs[case["id"]], item, out_dir, model, kubeconfig, root, aws_config)
                 spent += rec["total_cost_usd"] or 0.0
             records.append(rec)
             log.write(json.dumps(rec) + "\n")
@@ -570,6 +576,9 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
     p.add_argument("--spend-limit-usd", type=float, help="the maintainers' spend limit for C1, per invocation "
                                                          "(required with --paid)")
     p.add_argument("--kubeconfig", help="read-only kubeconfig for T7 (without it T7 reads 'cannot run')")
+    p.add_argument("--cluster-aws-config", help="AWS config file holding the kubeconfig's aws profile, whose "
+                                                "source profile signs in without the keys in ~/.aws (such as a "
+                                                "credential_process helper); the driver mints T7's session from it only")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]
@@ -616,6 +625,13 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
             print(f"kubeconfig not found: {kcp}", file=sys.stderr)
             return 2
         kubeconfig = str(kcp)
+    aws_config = None
+    if args.cluster_aws_config:
+        acp = Path(args.cluster_aws_config).resolve()
+        if not acp.is_file():
+            print(f"cluster aws config not found: {acp}", file=sys.stderr)
+            return 2
+        aws_config = str(acp)
     refused = check_commits()
     if refused:
         print(refused, file=sys.stderr)
@@ -628,7 +644,7 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
     try:
         runner.start_eval_session(*max(timeouts, key=lambda t: t[0]))
         summary = execute(runner, cases, args.out, model=runner.default_model(),
-                          spend_limit=limit, kubeconfig=kubeconfig, root=root, head=head)
+                          spend_limit=limit, kubeconfig=kubeconfig, root=root, head=head, aws_config=aws_config)
     except runner.EvalCredentialError as e:
         print(f"eval-role session refused or failed to refresh, stopping: {e}", file=sys.stderr)
         return 2
