@@ -295,6 +295,23 @@ class DeepInput(Tmp):
                 self.assertNotIn("Traceback", out, case["id"])
 
 
+class YamlLoader(Tmp):
+    """schema_check.loads keeps the safe loader's rules: duplicate keys raise,
+    and a python tag is refused."""
+
+    def test_duplicate_key_raises(self):
+        with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: duplicate key 'a' at line 2"):
+            schema_check.loads("a: 1\na: 2\n", "x.yaml")
+
+    def test_python_tags_are_refused(self):
+        for text in ("!!python/object:collections.OrderedDict {}\n",
+                     "!!python/object/apply:os.getcwd []\n",
+                     "!!python/name:os.system\n"):
+            with self.subTest(text=text):
+                with self.assertRaisesRegex(schema_check.CheckError, "x.yaml: not valid YAML"):
+                    schema_check.loads(text, "x.yaml")
+
+
 @NEEDS_DEPS
 class ReconSchemaMatchesSkill(unittest.TestCase):
     """The hand-written schema stays in step with SKILL.md."""
