@@ -4,13 +4,11 @@
 Each entry's tokens_per_run is the with_skill arm's mean tokens per run
 (skill_summary.arms.with_skill.tokens_per_run_mean) in the latest kind
 "task" row of misc/evals/history/<skill>.jsonl run on the claude harness
-(a row with no harness field is claude), the only place the task runner
-records tokens (baseline.json carries none); null when that row has no
+(a row with no harness field is claude), the only committed place the task
+runner records tokens (baseline.json carries none); null when that row has no
 per-skill summary (older rows), its mean is null (no run recorded a token
-count) or there is no such row. seconds_per_run (the arm's
-wall_seconds_per_run_mean) and cases_passed (skill_summary.cases_passed)
-come from the same row, null on the same terms. A history line that is not
-JSON is skipped with a warning.
+count) or there is no such row. A history line that is not JSON is
+skipped with a warning.
 
 --check builds the same content and compares it with the committed file:
 exit 0 when they match, 1 when they differ or the file is missing. It
@@ -60,25 +58,11 @@ def latest_task_row(skill: str) -> dict | None:
     return None
 
 
-def task_scores(row: dict | None) -> dict:
-    """tokens_per_run, seconds_per_run (the with_skill arm's
-    wall_seconds_per_run_mean) and cases_passed from a task history row's
-    skill_summary; each None when the row or the field is absent."""
-    summary = (row or {}).get("skill_summary") or {}
-    arm = (summary.get("arms") or {}).get("with_skill") or {}
-    tokens = arm.get("tokens_per_run_mean")
-    seconds = arm.get("wall_seconds_per_run_mean")
-    passed = summary.get("cases_passed")
-    return {
-        "tokens_per_run": round(tokens) if isinstance(tokens, (int, float)) else None,
-        "seconds_per_run": round1(seconds) if isinstance(seconds, (int, float)) else None,
-        "cases_passed": passed if isinstance(passed, int) else None,
-    }
-
-
 def tokens_per_run(skill: str) -> int | None:
     """Mean tokens per with_skill run from the skill's latest claude task row."""
-    return task_scores(latest_task_row(skill))["tokens_per_run"]
+    arms = ((latest_task_row(skill) or {}).get("skill_summary") or {}).get("arms") or {}
+    value = (arms.get("with_skill") or {}).get("tokens_per_run_mean")
+    return round(value) if isinstance(value, (int, float)) else None
 
 
 def extract_entry(baseline_path: Path) -> dict:
@@ -110,7 +94,7 @@ def extract_entry(baseline_path: Path) -> dict:
         "model": data.get("model"),
         "git_head": data.get("git_head"),
         "pass_k_rate": task.get("pass_k_rate"),
-        **task_scores(latest_task_row(data["skill"])),
+        "tokens_per_run": tokens_per_run(data["skill"]),
         "effective_weights": composite.get("effective_weights", {}),
         "layers": layers,
     }

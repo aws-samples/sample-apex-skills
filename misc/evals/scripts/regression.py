@@ -4,8 +4,9 @@
 (--task-result, required with --gate): the new arm (with_skill) against the
 base arm the runner names (baseline_arm: base_skill at --base-ref, or
 without_skill), per case on Pass@k. It exits 2 on a regression and 1 when
-there is no result to score or it ran fewer than three runs per case;
-tokens and time are in the report and never block: only pass rate blocks.
+there is no result to score or it ran other than three runs per case
+(pass_k 3); tokens and time are in the report and never block: only pass
+rate blocks.
 """
 
 import argparse
@@ -404,9 +405,9 @@ def load_gate_entry(skill: str, task_result: Path) -> tuple[dict[str, Any], Opti
     if not entry["cases"]:
         raise GateInputError(f"the task result for {skill} holds no case")
     k = entry.get("pass_k")
-    if type(k) is not int or k < 3:
-        raise GateInputError(f"the task result for {skill} has pass_k {k!r}; the gate needs "
-                             "three runs per case (STEP3-PLAN R:248), pass_k 3 or more")
+    if type(k) is not int or k != 3:
+        raise GateInputError(f"the gate scores three runs per case; the task result for {skill} "
+                             f"ran pass_k {k!r}")
     return entry, runs_dir
 
 
@@ -565,7 +566,7 @@ def main() -> None:
     parser.add_argument("--gate", action="store_true",
                         help="Score the run key's per-case task result (with_skill against the "
                              "base arm the runner names); exit 2 on a regression, 1 when there is "
-                             "no result to score or pass_k is below 3. Needs --task-result.")
+                             "no result to score or pass_k is not 3. Needs --task-result.")
     parser.add_argument("--task-result", type=Path, default=None,
                         help="With --gate: the JSON run_task_evals.py printed.")
     args = parser.parse_args()

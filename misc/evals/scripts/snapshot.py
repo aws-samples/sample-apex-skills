@@ -16,8 +16,18 @@ EVALS_ROOT = Path(__file__).resolve().parent.parent  # misc/evals/
 REPO_ROOT = EVALS_ROOT.parent.parent
 
 
+def target_workspace(skill: str) -> Path:
+    """The run key's workspace: misc/evals/<key>/workspace for a key with a
+    folder of its own, else where run_task_evals.resolve_target runs a class
+    target (misc/evals/workspace/<key>/workspace)."""
+    if (EVALS_ROOT / skill).is_dir():
+        return EVALS_ROOT / skill / "workspace"
+    from run_task_evals import resolve_target  # here: keeps regression's import of this module light
+    return resolve_target(skill)["workspace"]
+
+
 def find_latest_metrics(skill: str) -> dict[str, Any]:
-    runs_dir = EVALS_ROOT / skill / "workspace" / "runs"
+    runs_dir = target_workspace(skill) / "runs"
     if not runs_dir.is_dir():
         sys.exit(f"Error: runs directory not found: {runs_dir}")
     run_dirs = sorted([d for d in runs_dir.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True)
@@ -45,7 +55,7 @@ def extract_triggering(metrics: dict[str, Any]) -> dict[str, Any]:
 
 
 def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     bench_path = latest / "benchmark.json"
     if not bench_path.exists():
         return None
@@ -57,13 +67,6 @@ def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
     base = run_summary[base_arm]["pass_rate"]
     runs_per = bench["metadata"]["runs_per_configuration"]
     pass_k_rate = compute_pass_k(latest, pass_k)
-    # Tokens, time and harness from the runner's cases.json (run_task_evals.py
-    # skill_summary); None when the run wrote none.
-    cases_path = latest / "cases.json"
-    cases = json.loads(cases_path.read_text()) if cases_path.exists() else {}
-    arms = (cases.get("skill_summary") or {}).get("arms") or {}
-    new_arm = arms.get("with_skill") or {}
-    old_arm = arms.get(base_arm) or {}
     return {
         "with_skill_mean": with_skill["mean"],
         "with_skill_stddev": with_skill["stddev"],
@@ -72,11 +75,6 @@ def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
         "base_mean": base["mean"],
         "pass_k_rate": pass_k_rate,
         "runs_per_prompt": runs_per,
-        "harness": cases.get("harness"),
-        "with_skill_tokens_per_run_mean": new_arm.get("tokens_per_run_mean"),
-        "with_skill_wall_seconds_per_run_mean": new_arm.get("wall_seconds_per_run_mean"),
-        "base_tokens_per_run_mean": old_arm.get("tokens_per_run_mean"),
-        "base_wall_seconds_per_run_mean": old_arm.get("wall_seconds_per_run_mean"),
     }
 
 
@@ -105,7 +103,7 @@ def compute_pass_k(latest: Path, k: int) -> Optional[float]:
 
 
 def aggregate_json_files(skill: str, pattern: str, extract_fn) -> Optional[dict[str, Any]]:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     files = list(latest.rglob(f"with_skill/run-*/{pattern}"))
     if not files:
         return None
@@ -148,7 +146,7 @@ def gather_per_eval_cases(skill: str) -> dict[str, dict[str, Any]]:
       ...
     }
     """
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     if not latest.exists():
         return {}
 
@@ -263,7 +261,7 @@ def main() -> None:
             "effective_weights": composite_result["effective_weights"],
         }
 
-    baselines_dir = EVALS_ROOT / skill / "baselines"
+    baselines_dir = target_workspace(skill).parent / "baselines"
     baselines_dir.mkdir(parents=True, exist_ok=True)
     out_path = baselines_dir / "baseline.json"
     out_path.write_text(json.dumps(baseline, indent=2) + "\n")

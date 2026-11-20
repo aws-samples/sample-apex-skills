@@ -297,6 +297,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          # The collect step keeps only history rows stamped at or after this.
+          date -u +%Y-%m-%dT%H:%M:%SZ > "$RUNNER_TEMP/gate-start"
           if [ -n "$GATE_SKILL" ]; then
             # Checked here, before make expands it (a $(...) in SKILL runs
             # during make's own expansion, before the Makefile's check).
@@ -304,27 +306,41 @@ jobs:
             make -C misc/evals gate SKILL="$GATE_SKILL" HARNESS="$HARNESS"
           elif [ "$EVENT_NAME" = pull_request ]; then
             # Only the run keys whose skill, eval or class eval files the
-            # pull request changed against its base commit.
+            # pull request changed against its base commit. This leg is inert
+            # today: the Makefile has no gate-changed target and the job's
+            # `if:` admits only workflow_dispatch. The Makefile change that
+            # adds gate-changed and the removal of that `if:` land together.
             [[ "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::pull request base sha must be 40 hex digits"; exit 1; }
             make -C misc/evals gate-changed BASE="$PR_BASE_SHA" HARNESS="$HARNESS"
           else
             make -C misc/evals gate-all HARNESS="$HARNESS"
           fi
-      # Each gate-report.md (regression.py writes it in the run key's
-      # workspace) and only the history rows this run appended (the lines
-      # after the checked-out file's own), for review of a failed gate too.
+      # Each gate-report.md, only at the two paths regression.py writes it
+      # (misc/evals/<key>/workspace/ and misc/evals/workspace/<key>/workspace/),
+      # never one a subject wrote deeper under runs/, and only the history
+      # rows this run wrote (ts at or after the gate step's start), for
+      # review of a failed gate too.
       - name: Collect the gate reports and new history rows
         if: always()
         run: |
           out="$RUNNER_TEMP/eval-gate"
           mkdir -p "$out/history"
+          start=$(cat "$RUNNER_TEMP/gate-start" 2>/dev/null || true)
           for f in misc/evals/history/*.jsonl; do
-            [ -f "$f" ] || continue
-            old=$(git show "HEAD:$f" 2>/dev/null | wc -l)
-            tail -n +"$((old + 1))" "$f" > "$out/history/$(basename "$f")"
-            [ -s "$out/history/$(basename "$f")" ] || rm -f "$out/history/$(basename "$f")"
+            [ -f "$f" ] && [ -n "$start" ] || continue
+            dst="$out/history/$(basename "$f")"
+            python3 -c 'import json, sys
+          for line in open(sys.argv[2]):
+              try:
+                  ts = json.loads(line).get("ts")
+              except (ValueError, AttributeError):
+                  continue
+              if isinstance(ts, str) and ts >= sys.argv[1]:
+                  sys.stdout.write(line)' "$start" "$f" > "$dst"
+            [ -s "$dst" ] || rm -f "$dst"
           done
-          find misc/evals -path '*/workspace/gate-report.md' -type f | while read -r r; do
+          for r in misc/evals/*/workspace/gate-report.md misc/evals/workspace/*/workspace/gate-report.md; do
+            [ -f "$r" ] || continue
             key=$(basename "$(dirname "$(dirname "$r")")")
             mkdir -p "$out/$key"
             cp "$r" "$out/$key/gate-report.md"
@@ -336,3 +352,5 @@ jobs:
           name: eval-gate-${{ matrix.harness }}
           path: ${{ runner.temp }}/eval-gate
           if-no-files-found: warn
+          # Short: any signed-in user can download a public repo's artifacts.
+          retention-days: 7
