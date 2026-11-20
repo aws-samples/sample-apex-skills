@@ -268,6 +268,17 @@ def test_reentry_guard_kiro(world):
     assert guards(world) == [] and records(world) == []
 
 
+def test_reentry_guard_kiro_from_a_subfolder(world):
+    world.record("bad.yaml")
+    sub = world.project / "sub"
+    sub.mkdir()
+    kev = kiro_event(str(sub))
+    assert BLOCKS in world.raw(["--mode", "block"], kev).stdout
+    assert guards(world) == [os.path.basename(GATE.guard_path(str(world.state), os.path.realpath(sub)))]
+    p = world.raw(["--mode", "block"], kev)
+    assert p.stdout == "" and "already continued once" in p.stderr
+
+
 def test_kiro_pass_clears_a_left_guard(world):
     world.record("bad.yaml")
     world.raw(["--mode", "block"], kiro_event(str(world.project)))
@@ -600,6 +611,17 @@ def test_records_from_the_environment_are_read_and_kept(world, monkeypatch):
         assert (BLOCKS if not active else WARNS) in world.raw(BLOCK, cc_event(str(world.project), active), env).stdout
 
 
+def test_the_installed_copy_ignores_records_from_the_environment(world, tmp_path):
+    rec = [{"tool": str(world.skill / "scripts" / "script_validate_output.py"), "skill_dir": str(world.skill),
+            "files": [str(world.project / "bad.yaml")], "cwd": str(world.project)}]
+    e = dict({k: v for k, v in os.environ.items() if not k.startswith("CLAUDE_PLUGIN_OPTION_")}, **ON,
+             APEX_STOP_GATE_RECORDS=json.dumps(rec))
+    p = subprocess.run([sys.executable, str(plugin_gate(tmp_path)), *BLOCK],
+                       input=json.dumps(cc_event(str(world.project))), capture_output=True, text=True, env=e,
+                       timeout=60)
+    assert (p.returncode, p.stdout, p.stderr) == (0, "", "")
+
+
 # ------------------------------------------------------------ stale records
 
 def test_a_record_whose_skill_is_gone_is_dropped(world, tmp_path):
@@ -799,6 +821,7 @@ def test_a_check_that_cannot_start_is_no_verdict(world, monkeypatch, capsys):
     monkeypatch.setattr(GATE.subprocess, "Popen", fail)
     out, _ = in_process(world, monkeypatch, capsys, cc_event(str(world.project)))
     assert out["decision"] == "block" and "could not start" in out["reason"]
+    assert "no verdict (counts as a fail)" in out["reason"]
 
 
 def test_long_check_output_is_cut(world):

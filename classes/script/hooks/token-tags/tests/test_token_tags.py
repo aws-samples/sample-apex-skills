@@ -50,12 +50,7 @@ def test_cli_wraps_stdin():
     assert p.returncode == 0 and m and m.group(2) == "hello\n"
 
 
-def test_cli_no_wrapper_tag_leaves_the_output_as_it_is():
-    p = cli(["--no-wrapper-tag"], "hello\n")
-    assert (p.returncode, p.stdout) == (0, "hello\n")
-
-
-@pytest.mark.parametrize("args", [["--check"], ["--label", "x"], ["--nope"]])
+@pytest.mark.parametrize("args", [["--check"], ["--label", "x"], ["--nope"], ["--no-wrapper-tag"]])
 def test_cli_usage_errors_exit_2(args):
     assert cli(args, "x").returncode == 2
 

@@ -57,7 +57,8 @@ python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 __APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). An entry's
 optional `kiro_timeout` (whole seconds, at least 30) is written as the Kiro
 hook's `timeout` and passed to its command as --kiro-timeout <n> (no upper
-bound is checked); with none, the Kiro hook has no `timeout`. The sync does
+bound is checked: above 2147488 the Stop gate's wait overflows, it exits 3
+and the turn ends unchecked); with none, the Kiro hook has no `timeout`. The sync does
 not check that the script takes --kiro-timeout: one that does not exits 2 at
 its own argument parse, and a Stop command's ` || exit 3` then makes it 3,
 which fails closed. A Stop command

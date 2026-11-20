@@ -11,11 +11,13 @@ re-runs a Script skill's output check, or an Operator skill's declared artifact
 checks, on the files the skill's own check run named, and never trusts the
 agent's or the tool's earlier verdict. If the check fails, the gate continues
 the turn once (none, if another Stop hook already continued it, on Claude Code
-and Codex), then lets it end with a warning (on Kiro, ending at the next
-user turn's Stop, where the warning goes to stderr only: SPIKE.md); it checks only runs that left a
-record, and its switch is off by default. A guardrail, not a guarantee. It is
-not registered yet: its Stop entries, its rule bullet and its userConfig key
-land in later changes (SPIKE.md beside this folder).
+and Codex), then lets it end with a warning. On Kiro the continued turn ends
+with no second check; the next user turn's Stop runs the kept check again, and
+a fail there, a new one included, only warns, on stderr, which Kiro CLI 3.5.0
+passes to neither the model nor the turn (SPIKE.md). It checks only runs that
+left a record, and its switch is off by default. A guardrail, not a guarantee.
+It is not registered yet: its Stop entries, its rule bullet and its userConfig
+key land in later changes (SPIKE.md beside this folder).
 
 Usage: stop_gate.py --mode block|warn [--id operator.stop-gate]
        (one Stop event as JSON on stdin)
@@ -51,9 +53,10 @@ real path of ~/.apex-skills/skills, the clone the installer
 .claude/skills or .kiro/skills entry that is not such a link included, is
 never run. With no ~/.apex-skills clone (a marketplace-only plugin install,
 and Codex, which the installer does not set up) every record is no verdict
-and blocks once (on Kiro, ending at the next user turn's Stop). With no sandbox (Claude Code's default), or with the agent
-working in the home folder, the root is not a boundary: the agent can make or
-relink ~/.apex-skills and add a check the gate runs.
+and blocks once (on Kiro the continued turn ends with no second check). With
+no sandbox (Claude Code's default), or with the agent working in the home
+folder, the root is not a boundary: the agent can make or relink
+~/.apex-skills and add a check the gate runs.
 A --project --kiro-hooks install copies the gate itself into the project,
 where the agent can edit it. With an empty or relative HOME (which the
 installer refuses) an installed copy runs no check. An installed copy also
@@ -119,23 +122,26 @@ Results (every exit 0 prints one JSON object or nothing, as Codex requires):
   continues the turn on Claude Code, Codex and Kiro; the records are kept, so
   the next Stop checks them again.
 - the reentry guard, one extra turn at most: a fail when the turn was already
-  continued by a Stop hook does not block again. Claude Code and Codex send
-  stop_hook_active (true after any Stop hook's continuation, so another hook's
-  can use up this one's retry). Kiro sends no such field, so on an event
+  continued by a Stop hook (on Kiro, a fail at the first Stop after a block,
+  which is the next user turn's) does not block again. Claude Code and Codex
+  send stop_hook_active (true after any Stop hook's continuation, so another
+  hook's can use up this one's retry). Kiro sends no such field, so on an event
   without it the gate makes an empty guard-<hash of the cwd> file in the state
   folder when it blocks, and at the next Stop finds it, deletes it and does not
   block. Kiro runs Stop hooks once per execution (Kiro CLI 3.5.0, run
-  2026-11-20, where a second user turn of the same session ran them again;
-  3.4.0 and 3.3.0 read from the engine code, not run), so on Kiro the turn goes on
-  once, ending at the next user turn's Stop, where the warning goes to stderr,
-  which Kiro CLI 3.5.0's code passes neither to the model nor to the turn
-  (read from the code, and in a 2026-11-20 two-turn run it reached neither;
-  whether Kiro's interactive screen shows it is not tested: SPIKE.md).
+  2026-11-20 (a --resume run, not interactive), where a second user turn of
+  the same session ran them again; 3.4.0 and 3.3.0 read from the engine code,
+  not run), so on Kiro the continued turn ends with no second check, and the
+  next user turn's Stop spends the guard: a fail there, a new one included,
+  only warns, on stderr, which Kiro CLI 3.5.0's code passes neither to the
+  model nor to the turn (read from the code, and in a 2026-11-20 two-turn run
+  it reached neither; whether Kiro's interactive screen shows it is not
+  tested: SPIKE.md).
 - a fail in warn mode, or with the guard spent: the records are deleted and the
   turn ends. Claude Code and Codex get {"systemMessage": ...}, a warning to the
   user; Kiro gets nothing on stdout and the warning on stderr, and Kiro's Agent
   Stop page documents no surface for stderr, so a Kiro user may see no warning
-  and no bad-switch line (in a 2026-11-20 two-turn run, not interactive, the
+  (in a 2026-11-20 two-turn run, not interactive, the
   warning reached neither the model nor the turn's output: SPIKE.md).
 - an event it cannot read, a hook_event_name other than Stop, or a working
   folder with no existing project root at or above it: no decision (exit 0, no
@@ -180,6 +186,7 @@ SKILLS_ROOT = (os.path.join(os.path.dirname(BASE), "skills") if IN_CLASSES
 REPO_NAMES = {"validate_output.py", "run_artifact_checks.py"}
 TOOL_NAMES = set(TOOLS) | REPO_NAMES
 STATE = ".apex-stop-gate"
+# Records for the hook-test runner's fixtures: read by this classes/ copy only.
 RECORDS_ENV = "APEX_STOP_GATE_RECORDS"
 # Seconds for all runs: under Claude Code's and Codex's 600 s command-hook default.
 BUDGET = 570.0
@@ -270,7 +277,8 @@ def env_records():
 
 
 def read_records(folder, now):
-    """Return [(path, record)] for the state folder's records, then APEX_STOP_GATE_RECORDS; delete records past MAX_AGE."""
+    """Return [(path, record)] for the state folder's records, then (classes/ copy only) APEX_STOP_GATE_RECORDS;
+    delete records past MAX_AGE."""
     out = []
     for name in sorted(os.listdir(folder)) if own_dir(folder) else []:
         if not (name.startswith("run-") and name.endswith(".json")):
@@ -290,7 +298,7 @@ def read_records(folder, now):
             remove(path)
             continue
         out.append((path, rec))
-    return out + env_records()
+    return out + (env_records() if IN_CLASSES else [])
 
 
 def newest_per_key(records):
@@ -446,7 +454,7 @@ def gate(args, event):
     records = newest_per_key(read_records(folder, time.time()))
     kiro = "stop_hook_active" not in event
     guard = guard_path(folder, work_dir)
-    if not records:
+    if not records:  # before the guard branch, so a Kiro guard outlives a Stop with no records
         return 0
     deadline = time.monotonic() + budget(args)
     failed, dropped = [], []

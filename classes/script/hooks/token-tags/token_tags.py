@@ -5,8 +5,9 @@
 # ///
 """script random-token tags (piece 4): mark a script's output with tags no output can forge.
 
-A stdin filter tool, not a hook: nothing registers or runs it yet, and the rule
-it is meant to back, script.token-tags, is not in classes/script/rules.md yet.
+A stdin filter tool, not a hook: nothing registers or runs it yet. The rule it
+backs, script.token-tags (one sentence saying what the tags mean), is added to
+classes/script/rules.md by a separate change, since that file is not this one's.
 Taken from the
 four google/skills cloud-trace-querying scripts (secrets.token_hex(8) per run,
 a tag line before the output and one after it, and a flag to leave the tags
@@ -22,8 +23,8 @@ The Stop gate (stop_gate.py) wraps the check output it sends back to the agent
 the same way: the shared tags block below is byte-identical in both files.
 
 Usage:
-  token_tags.py [--no-wrapper-tag]  < output
-      print stdin between the tags (or unchanged with --no-wrapper-tag); exit 0
+  token_tags.py < output
+      print stdin between the tags; exit 0
 Exit 2 on a usage error.
 """
 
@@ -45,10 +46,8 @@ def wrap(text):
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Wrap stdin in random-token tags.")
-    parser.add_argument("--no-wrapper-tag", action="store_true", help="print stdin unchanged")
-    args = parser.parse_args(argv)
-    text = sys.stdin.read()
-    sys.stdout.write(text if args.no_wrapper_tag else wrap(text))
+    parser.parse_args(argv)
+    sys.stdout.write(wrap(sys.stdin.read()))
     return 0
 
 

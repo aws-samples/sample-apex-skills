@@ -4,7 +4,8 @@ The plan leaves this open: one plugin Stop hook must find which skill ran and
 which schema to check, and the hook input names no skill. This note gives the
 facts, the routes tried and the route the gate (stop-gate/stop_gate.py) takes.
 It was done by reading the harness hook pages and local session files, and by
-feeding fixture events to the gate; no model ran.
+feeding fixture events to the gate, with no model; the Kiro CLI runs named
+below ran one.
 
 ## What a Stop hook receives
 
@@ -71,9 +72,10 @@ real path is the skill's own synced copy
 (`<skill_dir>/scripts/script_validate_output.py` or
 `operator_run_artifact_checks.py`) and the skill folder's real path is a folder
 directly in the skills root. A gone tool with any other name, or a record with
-no tool, is not dropped: it is no verdict and blocks once (on Kiro, ending at the next user turn's Stop). The gate never
-takes the skills root from the record or the event: it is the repo's `skills/`
-for the classes/ copy (from the gate's own location), and for an installed
+no tool, is not dropped: it is no verdict and blocks once (on Kiro the
+continued turn ends with no second check). The gate never takes the skills
+root from the record or the event: it is the repo's `skills/` for the classes/
+copy (from the gate's own location), and for an installed
 copy (the Claude Code plugin cache, Kiro's `.kiro/apex-hooks`) the real path of
 `~/.apex-skills/skills`, the clone the installer links Claude Code's and
 Kiro's `.claude/skills` and `.kiro/skills` entries to
@@ -82,10 +84,11 @@ may name a skill by its link or by its real path, and a skill folder the
 agent makes in the project (a real folder in a project `.claude/skills` or
 `.kiro/skills` included) is never run. With no `~/.apex-skills` clone (a
 marketplace-only plugin install, and Codex, which the installer does not set
-up) every record is no verdict and blocks once (on Kiro, ending at the next user turn's Stop). With no sandbox (Claude
-Code's default), or with the agent working in the home folder, the root is not
-a boundary: the agent can make or relink `~/.apex-skills` and add a check the
-gate runs; the root keeps out a skill planted in the project. A
+up) every record is no verdict and blocks once (on Kiro the continued turn
+ends with no second check). With no sandbox (Claude Code's default), or with
+the agent working in the home folder, the root is not a boundary: the agent
+can make or relink `~/.apex-skills` and add a check the gate runs; the root
+keeps out a skill planted in the project. A
 `--project --kiro-hooks` install copies the gate itself into the project,
 where the agent can edit it. With an empty or relative HOME (which
 the installer refuses) an installed copy runs no check. Neither copy runs
@@ -106,16 +109,18 @@ not leave a new one.
 
 A pass deletes its record. A blocked fail keeps it, so the retry is checked
 again. A warn, or a fail with the reentry guard spent, deletes it, so the
-next turn starts clean. On Kiro the turn goes on once, ending at the next
-user turn's Stop: the block writes the guard, Kiro runs no second
-Stop in that execution, and the next user turn's Stop finds the guard, writes
-the warning to stderr and deletes the records. Kiro CLI 3.5.0's code passes a
-Stop hook's stderr on exit 0 neither to the model nor to the turn (read from
-the code, and in a 2026-11-20 two-turn run it reached neither; whether Kiro's
-interactive screen shows it is not tested). Kiro CLI 3.5.0 runs Stop hooks once
-per execution, and a second user turn of the same session (`--resume`) ran
-them again (run 2026-11-20); 3.4.0 and 3.3.0 were read from the engine code,
-not run.
+next turn starts clean. On Kiro the continued turn ends with no second
+check: the block writes the guard and Kiro runs no second Stop in that
+execution. The next user turn's Stop runs the kept checks again and finds the
+guard, so a fail there, a new one in that turn included, only warns: the gate
+deletes the guard, writes the warning to stderr and deletes the records. Kiro
+CLI 3.5.0's code passes a Stop hook's stderr on exit 0 neither to the model
+nor to the turn (read from the code, and in a 2026-11-20 two-turn run it
+reached neither; whether Kiro's interactive screen shows it is not tested).
+Kiro CLI 3.5.0 runs Stop hooks once per execution, in runs where the agent had
+no tools, and a second user turn of the same session (a `--resume` run, not
+interactive) ran them again (run 2026-11-20); 3.4.0 and 3.3.0 were read from
+the engine code, not run.
 
 ## Who writes the record
 
@@ -136,7 +141,7 @@ turn with no decision.
   checked at Stop.
 - Records are per project, not per session: two sessions in one project see
   each other's records. That can cost a retry; the guard keeps it to one
-  (on Kiro, ending at the next user turn's Stop). A
+  (on Kiro the continued turn ends with no second check). A
   warn, or a Stop with the guard spent, deletes every record under the root,
   another session's included, so that session's failed check is no longer
   checked at its own Stop.
@@ -163,8 +168,9 @@ turn with no decision.
 - Every record left is run again at the next Stop, and all runs share one
   budget; the newest-per-key rule keeps a fix-and-revalidate loop to one run,
   but many distinct files can still run past it, and a run past it is no
-  verdict, which blocks once (on Kiro, ending at the next user turn's Stop). The budget is set by the `--id`: with one,
-  570 s (Claude Code and Codex, under their 600 s command-hook default:
+  verdict, which blocks once (on Kiro the continued turn ends with no second
+  check). The budget is set by the `--id`: with one, 570 s (Claude Code and
+  Codex, under their 600 s command-hook default:
   code.claude.com/docs/en/hooks.md, `timeout`; developers.openai.com/codex/hooks,
   `timeout`; both read 2026-11-19); with none (Kiro), the `--kiro-timeout`
   value less 5 s, or 25 s when it is not passed (under the 30 s default of a
@@ -172,8 +178,9 @@ turn with no decision.
   timeout is 30 seconds (30,000ms). Configure with the `timeout_ms` field";
   the IDE tab says 60 s; read 2026-11-19; and under the 60 s default Kiro
   documents for the `.kiro/hooks` file the installer writes, below). The
-  output shape is set by the event (no `stop_hook_active`: Kiro's), so a hand run with no `--id` and a
-  Claude Code event gets Claude Code's output and Kiro's budget. Kiro
+  output shape is set by the event (no `stop_hook_active`: Kiro's), so a hand
+  run with no `--id` and a Claude Code event gets Claude Code's output and
+  Kiro's budget. Kiro
   documents `hooks[].timeout` for the `.kiro/hooks` file the installer copies
   (kiro.dev/docs/hooks/, "Hook file schema": "Timeout in seconds for command
   actions (default: 60). 0 disables the timeout.", read 2026-11-20). In the
@@ -206,29 +213,31 @@ turn with no decision.
   not a JSON object, cannot be read or is not a regular file; a record whose
   `time` is missing, not a number, not finite or later than now; and a state
   folder that is a link, not a folder, not this user's or writable by others.
-  Skipped records stay until removed; a Kiro guard left behind spends the next
-  block in that folder.
+  Skipped records stay until removed; a Kiro guard left behind (a Stop with no
+  records returns before the gate reads the guard) spends the next block in
+  that folder.
 - A `stop_hook_active` that is not the boolean true (such as the string
   `"true"`) does not spend the guard, so the gate blocks again at that Stop.
 - An installed copy drops a record by its tool's file name only: a tool named
   `validate_output.py` or `run_artifact_checks.py` is dropped wherever it is.
 - The newest-per-key rule reads `files` in the order the record lists them, so
   the same files in another order are two keys.
-- Records given in `APEX_STOP_GATE_RECORDS` get the current time at every read
-  and are never deleted, so they are checked at every Stop while the variable
-  is set. A value that is not valid JSON is the gate's own error: exit 3 at
-  each Stop.
+- Only the classes/ copy reads `APEX_STOP_GATE_RECORDS` (for the hook-test
+  runner's fixtures, below); an installed copy ignores it. Records given in it
+  get the current time at every read and are never deleted, so they are
+  checked at every Stop while the variable is set. A value that is not valid
+  JSON is the gate's own error: exit 3 at each Stop.
 - Under a read-only project root the gate cannot make the state folder, so each
   Stop with the switch on is the gate's own error (exit 3).
 - Kiro's Agent Stop page documents no surface for a hook's stderr, so a Kiro
-  user may see no warning and no bad-switch line. In a 2026-11-20 two-turn run
+  user may see no warning. In a 2026-11-20 two-turn run
   (`--no-interactive`, the second turn by `--resume`) the second Stop found the
   guard and deleted it, and the warning reached neither the model, the turn's
   stream-json output, kiro-cli's stderr nor kiro.log; the Kiro CLI 3.5.0 engine
   code reads the same: for a hook that exits 0 it picks a result with
-  `sendStderr` false. Kiro's interactive screen is not tested. In those runs the test agent allowed no tools; the model wrote
-  shell commands as text, which did not run, and Kiro did not log the block
-  reason's text.
+  `sendStderr` false. Kiro's interactive screen is not tested. In those runs
+  the test agent allowed no tools; the model wrote shell commands as text,
+  which did not run, and Kiro did not log the block reason's text.
 - The hook-test runner's three run-record fixtures
   (`claude-code-g-block-record`, `claude-code-g-warn-record` and
   `claude-code-g-guard-spent-record`) give their record through
