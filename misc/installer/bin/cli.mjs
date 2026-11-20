@@ -72,6 +72,7 @@ const BOOL_FLAGS = {
   '--kiro-hooks': 'kiroHooks',
   '--project': 'project',
   '--no-steering': 'noSteering',
+  '--maintainer': 'maintainer',
   '--update': 'update',
   '--uninstall': 'uninstall',
   '--yes': 'yes',
@@ -573,10 +574,15 @@ function cloneSource(ref) {
   return { url: REPO_URL, ref: ref || null, commit };
 }
 
-function getSkills() {
+// Skills for people who maintain this repository, not for its users: linked
+// only with --maintainer, or while an install base's record holds that choice.
+const MAINTAINER_SKILLS = ['skill-creator', 'steering-workflow-creator', 'update-docs', 'apex-new-skill'];
+
+function getSkills(maintainer = true) {
   const skillsDir = join(INSTALL_DIR, 'skills');
   if (!existsSync(skillsDir)) return [];
   return readdirSync(skillsDir).filter((name) => {
+    if (!maintainer && MAINTAINER_SKILLS.includes(name)) return false;
     if (name === 'README.md' || name.startsWith('.')) return false;
     const full = join(skillsDir, name);
     try { return statSync(full).isDirectory(); } catch { return false; }
@@ -830,7 +836,7 @@ function entryMatches(p, e) {
 }
 
 // The current run: entries written per area, merged into the manifest at the end.
-const run = { manifest: null, base: null, prev: null, areas: {}, source: null, steering: undefined, touched: false };
+const run = { manifest: null, base: null, prev: null, areas: {}, source: null, steering: undefined, maintainer: undefined, touched: false };
 
 function record(area, p, entry) {
   if (!run.areas[area]) run.areas[area] = {};
@@ -856,6 +862,7 @@ function saveRun(crashed = false) {
   const rec = { ...prev, areas, updatedAt: new Date().toISOString() };
   if (run.source) rec.source = run.source;
   if (run.steering !== undefined) rec.steering = run.steering;
+  if (run.maintainer) rec.maintainer = true;
   run.manifest.bases[run.base] = rec;
   saveManifest(run.manifest);
   run.touched = false;
@@ -928,7 +935,12 @@ function safeSymlink(area, target, linkPath) {
   return 'created';
 }
 
-function symlinkSkills(area, targetDir, skills) {
+// drop: skill names this run does not link (the maintainer skills without
+// --maintainer); an installer link at one is removed even with no record of
+// it (an install made before the manifest), while a link of the user's that
+// does not point into the clone stays. It runs before the prune, so the prune
+// does not count those links as skills missing from this version.
+function symlinkSkills(area, targetDir, skills, drop = []) {
   if (!prepareDir(targetDir)) return null;
   startArea(area);
   let count = 0;
@@ -938,6 +950,12 @@ function symlinkSkills(area, targetDir, skills) {
     if (result === 'created') count++;
     if (result !== 'conflict') linked++;
   }
+  let dropped = 0;
+  for (const name of drop) {
+    const p = join(targetDir, name);
+    if (isInstallerLink(p) && tryUnlink(p)) dropped++;
+  }
+  if (dropped > 0) info(`Removed ${dropped} maintainer skill links (not linked without --maintainer)`);
   const pruned = pruneArea(area, targetDir);
   if (pruned > 0) info(`Removed ${pruned} links to skills that are not in this version`);
   // The line names the links in place (new or already there), not the skills
@@ -1253,6 +1271,10 @@ function uninstall(flags) {
       if (existsSync(dir)) for (const entry of listDir(dir)) { const full = join(dir, entry); if (isKiroCopy(full) && !changed.includes(full) && !blocked.includes(full)) keptCopies.push(full); }
     }
   }
+  // A full --uninstall clears the --maintainer choice, even when it keeps a
+  // changed path, so the next install links no maintainer skill; a scoped one
+  // (--claude-only or --kiro-only) keeps it while the base stays recorded.
+  if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;
   if (rec) {
     if (Object.keys(rec.areas).length === 0) delete manifest.bases[base];
     saveManifest(manifest);
@@ -1295,6 +1317,10 @@ function showHelp() {
   log(`                       the Kiro copies stay and are not updated (they go stale), while the Claude Code`);
   log(`                       links stay and follow the clone. To remove it, run --uninstall, then install`);
   log(`                       with --no-steering`);
+  log(`  --maintainer         Also link the maintainer skills (skill-creator, steering-workflow-creator,`);
+  log(`                       update-docs, apex-new-skill), which a default install leaves out. The choice`);
+  log(`                       is saved for this install: later runs, --update included, keep the links;`);
+  log(`                       a full --uninstall removes them and clears the choice`);
   log(`  --update             Move to the latest release of the clone's major line (v1 or v2) and reinstall`);
   log(`                       links and steering copies (non-interactive; a branch chosen with --branch is`);
   log(`                       followed). It keeps a saved no-steering choice (--no-steering or n), as`);
@@ -1428,14 +1454,20 @@ async function main() {
   run.base = installBase;
   run.prev = run.manifest.bases[installBase] || null;
   run.source = cloneSource(sourceRef);
+  // Maintainer skills: linked on --maintainer, and on every later run while the
+  // record holds that choice (--update included); without it the drop loop removes
+  // the installer links an earlier install made. A full --uninstall clears the choice.
+  run.maintainer = flags.maintainer || Boolean(run.prev && run.prev.maintainer === true);
+  const linkSkills = getSkills(run.maintainer);
+  const heldBack = skills.filter((name) => !linkSkills.includes(name));
 
   // Determine skill target directories
   const claudeSkillsDir = join(installBase, '.claude', 'skills');
   const kiroSkillsDir = join(installBase, '.kiro', 'skills');
 
   // Install skills
-  if (installClaude) symlinkSkills('claude-skills', claudeSkillsDir, skills);
-  if (installKiro) symlinkSkills('kiro-skills', kiroSkillsDir, skills);
+  if (installClaude) symlinkSkills('claude-skills', claudeSkillsDir, linkSkills, heldBack);
+  if (installKiro) symlinkSkills('kiro-skills', kiroSkillsDir, linkSkills, heldBack);
 
   // Steering. A no-steering choice (--no-steering or answering n) is remembered
   // per install base in the manifest. --update, --claude-only and --kiro-only
@@ -1502,7 +1534,7 @@ async function main() {
     : skippedSomething()
       ? `${c.bold}${c.yellow}Done, with skipped paths (listed above); exit code ${EXIT_SKIPPED}.${c.reset}\n`
       : `${c.bold}${c.green}Done!${c.reset}\n`);
-  log(`${c.dim}  Skills: ${skills.join(', ')}${c.reset}\n`);
+  log(`${c.dim}  Skills: ${linkSkills.join(', ')}${c.reset}\n`);
   if (installClaude) log(`  ${c.bold}Claude Code:${c.reset} ask your agent about EKS best practices`);
   if (installKiro) {
     log(doSteering && steeringInTree

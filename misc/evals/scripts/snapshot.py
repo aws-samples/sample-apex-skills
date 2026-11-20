@@ -51,14 +51,18 @@ def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
         return None
     bench = json.loads(bench_path.read_text())
     run_summary = bench["run_summary"]
+    from regression import workspace_base_arm  # here: regression imports this module
+    base_arm = workspace_base_arm(latest, run_summary)
     with_skill = run_summary["with_skill"]["pass_rate"]
-    without_skill = run_summary["without_skill"]["pass_rate"]
+    base = run_summary[base_arm]["pass_rate"]
     runs_per = bench["metadata"]["runs_per_configuration"]
     pass_k_rate = compute_pass_k(latest, pass_k)
     return {
         "with_skill_mean": with_skill["mean"],
         "with_skill_stddev": with_skill["stddev"],
-        "without_skill_mean": without_skill["mean"],
+        "without_skill_mean": base["mean"] if base_arm == "without_skill" else None,
+        "baseline_arm": base_arm,
+        "base_mean": base["mean"],
         "pass_k_rate": pass_k_rate,
         "runs_per_prompt": runs_per,
     }

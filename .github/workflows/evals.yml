@@ -9,13 +9,25 @@ on:
   push:
     branches:
       - main
+  # Runs the model-backed eval-gate job by hand (see that job). The other
+  # jobs also run on a dispatch, as on any non-pull_request event.
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: 'Run key to gate (empty: every run key with a runnable case)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
 
+# A dispatched run has its own group, so a push to main does not stop a
+# running gate: a running dispatched run is never cancelled; a newer dispatch
+# replaces one still pending. A newer push or pull request run still cancels
+# the older one.
 concurrency:
-  group: evals-${{ github.ref }}
-  cancel-in-progress: true
+  group: evals-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   hygiene:
@@ -168,6 +180,7 @@ jobs:
         run: >-
           bash .github/scripts/ci-gate.sh changed
           'misc/evals/scripts/**'
+          'misc/evals/Makefile'
           'misc/safe_frontmatter.py'
           'misc/tests/test_parse_trajectory_tokens.py'
           'misc/tests/test_eval_runner_robust.py'
@@ -207,3 +220,85 @@ jobs:
       - name: Run offline service-eks preflight checks
         if: steps.changes.outputs.relevant != 'false'
         run: python3 -B misc/tests/test_service_eks_preflight.py -v
+
+  # The model-backed merge gate: `make -C misc/evals gate` or
+  # `gate-all` runs the deterministic stages, then with_skill against the
+  # skill at v1.3.0, scored per case on Pass@k; it exits 2 on a regression.
+  # It runs once per harness in the matrix. CI does not run kiro: its model
+  # calls go to Kiro's own service, not to Bedrock in the eval account. It
+  # has no pass path without its secrets: the
+  # first step fails when any is absent, and a fork pull request gets none
+  # (GitHub passes no secret but GITHUB_TOKEN to a fork's run). Until a
+  # maintainer configures CI credentials it runs only by hand
+  # (workflow_dispatch); on pull_request and push it is not run, so main
+  # stays green. Going live is deleting this `if:`, after which a pull
+  # request without the secrets fails here. It must not be a required check
+  # while the `if:` is there: GitHub counts a job that did not run as passing
+  # a required check.
+  eval-gate:
+    name: eval merge gate (model-backed, ${{ matrix.harness }})
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        harness: [claude, codex]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The base arm reads the skill at the v1.3.0 tag from git objects.
+          fetch-depth: 0
+          # No token in .git/config for the subject to read.
+          persist-credentials: false
+      # The secrets are set only on the two steps that read them,
+      # so no subject or grader inherits them in its environment; the config file they write stays readable by path.
+      - name: Require the eval secrets
+        env:
+          APEX_EVAL_AWS_CONFIG: ${{ secrets.APEX_EVAL_AWS_CONFIG }}
+          APEX_EVAL_EXPECTED_ACCOUNT: ${{ secrets.APEX_EVAL_EXPECTED_ACCOUNT }}
+        run: |
+          missing=""
+          [ -n "$APEX_EVAL_AWS_CONFIG" ] || missing="$missing APEX_EVAL_AWS_CONFIG"
+          [ -n "$APEX_EVAL_EXPECTED_ACCOUNT" ] || missing="$missing APEX_EVAL_EXPECTED_ACCOUNT"
+          if [ -n "$missing" ]; then
+            echo "::error::eval gate cannot run, repository secrets not set:$missing (a fork pull request gets no secrets)"
+            exit 1
+          fi
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.x'
+      - name: Install the eval tools
+        env:
+          HARNESS: ${{ matrix.harness }}
+        run: |
+          pip install 'pyyaml>=6,<7'
+          # Pinned to the CLI versions the adapters and parsers were written
+          # against. The grader is claude -p on every harness.
+          npm install -g @anthropic-ai/claude-code@2.1.121
+          if [ "$HARNESS" = codex ]; then npm install -g @openai/codex@0.163.0; fi
+      - name: Write the eval-role config
+        env:
+          # aws-config for profile apex-eval-admin, which assumes apex-eval-bedrock-invoke
+          # (misc/evals/README.md, "Eval-role setup").
+          APEX_EVAL_AWS_CONFIG: ${{ secrets.APEX_EVAL_AWS_CONFIG }}
+          # The eval account id (12 digits) the session must prove.
+          APEX_EVAL_EXPECTED_ACCOUNT: ${{ secrets.APEX_EVAL_EXPECTED_ACCOUNT }}
+        run: |
+          umask 077
+          mkdir -p "$HOME/.apex-eval"
+          printf '%s\n' "$APEX_EVAL_AWS_CONFIG" > "$HOME/.apex-eval/aws-config"
+          printf '%s\n' "$APEX_EVAL_EXPECTED_ACCOUNT" > "$HOME/.apex-eval/expected-account"
+      - name: Run the gate
+        env:
+          HARNESS: ${{ matrix.harness }}
+          GATE_SKILL: ${{ inputs.skill }}
+        run: |
+          if [ -n "$GATE_SKILL" ]; then
+            # Checked here, before make expands it (a $(...) in SKILL runs
+            # during make's own expansion, before the Makefile's check).
+            [[ "$GATE_SKILL" =~ ^[A-Za-z0-9_.-]+$ ]] || { echo "::error::skill must match [A-Za-z0-9_.-]+"; exit 1; }
+            make -C misc/evals gate SKILL="$GATE_SKILL" HARNESS="$HARNESS"
+          else
+            make -C misc/evals gate-all HARNESS="$HARNESS"
+          fi
