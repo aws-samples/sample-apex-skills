@@ -23,7 +23,7 @@ The discriminator: "audit / sync / check / update the docs" triggers `update-doc
 
 ## Live-MCP caveat
 
-Neither `evals.json` task needs a live cluster, MCP server, or AWS credentials. Both scenarios can be graded from response text alone — the skill reads repo state via filesystem and git, not via MCP tools. No `"live_only": true` markers; runnable offline.
+Neither `evals.json` task needs a live cluster or an MCP server. Both scenarios can be graded from the transcript and output files alone: the skill reads repo state via filesystem and git, not via MCP tools. No `"live_only": true` markers. Like every task eval, a run still needs model access (Bedrock credentials by default).
 
 ## How to run
 
@@ -37,4 +37,4 @@ From `misc/evals/`:
 - `make snapshot-update-docs` — freeze current scores as baseline
 - `make regression-update-docs` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

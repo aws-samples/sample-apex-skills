@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "ask",
+    "--id",
+    "operator.confirm-before-change"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_CONFIRM_BEFORE_CHANGE": " FALSE "
+  }
+}

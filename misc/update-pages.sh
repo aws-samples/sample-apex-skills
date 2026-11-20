@@ -652,10 +652,19 @@ skills_in_group() {
 # --- One "- [name](link): summary" line per skill of a group ---------------
 # Links are .md file paths, relative to the page in $2's directory, so
 # Docusaurus resolves them to page URLs.
+# The installer links these only with --maintainer (MAINTAINER_SKILLS in
+# misc/installer/bin/cli.mjs; keep the two lists the same). The skill list and
+# llms.txt add the note to each.
+MAINTAINER_SKILLS="apex-new-skill skill-creator steering-workflow-creator update-docs"
+MAINTAINER_NOTE='maintainer skill, linked by the installer on `main` with `--maintainer`'
+maintainer_note() {
+  case " $MAINTAINER_SKILLS " in *" $1 "*) printf ' (%s)' "$MAINTAINER_NOTE" ;; esac
+}
+
 emit_skill_list() {
   local group="$1" prefix="$2" skill
   while IFS= read -r skill; do
-    printf -- '- [**%s**](%s%s/index.md): %s\n' "$skill" "$prefix" "$skill" "$(skill_summary "$skill")"
+    printf -- '- [**%s**](%s%s/index.md): %s%s\n' "$skill" "$prefix" "$skill" "$(skill_summary "$skill")" "$(maintainer_note "$skill")"
   done < <(skills_in_group "$group")
 }
 
@@ -794,8 +803,8 @@ PY
 
 # --- Build llms.txt (llmstxt.org) from the skills.json manifest on stdin ---
 build_llms_txt() {
-  python3 -c "$(cat <<'PY'
-import json, sys
+  MAINTAINER_SKILLS="$MAINTAINER_SKILLS" MAINTAINER_NOTE="$MAINTAINER_NOTE" python3 -c "$(cat <<'PY'
+import json, os, sys
 
 SITE = "https://aws-samples.github.io/sample-apex-skills"
 # The landing pages' descriptions (build_group_index): keep them the same.
@@ -836,7 +845,8 @@ for group, heading, landing in (
     if landing:
         print(f"- [{heading} overview]({SITE}{landing}): {LANDING[group]}")
     for s in rows:
-        print(f"- [{s['name']}]({SITE}{s['path']}): {s['summary']}")
+        note = f" ({os.environ['MAINTAINER_NOTE']})" if s["name"] in os.environ["MAINTAINER_SKILLS"].split() else ""
+        print(f"- [{s['name']}]({SITE}{s['path']}): {s['summary']}{note}")
 PY
 )"
 }

@@ -40,9 +40,9 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 ## General
 
 - [**apex**](./general/apex/index.md): Router for EKS and ECS requests: picks the skill that fits, infers the stage (Day 0 Design, Day 1 Build, Day 2 Operate), carries context, suggests next skills
-- [**apex-new-skill**](./general/apex-new-skill/index.md): Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request
+- [**apex-new-skill**](./general/apex-new-skill/index.md): Add a new skill or a class change to the APEX repo: classes, SKILL_META line, eval set, generators, CI checks, ADR, design-doc note and pull request (maintainer skill, linked by the installer on `main` with `--maintainer`)
 - [**dotnet-aws-ecs**](./general/dotnet-aws-ecs/index.md): Deploy a .NET workload to Amazon ECS Fargate behind an Application Load Balancer, with CloudFormation or CDK and a deployment guide
 - [**graviton-migration**](./general/graviton-migration/index.md): Migrate a workload from x86 to AWS Graviton (arm64): arm64 readiness scanning with the Arm migration MCP server, then the Karpenter node cutover on EKS
-- [**skill-creator**](./general/skill-creator/index.md): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy
+- [**skill-creator**](./general/skill-creator/index.md): Create new skills, modify existing skills, run evals, benchmark performance and optimize triggering accuracy (maintainer skill, linked by the installer on `main` with `--maintainer`)
 - [**terraform-skill**](./general/terraform-skill/index.md): Terraform and OpenTofu: modules, native tests, Terratest, CI/CD pipelines, state debugging and security scanning
-- [**update-docs**](./general/update-docs/index.md): Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references
+- [**update-docs**](./general/update-docs/index.md): Audit and sync all documentation surfaces after skill changes: README markers, Docusaurus site and prose references (maintainer skill, linked by the installer on `main` with `--maintainer`)

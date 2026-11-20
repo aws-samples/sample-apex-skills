@@ -1,0 +1,13 @@
+{
+  "session_id": "s1",
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "tool_name": "run_command",
+  "tool_input": {
+    "command": "kubectl get secret db -o yaml",
+    "description": "Run kubectl get secret db -o yaml",
+    "cwd": null,
+    "run_in_background": false,
+    "timeout": null
+  }
+}

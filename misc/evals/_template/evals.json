@@ -5,7 +5,7 @@
       "id": 1,
       "prompt": "<REPLACE: realistic task prompt>",
       "expectations": [
-        "<REPLACE: grader-checkable assertion> — TODO: human review"
+        "<REPLACE: one grader-checkable criterion per expectation>"
       ],
       "files": []
     }

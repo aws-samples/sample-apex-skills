@@ -1,0 +1,20 @@
+{
+  "session_id": "s1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/w",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "mcp__eks-mcp__add_inline_policy",
+  "tool_input": {
+    "policy_name": "p",
+    "role_name": "r",
+    "permissions": {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "*"
+    }
+  },
+  "tool_use_id": "toolu_01"
+}

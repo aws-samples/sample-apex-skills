@@ -1,0 +1,13 @@
+{
+  "hook_event_name": "PreToolUse",
+  "cwd": "/w",
+  "session_id": "s1",
+  "tool_name": "use_aws",
+  "tool_input": {
+    "service_name": "eks",
+    "operation_name": "UpdateClusterConfig",
+    "parameters": {
+      "name": "c"
+    }
+  }
+}

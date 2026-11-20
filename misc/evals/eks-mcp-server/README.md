@@ -19,7 +19,7 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 
 ## Live-MCP caveat
 
-The setup and troubleshooting prompts run offline. The access check supplies a verified endpoint, an existing `aws-auth` mapping and a successful resource read through MCP. It checks how the skill interprets those observations. Verifying an actual connection requires repeating the read through that server.
+The setup and troubleshooting prompts run without a live cluster or MCP server. The access check supplies a verified endpoint, an existing `aws-auth` mapping and a successful resource read through MCP. It checks how the skill interprets those observations. Verifying an actual connection requires repeating the read through that server.
 
 ## How to run
 
@@ -33,4 +33,4 @@ From `misc/evals/`:
 - `make snapshot-eks-mcp-server` — freeze current scores as baseline
 - `make regression-eks-mcp-server` — compare against baseline, report delta
 
-See `misc/evals/README.md` for the full capability catalogue (A–K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.

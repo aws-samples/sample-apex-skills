@@ -31,35 +31,79 @@ parents: []
 # - The router's runbooks hold 16 `../../../<skill>/` paths, against
 #   apex.no-path-into-another-skill, all in the vendored eks-operation-review
 #   runbook (aws-samples/sample-apex-skills#520).
+# - eks-operation-review (owner-held, vendored) points into the router's
+#   runbook (SKILL.md:18, UPSTREAM.md:20), against
+#   apex.no-path-into-another-skill: its owner changes it.
 # - eks-platform-engineering pauses an ArgoCD sync "only after the user confirms" (SKILL.md, Guardrails), short of apex.read-only-unless-confirmed; it changes in step 5.
 # The router's `helm list` is replaced in this piece (skills/apex/SKILL.md,
 # shared rule 1).
 
 # Deterministic checks one CI script runs on every member.
 # status "exists" names today's command; "planned" is not built yet.
+# An optional `timeout` (seconds, default 120, at most 3600) bounds one run.
 checks:
   - id: frontmatter-lint
-    what: "Parseable frontmatter; description present and <= 1024 chars"
+    what: "Parseable frontmatter; name equals the folder name; description present and <= 1024 chars"
     status: exists
-    run: "python3 misc/validate-frontmatter.py"
+    run: "python3 classes/apex-base/checks/ab-fm.py"
   - id: rule-ids-in-marker-block
     what: "Every rule id in rules.md appears in the member's SKILL.md marker block. This proves the copy landed, not behaviour"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-rule.py"
   - id: no-path-into-another-skill
     what: "A path grep: no link or path from a member into another skill's folder"
-    status: planned
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-path.py"
+  - id: metadata-version-bumped
+    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-ver.py"
+  - id: skill-md-under-500-lines
+    what: "SKILL.md under 500 lines"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-size.py"
+  - id: relative-links-resolve
+    what: "The relative link check"
+    status: exists
+    run: "python3 classes/apex-base/checks/ab-link.py"
+
+# Model-backed evals, kept out of the CI checks list above. A record only:
+# no runner reads this list yet. Same fields.
+evals:
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
     status: planned
   - id: read-only-and-no-secrets-evals
     what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
     status: planned
-  - id: metadata-version-bumped
-    what: "A required metadata.version, bumped on every change to a skill's instructions, scripts or references"
+  - id: shared-injection-eval
+    what: "The shared injection case runs against each member: nothing a skill reads is an instruction"
     status: planned
-  - id: skill-md-under-500-lines
-    what: "SKILL.md under 500 lines"
-    status: planned
-  - id: relative-links-resolve
-    what: "The relative link check"
-    status: planned
+
+# Opt-in PreToolUse hooks. Each entry is one hook with its own switch
+# (`enabled`, off as shipped) and its own `mode`; the class sync writes each
+# entry into the plugin (plugins/apex/hooks/hooks.json, kiro/apex-hooks.json).
+# `id` is the entry's stable key: it names the rule the hook backs and the
+# entry's switch, so it does not change. In hooks.json each command is shell
+# form: python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>" --mode
+# <mode> --id <id>. The switch is a plugin userConfig boolean keyed by the `id`
+# with every . and - as _ (apex_no_secrets), default `enabled`; Claude Code
+# exports it to the hook as CLAUDE_PLUGIN_OPTION_<KEY>, uppercased
+# (CLAUDE_PLUGIN_OPTION_APEX_NO_SECRETS). The script reads that variable:
+# absent, off; true or false in any case; false exits 0 with no decision; any
+# other value blocks. On Codex the user sets it to true in the environment
+# Codex starts with. Kiro takes each entry's own "enabled", so its commands
+# carry no --id. `script` is
+# relative to this folder. `matchers` holds one tool-name pattern per harness.
+# A hook backs the rule its `id` names; it is a guardrail, not a guarantee.
+hooks:
+  - id: apex.no-secrets
+    what: "Block Kubernetes Secret reads: kubectl and helm reads, and EKS MCP Server reads of kind Secret. AWS Secrets Manager is the aws-core plugin's hook"
+    event: PreToolUse
+    script: hooks/secret-deny/secret_deny.py
+    mode: block
+    enabled: false
+    matchers:
+      claude-code: "^(Bash|mcp__.*)$"
+      codex: "^(Bash|mcp__.*)$"
+      kiro: "^(execute_bash|execute_pwsh|run_command|mcp_.*)$"

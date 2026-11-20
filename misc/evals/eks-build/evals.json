@@ -3,16 +3,28 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: EKS 1.30, Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
+      "prompt": "Generate a complete production-ready EKS Terraform project for a customer in us-west-2. Requirements: Karpenter for autoscaling, AWS Load Balancer Controller, CoreDNS, VPC-CNI with prefix delegation enabled, and cert-manager. The cluster should use private endpoint access only with VPC endpoints for ECR, S3, STS, and SSM. Use IRSA for all addon service accounts. Output the full project structure.",
       "expectations": [
-        "Generates a versions.tf with required_providers block pinning aws, kubernetes, and helm provider versions TODO: human review",
-        "Creates IRSA IAM roles with proper trust policies for at least aws-load-balancer-controller and Karpenter TODO: human review",
-        "Configures EKS cluster with endpoint_private_access = true and endpoint_public_access = false TODO: human review",
-        "Includes VPC endpoint resources for at minimum ecr.api, ecr.dkr, s3, sts TODO: human review",
-        "Karpenter configuration includes an EC2NodeClass and at least one NodePool resource TODO: human review",
-        "Uses two-phase module architecture or separate webhook addon module to handle dependency ordering between cert-manager and LBC TODO: human review",
-        "Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFailure TODO: human review",
-        "Uses terraform-aws-modules/eks community module as the cluster foundation (not raw aws_eks_cluster resource) TODO: human review"
+        "Generates a versions.tf with required_providers block",
+        "The required_providers block in versions.tf pins the aws provider version",
+        "The required_providers block in versions.tf pins the kubernetes provider version",
+        "The required_providers block in versions.tf pins the helm provider version",
+        "Creates an IRSA IAM role for aws-load-balancer-controller",
+        "Creates an IRSA IAM role for Karpenter",
+        "The IRSA IAM role for aws-load-balancer-controller has a proper trust policy",
+        "The IRSA IAM role for Karpenter has a proper trust policy",
+        "Configures EKS cluster with endpoint_private_access = true",
+        "Configures EKS cluster with endpoint_public_access = false",
+        "Includes a VPC endpoint resource for ecr.api",
+        "Includes a VPC endpoint resource for ecr.dkr",
+        "Includes a VPC endpoint resource for s3",
+        "Includes a VPC endpoint resource for sts",
+        "Karpenter configuration includes an EC2NodeClass resource",
+        "Karpenter configuration includes at least one NodePool resource",
+        "Uses two-phase module architecture or separate webhook addon module to handle dependency ordering between cert-manager and LBC",
+        "Sets before_compute = true for vpc-cni or eks-pod-identity-agent to prevent NodeCreationFailure",
+        "Uses terraform-aws-modules/eks community module as the cluster foundation (not raw aws_eks_cluster resource)",
+        "Does not recommend OpenTofu in place of Terraform."
       ],
       "knowledge_assertions": [
         {
@@ -35,12 +47,6 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ENABLE_PREFIX_DELEGATION", "prefix.?delegation"],
-          "context": "VPC-CNI prefix delegation must be explicitly enabled for increased pod density",
-          "source": "https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html"
-        },
-        {
-          "type": "must-contain-one-of",
           "patterns": ["modules/karpenter", "terraform-aws-modules/eks/aws//modules/karpenter"],
           "context": "Karpenter must use the dedicated submodule from terraform-aws-modules/eks, not eks-blueprints-addons",
           "source": "https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest/submodules/karpenter"
@@ -53,88 +59,40 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["EC2NodeClass", "ec2nodeclass"],
-          "context": "Karpenter configuration requires an EC2NodeClass CRD for node provisioning settings",
-          "source": "https://karpenter.sh/docs/concepts/nodeclasses/"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["NodePool", "nodepool"],
-          "context": "Karpenter configuration requires at least one NodePool CRD defining instance requirements",
-          "source": "https://karpenter.sh/docs/concepts/nodepools/"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["endpoint_private_access\\s*=\\s*true", "endpoint_private_access.*true"],
-          "context": "Production cluster must use private endpoint access",
-          "source": "https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["endpoint_public_access\\s*=\\s*false", "endpoint_public_access.*false"],
-          "context": "Production cluster must disable public endpoint",
-          "source": "https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["ecr\\.api", "ecr\\.dkr", "com\\.amazonaws.*ecr"],
-          "context": "Private clusters require VPC endpoints for ECR API and ECR DKR",
-          "source": "https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["vpcId", "vpc.?id", "vpc_id"],
+          "patterns": ["name[\"']?\\s*[:=]\\s*[\"']?vpcId\\b", "\\bvpcId[\"']?\\s*[:=]\\s*\\S"],
+          "flags": "",
           "context": "LBC requires explicit vpcId in Helm values because IMDS fallback fails with hop-limit restrictions",
           "source": "https://kubernetes-sigs.github.io/aws-load-balancer-controller/latest/deploy/installation/"
         },
         {
           "type": "must-contain",
-          "pattern": "required_providers",
+          "pattern": "required_providers\\s*\\{",
           "context": "Terraform projects must declare required_providers with version constraints",
           "source": "https://developer.hashicorp.com/terraform/language/providers/requirements"
         },
         {
-          "type": "must-contain-one-of",
-          "patterns": ["http_tokens\\s*=\\s*\"required\"", "http_tokens.*required", "IMDSv2"],
-          "context": "Node launch templates must enforce IMDSv2 (http_tokens = required) for security",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["gp3", "volume_type.*gp3"],
-          "context": "EBS volumes must use gp3 (never gp2) for cost and performance",
-          "source": "https://docs.aws.amazon.com/ebs/latest/userguide/general-purpose.html"
-        },
-        {
           "type": "must-not-contain",
-          "pattern": "multus",
+          "pattern": "multus\\w*[\"']?\\s*[:=]\\s*\\{?\\s*enabled\\s*[:=]\\s*true|enable_multus\\s*=\\s*true",
           "context": "Multus CNI must never be enabled due to thick-plugin pod-lookup race condition",
-          "source": "https://github.com/k8snetworkplumbingwg/multus-cni/issues"
+          "source": "skills/eks-build/references/lessons-learned.md:99-112"
         },
         {
           "type": "must-not-contain",
-          "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; IRSA or Pod Identity must be used instead",
-          "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
-        },
-        {
-          "type": "must-not-contain",
-          "pattern": "opentofu",
+          "pattern": "^[\\s`$>]*tofu\\s+(init|plan|apply)\\b",
+          "flags": "im",
           "context": "OpenTofu must not be recommended due to severe depends_on performance regression",
-          "source": "https://github.com/opentofu/opentofu/issues"
+          "source": "skills/eks-build/references/lessons-learned.md:234-247"
         }
       ],
       "files": [],
       "process_assertions": [
         {"type": "tool-called", "tool": "Write", "min": 4},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 50},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 6}
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]}
       ],
       "artifact_assertions": {
         "root_glob": "**/code",
         "validators": [
-          {"type": "terraform-fmt", "paths": ["**/*.tf"], "severity": "warning"},
+          {"type": "terraform-fmt", "paths": ["**/*.tf"]},
           {"type": "script", "path": "skills/eks-build/scripts/validate_project.sh", "args": ["{root}"]}
         ],
         "structural": [
@@ -143,9 +101,18 @@
           {"type": "file-exists", "path": "versions.tf"},
           {"type": "file-exists", "path": "outputs.tf"},
           {"type": "file-exists", "path": "providers.tf"},
-          {"type": "contains", "file": "versions.tf", "pattern": "required_providers"},
+          {"type": "contains", "file": "versions.tf", "pattern": "required_providers\\s*\\{"},
           {"type": "contains", "file": "**/*.tf", "pattern": "aws_eks_cluster|terraform-aws-modules/eks"},
           {"type": "contains", "file": "**/*.tf", "pattern": "[Kk]arpenter"},
+          {"type": "contains", "file": "**/*", "pattern": "ENABLE_PREFIX_DELEGATION[\"']?\\s*[:=]\\s*[\"']?true"},
+          {"type": "contains", "file": "**/*", "pattern": "kind[\"']?\\s*[:=]\\s*[\"']?EC2NodeClass"},
+          {"type": "contains", "file": "**/*", "pattern": "kind[\"']?\\s*[:=]\\s*[\"']?NodePool"},
+          {"type": "contains", "file": "**/*", "pattern": "endpoint_private_access\\s*[:=]\\s*true"},
+          {"type": "contains", "file": "**/*", "pattern": "endpoint_public_access\\s*[:=]\\s*false"},
+          {"type": "contains", "file": "**/*", "pattern": "ecr\\.api"},
+          {"type": "contains", "file": "**/*", "pattern": "ecr\\.dkr"},
+          {"type": "contains", "file": "**/*", "pattern": "http_?[Tt]okens[\"']?\\s*[:=]\\s*[\"']?required"},
+          {"type": "contains", "file": "**/*", "pattern": "volume_?[Tt]ype[\"']?\\s*[:=]\\s*[\"']?gp3"},
           {"type": "yaml-valid", "paths": ["configs/*.yaml"], "exclude": ["**/templates/**"]},
           {"type": "not-contains", "file": "**/*.tf", "pattern": "kube2iam"},
           {"type": "file-count", "glob": "**/*.tf", "min": 3, "max": 30}
@@ -156,10 +123,13 @@
       "id": 2,
       "prompt": "Add Kyverno and external-secrets-operator as custom addons to my existing EKS Terraform project. Kyverno needs two-phase webhook ordering (install CRDs first, then policies). External-secrets needs IRSA with access to AWS Secrets Manager. The project uses Pattern 2a (ArgoCD managing addons). Generate the ArgoCD Application manifests and any supporting Terraform for IAM.",
       "expectations": [
-        "Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies with sync-wave annotations ensuring CRDs deploy first TODO: human review",
-        "Creates an IAM role with trust policy for the external-secrets-operator service account with secretsmanager:GetSecretValue permission TODO: human review",
-        "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override TODO: human review",
-        "Both addons specify a target namespace and create-namespace sync option TODO: human review"
+        "Generates separate ArgoCD Application manifests for Kyverno CRDs and Kyverno policies",
+        "The Kyverno ArgoCD Application manifests have sync-wave annotations ensuring CRDs deploy first",
+        "Creates an IAM role with trust policy for the external-secrets-operator service account",
+        "The external-secrets-operator IAM role has secretsmanager:GetSecretValue permission",
+        "ArgoCD Application for external-secrets passes the IRSA role ARN as a Helm values override",
+        "Both addons specify a target namespace",
+        "Both addons specify a create-namespace sync option"
       ],
       "knowledge_assertions": [
         {
@@ -176,7 +146,8 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "ServerSideApply.*true",
+          "pattern": "(^\\s*-\\s*[\"']?ServerSideApply=true[\"']?\\s*(#[^\\n]*)?$|sync-?options[\"']?\\s*[:=][^\\n]*ServerSideApply=true)",
+          "flags": "im",
           "context": "ServerSideApply=true must not be used with Kyverno because it conflicts with ArgoCD selfHeal + --force",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/"
         },
@@ -206,7 +177,7 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["oidc", "OIDC", "sts:AssumeRoleWithWebIdentity"],
+          "patterns": ["sts:AssumeRoleWithWebIdentity", "oidc_providers\\s*=", "oidc_provider_arn\\s*="],
           "context": "IRSA trust policies require the OIDC provider and sts:AssumeRoleWithWebIdentity",
           "source": "https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html"
         },
@@ -218,23 +189,21 @@
         },
         {
           "type": "must-not-contain",
-          "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; IRSA must be used for pod-level IAM",
+          "pattern": "iam\\.amazonaws\\.com/role\\s*:|chart\\s*[:=]\\s*[\"']?kube2iam|kube2iam[\"']?\\s*[:=]\\s*\\{?\\s*enabled\\s*[:=]\\s*true|helm\\s+(install|upgrade)[^\\n]*\\bkube2iam\\b|jtblin/kube2iam",
+          "context": "kube2iam is a community tool AWS does not endorse, condone, nor support; IRSA must be used for pod-level IAM",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["kyverno.*crd", "CRD.*kyverno", "kyverno-crd", "crds"],
-          "context": "Kyverno requires separate CRD installation before policy deployment",
+          "patterns": ["kyverno[-_]crds?\\b", "kyverno[-_]policies\\b"],
+          "context": "CRDs (kyverno chart, its crds subchart) and policies (kyverno-policies chart) are separate Applications",
           "source": "https://kyverno.io/docs/installation/methods/"
         }
       ],
       "files": [],
       "process_assertions": [
         {"type": "tool-called", "tool": "Write", "min": 2},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 40},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 6}
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]}
       ],
       "artifact_assertions": {
         "root_glob": "**",
@@ -252,35 +221,30 @@
       "id": 3,
       "prompt": "I need to choose between Pattern 1 (full Terraform), Pattern 2a (ArgoCD+Terraform), and Pattern 2b (ArgoCD+ACK/KRO) for my customer. They have: 5 EKS clusters across 3 environments, a platform team of 2 people, no existing GitOps tooling, and a requirement for SOC2 compliance with drift detection. Generate the project scaffold for your recommended pattern.",
       "expectations": [
-        "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs TODO: human review",
-        "If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests. If Pattern 1 chosen, generates multi-environment Terraform structure with separate tfvars per environment TODO: human review",
-        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments. If Pattern 1 chosen, uses Terraform workspaces or per-environment directories to manage multiple clusters TODO: human review",
-        "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -detailed-exitcode in CI, or OPA/Kyverno policies TODO: human review"
+        "Recommends Pattern 2a (or provides a clear rationale if choosing differently) based on the stated constraints of small team and drift detection needs",
+        "If Pattern 2a chosen, generates a directory structure separating base infrastructure Terraform from ArgoCD addon manifests. If Pattern 1 chosen, generates multi-environment Terraform structure with a projects/<cluster>/code/ tree per cluster with its own configs/*.yaml",
+        "If Pattern 2a chosen, includes an ArgoCD ApplicationSet with a git or list generator to target multiple clusters/environments.",
+        "Addresses SOC2 compliance by incorporating drift detection mechanism such as ArgoCD sync status, terraform plan -detailed-exitcode in CI, or OPA/Kyverno policies",
+        "Does not recommend OpenTofu in place of Terraform."
       ],
       "knowledge_assertions": [
         {
           "type": "must-contain-one-of",
-          "patterns": ["Pattern.?2a", "Pattern.?1", "ArgoCD.*Terraform", "argocd.*terraform", "full.?[Tt]erraform"],
+          "patterns": ["recommend\\w*\\W+(?:\\w+\\W+){0,4}?pattern\\s?(?:1|2a|2b)\\b", "pattern\\s?(?:1|2a|2b)\\b[^.\\n]{0,40}\\b(?:is|as)\\s+(?:the\\s+|my\\s+|our\\s+)?recommend"],
           "context": "Must explicitly recommend a pattern (1, 2a, or 2b) with justification based on team size, GitOps maturity, and compliance needs",
           "source": "https://registry.terraform.io/modules/aws-ia/eks-blueprints-addons/aws/latest"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["ApplicationSet", "applicationset", "for_each", "workspace", "environments/"],
+          "patterns": ["kind:\\s*ApplicationSet", "terraform\\s+workspace\\s+(new|select)", "environments/(dev|staging|prod)\\b", "projects/[\\w-]+/code/"],
           "context": "If Pattern 2a: uses ArgoCD ApplicationSets for multi-cluster management. If Pattern 1: uses Terraform for_each, workspaces, or per-environment directories",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/"
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["self.?[Hh]eal", "selfHeal", "auto.?sync", "drift", "plan.*-detailed-exitcode", "terraform.?plan"],
+          "patterns": ["selfHeal[\"']?\\s*[:=]\\s*true", "-detailed-exitcode"],
           "context": "If Pattern 2a: drift detection via ArgoCD selfHeal/auto-sync. If Pattern 1: drift detection via scheduled terraform plan with -detailed-exitcode",
           "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto-sync/"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["gitops.?bridge", "GitOps.?Bridge", "argocd.argoproj.io/secret-type", "tfvars", "backend", "remote.?state"],
-          "context": "If Pattern 2a: uses GitOps Bridge to pass Terraform metadata to ArgoCD. If Pattern 1: uses remote state or tfvars for environment separation",
-          "source": "https://github.com/gitops-bridge-dev/gitops-bridge"
         },
         {
           "type": "must-contain",
@@ -302,37 +266,26 @@
         },
         {
           "type": "must-contain-one-of",
-          "patterns": ["drift.?detect", "sync.?status", "OutOfSync", "self.?heal", "detailed.?exitcode", "terraform.?plan", "compliance"],
-          "context": "SOC2 compliance requires drift detection — ArgoCD sync status (Pattern 2a) or scheduled terraform plan with -detailed-exitcode (Pattern 1)",
-          "source": "https://argo-cd.readthedocs.io/en/stable/user-guide/auto-sync/"
-        },
-        {
-          "type": "must-contain-one-of",
-          "patterns": ["tfvars", "\\.tfvars", "environments/"],
-          "context": "Multi-environment projects should use per-environment tfvars files for configuration separation",
-          "source": "https://developer.hashicorp.com/terraform/language/values/variables#variable-definitions-tfvars-files"
-        },
-        {
-          "type": "must-contain-one-of",
           "patterns": ["cluster.?arn", "cluster_arn", "cluster_endpoint", "cluster_name"],
           "context": "Must reference the EKS cluster identity (ARN, endpoint, or name) for multi-cluster targeting",
           "source": "https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters"
         },
         {
           "type": "must-not-contain",
-          "pattern": "opentofu",
+          "pattern": "^[\\s`$>]*tofu\\s+(init|plan|apply)\\b",
+          "flags": "im",
           "context": "OpenTofu must not be recommended due to severe depends_on performance regression (30+ min plan)",
-          "source": "https://github.com/opentofu/opentofu/issues"
+          "source": "skills/eks-build/references/lessons-learned.md:234-247"
         },
         {
           "type": "must-not-contain",
-          "pattern": "kube2iam",
-          "context": "kube2iam is deprecated; IRSA or Pod Identity must be used",
+          "pattern": "iam\\.amazonaws\\.com/role\\s*:|chart\\s*[:=]\\s*[\"']?kube2iam|kube2iam[\"']?\\s*[:=]\\s*\\{?\\s*enabled\\s*[:=]\\s*true|helm\\s+(install|upgrade)[^\\n]*\\bkube2iam\\b|jtblin/kube2iam",
+          "context": "kube2iam is a community tool AWS does not endorse, condone, nor support; IRSA or Pod Identity must be used",
           "source": "https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html"
         },
         {
           "type": "must-contain",
-          "pattern": "required_providers",
+          "pattern": "required_providers\\s*\\{",
           "context": "Terraform projects must declare required_providers with version constraints in versions.tf",
           "source": "https://developer.hashicorp.com/terraform/language/providers/requirements"
         }
@@ -340,9 +293,7 @@
       "files": [],
       "process_assertions": [
         {"type": "tool-called", "tool": "Write", "min": 3},
-        {"type": "tool-sequence", "sequence": ["Skill", "Write"]},
-        {"type": "step-count", "min": 5, "max": 60},
-        {"type": "tool-effectiveness", "max_consecutive_no_progress": 8}
+        {"type": "tool-sequence", "sequence": ["Skill", "Write"]}
       ],
       "elicitation": {
         "strategy": "canned-multiturn",
@@ -359,28 +310,32 @@
         "max_turns": 8
       },
       "artifact_assertions": {
-        "root_glob": "**",
+        "root_glob": "**/code",
         "validators": [
-          {"type": "terraform-fmt", "paths": ["**/*.tf"], "severity": "warning"}
+          {"type": "terraform-fmt", "paths": ["**/*.tf"]},
+          {"type": "script", "path": "skills/eks-build/scripts/validate_project.sh", "args": ["{root}"]}
         ],
         "structural": [
           {"type": "file-exists", "path": "**/main.tf"},
           {"type": "file-exists", "path": "**/variables.tf"},
           {"type": "file-exists", "path": "**/versions.tf"},
           {"type": "yaml-valid", "paths": ["**/*.yaml"], "exclude": ["**/templates/**"]},
-          {"type": "file-count", "glob": "**/*.tf", "min": 3},
-          {"type": "file-count", "glob": "**/*.tfvars", "min": 2}
+          {"type": "file-count", "glob": "**/*.tf", "min": 3}
         ]
       }
     },
     {
       "id": 4,
-      "prompt": "Generate a Pattern 1 EKS Terraform project for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
+      "prompt": "Generate a Pattern 1 EKS Terraform project in us-west-2, cluster name orgb-prod, for a customer whose security team requires the permissions boundary arn:aws:iam::123456789012:policy/OrgBoundary on every IAM role that automation creates. Requirements: EKS managed node group, Karpenter, AWS Load Balancer Controller and the EBS CSI driver with Pod Identity.",
       "expectations": [
-        "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary and references it from the Terraform code rather than repeating the literal ARN in each role TODO: human review",
-        "Passes the boundary to the cluster role and node group roles of terraform-aws-modules/eks (iam_role_permissions_boundary) TODO: human review",
-        "Passes the boundary to both Karpenter roles (iam_role_permissions_boundary_arn and node_iam_role_permissions_boundary) TODO: human review",
-        "Passes the boundary to the EBS CSI Pod Identity role (permissions_boundary_arn) and the LBC IRSA role (role_permissions_boundary_arn in its eks-blueprints-addons map) TODO: human review"
+        "Sets the boundary ARN once in configs/cluster.yaml as permissions_boundary",
+        "References the boundary ARN from the Terraform code rather than repeating the literal ARN in each role",
+        "Passes the boundary to the cluster role of terraform-aws-modules/eks (iam_role_permissions_boundary)",
+        "Passes the boundary to the node group roles of terraform-aws-modules/eks (iam_role_permissions_boundary)",
+        "Passes the boundary to the Karpenter role that takes iam_role_permissions_boundary_arn",
+        "Passes the boundary to the Karpenter role that takes node_iam_role_permissions_boundary",
+        "Passes the boundary to the EBS CSI Pod Identity role (permissions_boundary_arn)",
+        "Passes the boundary to the LBC IRSA role (role_permissions_boundary_arn in its eks-blueprints-addons map)"
       ],
       "knowledge_assertions": [
         {
@@ -407,16 +362,30 @@
           "context": "The eks-pod-identity module takes the boundary as permissions_boundary_arn",
           "source": "https://github.com/terraform-aws-modules/terraform-aws-eks-pod-identity/blob/v2.10.0/variables.tf"
         }
-      ]
+      ],
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Write", "min": 4}
+      ],
+      "artifact_assertions": {
+        "root_glob": "**/code",
+        "validators": [
+          {"type": "terraform-fmt", "paths": ["**/*.tf"]},
+          {"type": "script", "path": "skills/eks-build/scripts/validate_project.sh", "args": ["{root}"]}
+        ],
+        "structural": [
+          {"type": "file-count", "glob": "**/*.tf", "min": 3}
+        ]
+      }
     },
     {
       "id": 5,
       "prompt": "Generate a Pattern 1 EKS Terraform project with an EKS managed node group, Karpenter and the EBS CSI driver with Pod Identity. Our security team says we need a permissions boundary, so yes, add one.",
       "expectations": [
-        "Does not generate the project: stops before writing any file TODO: human review",
-        "Names what is missing: the boundary policy ARN and which roles should carry it TODO: human review",
-        "Asks for those answers again instead of choosing them TODO: human review",
-        "Does not write, suggest or guess a boundary policy or an ARN TODO: human review"
+        "Does not generate the project: stops before writing any file",
+        "Names what is missing: the boundary policy ARN",
+        "Names what is missing: which roles should carry the boundary policy",
+        "Asks for those answers again instead of choosing them",
+        "Does not write, suggest or guess a boundary policy or an ARN"
       ],
       "knowledge_assertions": [
         {

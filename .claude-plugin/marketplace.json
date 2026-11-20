@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "apex-skills",
+  "description": "APEX platform engineering plugins for Claude Code and Codex",
+  "owner": {
+    "name": "aws-samples"
+  },
+  "plugins": [
+    {
+      "name": "apex",
+      "source": "./plugins/apex",
+      "description": "Opt-in APEX guard hooks: a Kubernetes Secret read deny and a cloud and cluster mutation guard. In Claude Code, enable the plugin first; only then do its /config options appear. Each hook is off until you turn on its option in /config (default off)."
+    }
+  ]
+}

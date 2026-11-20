@@ -18,7 +18,7 @@ eks-security runs three read-only security reviews of a live EKS cluster (C1 CVE
 
 ## Fixtures
 
-Cases 4 to 9 are offline: each prompt says not to run `aws`, `kubectl` or `collect.sh`, and the inputs are staged from `files/eval-<id>/` into the working directory.
+Cases 4 to 9 use staged inputs and no cluster: each prompt says not to run `aws`, `kubectl` or `collect.sh`, and the inputs are staged from `files/eval-<id>/` into the working directory.
 
 | Path | Content |
 |---|---|
@@ -62,4 +62,4 @@ From `misc/evals/`:
 - `make artifact-eks-security`: artifact validation against outputs/ (deterministic)
 - `make composite-eks-security`: weighted composite score + letter grade (deterministic)
 
-See `misc/evals/README.md` for the full capability catalogue (A to K) and `.skilleval.yaml` for weight configuration.
+See `.skilleval.yaml` for weight configuration.
