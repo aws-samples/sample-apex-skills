@@ -26,6 +26,7 @@ For **ECS Managed Instances running NVIDIA GPU-enabled EC2 types**, Container In
 
 Enable on the cluster:
 
+<!-- customer-run -->
 ```bash
 aws ecs update-cluster-settings \
   --cluster my-gpu-cluster \
