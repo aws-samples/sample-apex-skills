@@ -10,8 +10,9 @@ backs, script.token-tags (one sentence saying what the tags mean), is added to
 classes/script/rules.md by a separate change, since that file is not this one's.
 Taken from the
 four google/skills cloud-trace-querying scripts (secrets.token_hex(8) per run,
-a tag line before the output and one after it, and a flag to leave the tags
-off). The tags mark the output; they do not filter it. TOKEN is 16 random hex
+and a tag line before the output and one after it; those scripts also have a
+flag to leave the tags off, which this tool does not take). The tags mark the
+output; they do not filter it. TOKEN is 16 random hex
 characters, new on every run, so text inside the output cannot close the tag
 early: it would have to guess TOKEN.
 
