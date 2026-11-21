@@ -3,7 +3,7 @@
 
 Covers skills/eks-security/assets/: advisory_check.py (version and range helpers, record
 validation), advisory_fetch.py (saved feed responses through --input), match.py (verdicts,
-priority, coverage gate, exit codes), render_report.py (escaping, footer, origin) and
+priority, coverage gate, exit codes), render_report.py (escaping, control characters, footer, origin) and
 collect.sh (read-only command guard, run against fake aws and kubectl on PATH).
 
 Stdlib only, no network, no cluster. All data comes from
@@ -694,6 +694,32 @@ class RenderReport(TmpCase):
                      "from its platform version) and compare by hand"):
             self.assertIn(text, md)
         self.assertNotIn("Read the advisory and the installed version by hand", md)
+
+    def test_s_replaces_control_chars(self):
+        import render_report
+        self.assertEqual(render_report.s("nul\x00here"), "nul here")
+        self.assertEqual(render_report.s("a\x00b \x07c\x1bd\x7fe"), "a b c d e")
+        self.assertEqual(render_report.s("a\x9bb\x85c"), "a b c")
+        self.assertEqual(render_report.s("red \x1b[31mtext"), "red [31mtext")
+        self.assertEqual(render_report.s("plain text, unchanged: v1.2.3 (ok)"), "plain text, unchanged: v1.2.3 (ok)")
+        self.assertEqual(render_report.s("tab\there\nnew  line\r\nend "), "tab here new line end")
+        self.assertEqual(render_report.tok("\x1bdemo", "<P>"), "<P>")
+        self.assertEqual(render_report.tok("us-east-1\x00", "<P>"), "<P>")
+        self.assertEqual(render_report.tok("demo\t", "<P>"), "demo")
+        self.assertEqual(render_report.tok(["demo\x00"], "<P>"), "<P>")
+
+    def test_nul_never_reaches_md_or_html(self):
+        fd, inv = self.fixture()
+        fd["sources"][0]["title"] = "nul\x00here and \x07bell\x9b"
+        fd["findings"][1]["reason"] = "nul\x00here"
+        fd["findings"][0]["fixed"] = "nul\x00here"
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        for text in (md, ht):
+            self.assertIsNone(re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", text))
+            self.assertIn("nul here and bell", text)
+        self.assertIn("could not be compared (nul here)", md)
+        self.assertIn("at or above nul here", md)
 
 
 # ------------------------------------------------------------------ collectors: read-only guard
