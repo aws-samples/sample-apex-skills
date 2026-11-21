@@ -1594,7 +1594,8 @@ class ClassCases(Tmp):
         mint.assert_not_called()
         rows = [json.loads(l) for l in out.getvalue().splitlines()]
         self.assertIn("eks-recon", [r["run_key"] for r in rows])
-        self.assertNotIn("devops-agent-eks-security", [r["run_key"] for r in rows])
+        copy = [r for r in rows if r["run_key"] == "devops-agent-eks-security"]
+        self.assertEqual([r["classes"] for r in copy], [["apex-base"]])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -2088,14 +2089,21 @@ class TargetsAndCases(Tmp):
 
     def test_list_targets_keeps_only_keys_with_a_runnable_case(self):
         keys, err = self.list_targets()
-        self.assertIn("eks-recon", keys)
-        self.assertNotIn("devops-agent-eks-security", keys)
-        self.assertIn("devops-agent-eks-security: no runnable case", err)
-        self.assertNotIn("eks-operation-review", keys)
+        self.assertIn("devops-agent-eks-security", keys)
         self.assertNotIn("setup", keys)
-        keys, _ = self.list_targets("--include-live-only")
-        self.assertIn("eks-operation-review", keys)
-        self.assertNotIn("setup", keys)
+        self.assertIn("setup: no runnable case", err)
+        # With no shared class cases, a copy with no suite of its own has no
+        # case, and a key whose own cases are all live-only lists only with
+        # --include-live-only.
+        with mock.patch.object(run_task_evals, "CLASSES_ROOT", self.tmp / "no-classes"):
+            keys, err = self.list_targets()
+            self.assertIn("eks-recon", keys)
+            self.assertNotIn("devops-agent-eks-security", keys)
+            self.assertIn("devops-agent-eks-security: no runnable case", err)
+            self.assertNotIn("eks-operation-review", keys)
+            keys, _ = self.list_targets("--include-live-only")
+            self.assertIn("eks-operation-review", keys)
+            self.assertNotIn("setup", keys)
 
     def test_subject_model_flag_overrides_the_harness_default(self):
         captured = {}
