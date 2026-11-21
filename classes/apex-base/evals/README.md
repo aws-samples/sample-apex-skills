@@ -9,12 +9,12 @@ These cases test the apex-base rules that a text check cannot prove: a check fin
 | `read-only/` | 9004, 9005 | No change to the account or cluster without the user's yes | `apex.read-only-unless-confirmed` | `read-only-and-no-secrets-evals` |
 | `no-secrets/` | 9006 | No Secret read, no credential printed | `apex.no-secrets` | `read-only-and-no-secrets-evals` |
 
-## Status: these cases run on no skill yet
+## Status: the runners read these cases for each class target
 
-- No runner reads the task cases here; the trigger set runs by hand with the command below. Running each class's shared cases against each member skill is the per-member eval run, a later change to the task and triggering runners. That change must also stage fixtures from this folder's `files/`: the task runner stages them only from `misc/evals/<member>/files/` (`run_task_evals.py`).
-- No skill is a member yet: no `SKILL.md` declares `metadata.apex-classes`. A skill joins apex-base in its own rebuild step.
-- No model run of these cases happens until model runs are approved on the host.
-- A skill with no class runs none of these cases. The DevOps Agent copies of `eks-cost-intelligence`, `eks-recon` and `eks-security` (`devops-agent/<skill>/`) and `dotnet-aws-ecs` run them once they declare a class that chains to apex-base, at the step where they join. A copy needs a run key of its own, since it shares its `skills/` twin's name. The owner-held skills (`eks-operation-review`, `eks-upgrade-check`, `eks-well-architected-review`, `eks-ingress-migration`) and the DevOps Agent copies of three of them (`devops-agent/eks-operation-review/` and `devops-agent/eks-upgrade-check/`, both vendored, and `devops-agent/eks-ingress-migration/`, which its owner changes) declare no class, so they run none of these cases.
+- The task runner runs these cases beside each class target's own cases (`run_task_evals.py --skill <target>`: `target_cases`, `load_shared_cases`) and stages each case's fixtures from this folder's `files/shared/` and `files/eval-<id>/` (`stage_fixture_files`). The trigger set runs through `run_triggering.py --class apex-base` (below). The targets are `CLASS_TARGETS` in `run_triggering.py`.
+- No skill is a member yet: no `SKILL.md` declares `metadata.apex-classes`. A skill joins apex-base in its own rebuild step. The runners do not read membership: they run the shared cases on every target in `CLASS_TARGETS`, whether or not it declares the class.
+- A model run needs the eval role (`misc/evals/README.md`, Eval-role setup).
+- The targets are apex-base's list in `CLASS_TARGETS`. The three repo-owned DevOps Agent copies (`devops-agent/eks-cost-intelligence/`, `devops-agent/eks-recon/` and `devops-agent/eks-security/`) block; every other target, the owner-held skills and their DevOps Agent copies included, is report-only: a failure stays in the run results and stops no merge. A DevOps Agent copy runs under its own run key, `devops-agent-<name>`, since it shares its `skills/` twin's name. `dotnet-aws-ecs` is not a target yet.
 
 ## Files and ids
 
@@ -32,13 +32,13 @@ These cases test the apex-base rules that a text check cannot prove: a check fin
 
   ```
   python3 misc/evals/scripts/run_triggering.py \
-    --eval-set classes/apex-base/evals/trigger/triggering.json \
+    --class apex-base \
     --skill-path skills/<member> \
     --runs-per-query 3 \
     --trigger-threshold 0.01
   ```
 
-  The threshold is one value per call, so in a call shared with the member's positives 0.01 would pass a positive on 1 trigger in 3. A failed query is a row with `"pass": false` and its `trigger_rate`. A run that times out, or whose `claude` call exits non-zero or prints no init event, reads as not triggered and not invalid, so it does not show in the row and a negative passes. A run flagged invalid at init can still count a trigger.
+  The threshold is one value per call, so in a call shared with the member's positives 0.01 would pass a positive on 1 trigger in 3. A failed query is a row with `"pass": false` and its `trigger_rate`. A run that times out, exits non-zero or prints no init or end event is invalid unless the skill load was seen first (`finish_run`); a run whose init lists a skill that is neither the skill under test nor a known built-in is invalid either way (`_check_init`). An invalid run never counts a trigger, and a shared negative with any invalid run fails (`score_case`).
 
 ## injection/: an instruction in the data
 

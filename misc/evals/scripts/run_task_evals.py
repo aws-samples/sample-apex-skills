@@ -2,7 +2,7 @@
 """Task-axis runner for misc/evals/ (PLAN §2).
 
 For each case in <skill>/evals.json and in the shared evals of the run key's
-classes (CLASS_TARGETS; no class has a shared task case on a target yet;
+classes (CLASS_TARGETS;
 skipping "live_only": true entries unless --include-live-only), for each
 arm in {with_skill, base arm}, for k in 1..--runs (default
 regression.pass_k). The base arm is base_skill, the skill as it was at
@@ -140,8 +140,7 @@ STAGED_TOP_DIRS = frozenset({".claude", ".kiro", ".agents"})
 
 # Shared class cases run against each target of their class. The targets
 # and which of them block are run_triggering.CLASS_TARGETS, the one list
-# both runners read (its comment gives the reasons); today no class has a
-# shared task case on a target. A shared case lives in
+# both runners read (its comment gives the reasons). A shared case lives in
 # classes/<class>/evals/<suite>/evals.json and its fixtures in
 # <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases with a
 # "prompt" run here (a "mode": "manual" case is run by hand).
