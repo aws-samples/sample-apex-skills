@@ -222,7 +222,7 @@ spec:
 
 | Use Case | Network Policy | SG for Pods |
 |----------|---------------|-------------|
-| **Pod-to-pod traffic** (east-west) | Primary tool | Not designed for this |
+| **Pod-to-pod traffic** (east-west) | Primary tool | Enforced, but not the primary tool; same-node traffic is enforced on EKS Auto Mode and in VPC CNI `strict` mode (which routes it through the VPC), not in `standard` mode |
 | **Pod-to-AWS-service** (RDS, ElastiCache) | Cannot target AWS resources | Primary tool |
 | **Reuse existing SG rules** | No | Yes — reuse EC2 SGs |
 | **Isolate pod from node traffic** | No | Yes (`strict` mode) |
