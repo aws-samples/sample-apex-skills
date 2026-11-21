@@ -1194,7 +1194,8 @@ def run_eval(
 # A class's targets are this explicit list (no runner reads class membership
 # from a skill's frontmatter); run_task_evals.py builds its target list from
 # it too. Only the 3 repo-owned devops-agent copies block. The other 29 are
-# report-only: a failure stays in the run results and stops no merge. They
+# report-only: a failed shared case does not fail the key by itself (a task
+# case's grader score still counts in the key's pooled delta). They
 # are the 22 planned skills, the 4 skills their owners hold and the 3
 # devops-agent copies of owner-held skills. dotnet-aws-ecs is not a target:
 # it is left out until its de-vendor rebuild.
