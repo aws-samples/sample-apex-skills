@@ -722,17 +722,17 @@ terraform init -backend-config=backend.hcl
 
 ### State Locking
 
-Add DynamoDB-based state locking by including `dynamodb_table` in `backend.hcl`:
+On Terraform 1.11+, add S3-native state locking by including `use_lockfile` in `backend.hcl`:
 
 ```hcl
-bucket         = "my-state-bucket"
-key            = "eks/terraform.tfstate"
-region         = "us-east-1"
-encrypt        = true
-dynamodb_table = "terraform-locks"
+bucket       = "my-state-bucket"
+key          = "eks/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true # S3-native state locking (DynamoDB locking is deprecated)
 ```
 
-Create the DynamoDB table with a `LockID` string partition key.
+DynamoDB-based locking (`dynamodb_table`, a table with a `LockID` string partition key) is deprecated. Use it only below Terraform 1.11, or alongside `use_lockfile` while migrating; with both set, Terraform takes the lock from both. With `use_lockfile`, the role also needs `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the lock file (`<key>.tflock`).
 
 ### State Separation
 
