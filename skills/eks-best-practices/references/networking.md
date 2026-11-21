@@ -416,7 +416,7 @@ Security Groups for Pods assigns AWS security groups directly to individual pods
 | Mode | Behavior | Use When |
 |------|----------|----------|
 | **`strict`** (default) | Only branch ENI SG applies; SNAT disabled; all traffic leaves node via VPC | Complete pod-to-AWS isolation needed |
-| **`standard`** | Both node SG and branch ENI SG apply | Using with Network Policy, NodeLocal DNSCache, or need `externalTrafficPolicy: Local` |
+| **`standard`** | Both node SG and branch ENI SG apply; pod SG rules are not applied to traffic between pods, or between pods and services such as kubelet or NodeLocal DNSCache, on the same node | Using with Network Policy, NodeLocal DNSCache, or need `externalTrafficPolicy: Local` |
 
 **Strict mode impact:** All pod traffic — even pod-to-pod on the same node — traverses the VPC network. This increases VPC traffic and breaks NodeLocal DNSCache.
 
