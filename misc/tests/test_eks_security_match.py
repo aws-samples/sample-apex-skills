@@ -452,6 +452,25 @@ class RenderReport(TmpCase):
                               "managed_by": "customer", "where": ["cluster"], "readable": True, "reason": None}]
         return fd, inv
 
+    def test_lone_surrogate_keeps_the_report(self):
+        fd, inv = self.fixture()
+        fd["findings"][1]["reason"] = "x\ud800y"
+        self.write("report.md", "previous report\n")
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)
+        for text in (md, ht):
+            self.assertIn("x?y", text)
+
+    def test_pct_infinite_or_huge_is_unknown(self):
+        import render_report
+        for v in (float("inf"), "1e308", "Infinity"):
+            self.assertEqual(render_report.pct(v), "unknown")
+        fd, inv = self.fixture()
+        fd["coverage"]["ratio"], fd["coverage"]["gate"] = float("inf"), 1e308
+        rc, md, ht, log = self.render(fd, inv)
+        self.assertEqual(rc, 0, log)  # the fixture's coverage is complete, so the gate passes
+        self.assertIn("(unknown, gate unknown)", md)
+
     def test_html_escaped_once(self):
         fd, inv = self.fixture()
         rc, md, ht, log = self.render(fd, inv)
