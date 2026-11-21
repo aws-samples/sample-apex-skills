@@ -27,9 +27,10 @@ This document provides detailed CI/CD workflow templates and optimization strate
 
 1. [GitHub Actions Workflow](#github-actions-workflow)
 2. [GitLab CI Template](#gitlab-ci-template)
-3. [Cost Optimization](#cost-optimization)
-4. [Automated Cleanup](#automated-cleanup)
-5. [Best Practices](#best-practices)
+3. [Azure DevOps Pipeline](#azure-devops-pipeline)
+4. [Cost Optimization](#cost-optimization)
+5. [Automated Cleanup](#automated-cleanup)
+6. [Best Practices](#best-practices)
 
 ---
 
@@ -50,8 +51,8 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Terraform Format
         run: terraform fmt -check -recursive
@@ -62,9 +63,9 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
         with:
-          tflint_version: v0.50.3
+          tflint_version: v0.66.0
       - name: TFLint Init
         run: tflint --init
       - name: TFLint
@@ -74,15 +75,18 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        run: terraform init -backend=false
 
       - name: Run Terraform Tests
         run: terraform test
 
       # Or for Terratest:
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: 'stable'
 
@@ -95,8 +99,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Terraform Init
         run: terraform init
@@ -105,7 +109,7 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Upload Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan
           path: tfplan
@@ -116,11 +120,11 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Download Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan
 
@@ -134,29 +138,32 @@ jobs:
 ### With Cost Estimation (Infracost)
 
 ```yaml
+  # Job-level permissions: pull-requests: write (to post the PR comment)
   cost-estimate:
-    needs: plan
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          path: head
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
 
-      - name: Setup Infracost
-        uses: infracost/actions/setup@v2
+      - name: Diff cost and post PR comment
+        uses: infracost/actions/diff@v5
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Generate Cost Estimate
-        run: |
-          infracost breakdown --path . \
-            --format json \
-            --out-file /tmp/infracost.json
-
-      - name: Post Cost Comment
-        uses: infracost/actions/comment@v1
-        with:
-          path: /tmp/infracost.json
-          behavior: update
+          base-path: base
+          head-path: head
 ```
+
+- ✅ Use `infracost/actions/diff@v5` (PR comment) or `scan@v5` (push to main); both run in Docker, so use Linux runners
+- ❌ `infracost/actions/comment@v1` no longer exists; `setup@*` + `infracost breakdown` + `infracost comment` is the legacy flow
 
 ---
 
@@ -174,7 +181,9 @@ variables:
   TF_ROOT: ${CI_PROJECT_DIR}
 
 .terraform_template:
-  image: hashicorp/terraform:latest
+  image:
+    name: hashicorp/terraform:1.17  # pin minor, never :latest
+    entrypoint: [""]  # image ENTRYPOINT is /bin/terraform; GitLab needs a shell
   before_script:
     - cd ${TF_ROOT}
     - terraform init
@@ -224,6 +233,111 @@ apply:
 
 ---
 
+## Azure DevOps Pipeline
+
+### Azure DevOps Auth Options
+
+Auth: Azure Resource Manager service connection with workload identity federation (WIF), no client secret.
+
+| Goal | Use | Tradeoff |
+|------|-----|----------|
+| Default | App registration WIF connection + azurerm request-token env vars (below) | Federated assertion valid about 1 hour; longer runs fail with `AADSTS700024` |
+| Plan/apply runs over 1 hour | WIF connection backed by a user-assigned managed identity | Managed identity tokens last about 24 hours; identity to manage |
+| Avoid | `addSpnToEnvironment` + `ARM_OIDC_TOKEN=$idToken` | Static token captured once at task start |
+
+### azure-pipelines.yml
+
+```yaml
+# azure-pipelines.yml
+trigger:
+  branches:
+    include: [main]
+
+variables:
+  TF_VERSION: 1.17.2
+  ARM_SUBSCRIPTION_ID: 00000000-0000-0000-0000-000000000000 # non-secret vars reach steps as env vars
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: plan
+    jobs:
+      - job: plan
+        steps:
+          - script: |
+              curl -fsSLo tf.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+              sudo unzip -o tf.zip terraform -d /usr/local/bin
+            displayName: Install Terraform
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: sc-prod-wif # literal name; service connections cannot come from variables
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                # AzureCLI@2 exports AZURESUBSCRIPTION_* for WIF connections
+                export ARM_CLIENT_ID="$AZURESUBSCRIPTION_CLIENT_ID" ARM_TENANT_ID="$AZURESUBSCRIPTION_TENANT_ID"
+                export ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID="$AZURESUBSCRIPTION_SERVICE_CONNECTION_ID"
+                terraform init -input=false
+                terraform plan -input=false -out=tfplan
+            env: # read by the azurerm provider AND the azurerm backend
+              ARM_USE_OIDC: 'true'
+              ARM_USE_AZUREAD: 'true' # backend: Entra ID auth to the blob data plane
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken) # secrets reach env only when mapped
+              SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)/tfplan
+              artifact: tfplan
+
+  - stage: apply
+    dependsOn: plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: apply
+        environment: prod # approvals and checks are configured on this environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self # deployment jobs do not clone the repo
+                - download: current # only this artifact; lands in $(Pipeline.Workspace)/tfplan/
+                  artifact: tfplan
+                - script: |
+                    curl -fsSLo tf.zip "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip"
+                    sudo unzip -o tf.zip terraform -d /usr/local/bin
+                  displayName: Install Terraform
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: sc-prod-wif
+                    workingDirectory: $(Build.SourcesDirectory) # the checked-out root module
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      set -euo pipefail
+                      export ARM_CLIENT_ID="$AZURESUBSCRIPTION_CLIENT_ID" ARM_TENANT_ID="$AZURESUBSCRIPTION_TENANT_ID"
+                      export ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID="$AZURESUBSCRIPTION_SERVICE_CONNECTION_ID"
+                      terraform init -input=false
+                      terraform apply -input=false "$(Pipeline.Workspace)/tfplan/tfplan"
+                  env:
+                    ARM_USE_OIDC: 'true'
+                    ARM_USE_AZUREAD: 'true'
+                    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+                    SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)
+```
+
+### Azure DevOps Rules
+
+- ✅ Set `ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID`; without it azurerm falls back to the GitHub OIDC authorizer
+- ✅ Configure approvals on the environment (Pipelines > Environments > Approvals and checks); YAML editors cannot change checks
+- ✅ Authorize each pipeline on the service connection; avoid "Grant access permission to all pipelines"
+- ✅ Treat the `tfplan` artifact as secret: saved plans store sensitive values in cleartext
+- ❌ `terraform plan` in the apply stage; apply the reviewed artifact
+- ❌ `ARM_CLIENT_SECRET` in a variable group; convert the connection to WIF
+
+---
+
 ## Cost Optimization
 
 ### Strategy
@@ -240,8 +354,13 @@ apply:
 test:
   runs-on: ubuntu-latest
   steps:
+    - uses: actions/checkout@v7
+    - uses: hashicorp/setup-terraform@v4
+
     - name: Run Unit Tests (Mocked)
-      run: terraform test
+      run: |
+        terraform init -backend=false
+        terraform test
 
     - name: Run Integration Tests
       if: github.ref == 'refs/heads/main'
@@ -322,10 +441,10 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_CLEANUP_ROLE_ARN }}
           aws-region: us-east-1
@@ -406,17 +525,18 @@ terraform {
 jobs:
   plan:
     runs-on: ubuntu-latest
-    env:
-      TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugin-cache
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
 
+      # job-level `env` cannot read the `runner` context; export via GITHUB_ENV
       - name: Create plugin cache dir
-        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+        run: |
+          echo "TF_PLUGIN_CACHE_DIR=$RUNNER_TEMP/terraform-plugin-cache" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/terraform-plugin-cache"
 
       - name: Cache Terraform Plugins
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/terraform-plugin-cache
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
@@ -431,16 +551,16 @@ jobs:
 security-scan:
   runs-on: ubuntu-latest
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Run Trivy
-      uses: aquasecurity/trivy-action@0.29.0
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
       with:
         scan-type: 'config'
         scan-ref: '.'
 
     - name: Run Checkov
-      uses: bridgecrewio/checkov-action@v12.2.0
+      uses: bridgecrewio/checkov-action@v12
       with:
         directory: .
         framework: terraform
@@ -454,11 +574,13 @@ security-scan:
 | GitHub Actions → Azure AD | `api://AzureADTokenExchange` | `repo:<org>/<repo>:environment:<env>` |
 | GitHub Actions → GCP | value passed via `audience` parameter | repo + ref or environment |
 | GitLab CI → AWS | matches `$CI_SERVER_URL` | project path + ref |
+| Azure DevOps → Azure (Entra ID) | `api://AzureADTokenExchange` | one federated credential per service connection. New connections: issuer `https://login.microsoftonline.com/<tenant-id>/v2.0`, subject `<entra-prefix>/sc/<org-id>/<service-connection-id>`. Legacy: issuer `https://vstoken.dev.azure.com/<org-id>`, subject `sc://<org>/<project>/<service-connection-name>` (issuer retires 2027-07-01) |
 
-Use keyless OIDC for all three clouds (AWS OIDC / Azure federated credentials / GCP Workload Identity Federation). Static keys only if OIDC is unavailable (non-OIDC CI / self-hosted runners) - prefer keyless.
+Use keyless OIDC for all three clouds (AWS OIDC / Azure federated credentials / GCP Workload Identity Federation); in Azure DevOps use a workload identity federation service connection. Static keys only if OIDC is unavailable (non-OIDC CI / self-hosted runners) - prefer keyless.
 
 **Rules:**
 - ✅ pin `aud` to the exact value from the table
+- ✅ Azure DevOps: copy issuer, subject and audience exactly from the service connection edit dialog; renaming the org, project or a manually created connection breaks a `sc://` subject match
 - ✅ pin `sub` to a specific repo + branch or environment — no wildcards across org/repo
 - ❌ `sub` wildcards like `repo:*:*` or `repo:<org>/*:ref:*` let any repo assume the role
 - ❌ mismatched `aud` → token rejected with opaque error; fix `aud` per table, do not relax `sub`
@@ -466,12 +588,14 @@ Use keyless OIDC for all three clouds (AWS OIDC / Azure federated credentials / 
 ✅ DO — AWS IAM trust-policy `Condition` block (the only non-boilerplate fragment):
 
 ```json
-"Condition": {
-  "StringEquals": {
-    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-  },
-  "StringLike": {
-    "token.actions.githubusercontent.com:sub": "repo:my-org/my-repo:ref:refs/heads/main"
+{
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+    },
+    "StringLike": {
+      "token.actions.githubusercontent.com:sub": "repo:my-org/my-repo:ref:refs/heads/main"
+    }
   }
 }
 ```
@@ -492,15 +616,16 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
       - run: terraform init
       - name: Plan (detect drift)
         id: plan
         run: terraform plan -detailed-exitcode -out=plan.bin
         continue-on-error: true
       - name: Alert on drift
-        if: steps.plan.outcome == 'failure' && steps.plan.outputs.exitcode == '2'
+        # setup-terraform's wrapper treats exit 2 as success, so check exitcode, not outcome
+        if: steps.plan.outputs.exitcode == '2'
         run: |
           echo "Drift detected. Requires human review before apply."
           # send to Slack / PagerDuty / issue tracker
@@ -515,7 +640,7 @@ jobs:
   reconcile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: terraform apply -auto-approve
 ```
 
@@ -533,7 +658,7 @@ projects:
   - name: production
     dir: environments/prod
     workspace: default
-    terraform_version: 1.12.0
+    terraform_version: 1.17.2
     workflow: custom
 
 workflows:
@@ -568,12 +693,12 @@ workflows:
 ```hcl
 # versions.tf - Pin versions
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = "~> 1.17"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
   }
 }
@@ -603,8 +728,10 @@ Common model mistakes to correct before returning pipeline recommendations:
 - re-runs `terraform plan` inside the apply job instead of consuming the reviewed plan artifact from the plan stage
 - omits environment protection / approval gates on production apply
 - uses unpinned provider versions, causing drift between local and CI runs
+- copies CI action/task versions from memory (`actions/checkout@v4`, `@master`, `:latest` images) - look up the current release; pin third-party actions to a commit SHA, first-party (`actions/*`) to at least a major tag
 - skips the policy/security stage despite the pipeline claiming compliance
 - grants CI long-lived static cloud credentials instead of OIDC / workload-identity federation
+- stores a service principal client secret (`ARM_CLIENT_SECRET`) in an Azure DevOps variable group instead of using a workload identity federation service connection
 - writes OIDC trust policies with wildcard `sub` claims (`repo:*:*`, `repo:<org>/*:ref:*`) — any repo or branch can assume the role
 - mismatches the `aud` claim between CI platform and cloud provider, then relaxes `sub` to "fix" the resulting error
 - implements scheduled "drift detection" as `terraform apply -auto-approve` on cron — silently reverts out-of-band changes; use `plan -detailed-exitcode` + alert

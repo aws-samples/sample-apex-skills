@@ -131,7 +131,7 @@ terraform {
 - Existing infrastructure already using DynamoDB
 - Need DynamoDB for other purposes
 
-**Migration note:** Existing setups using DynamoDB will continue to work. The `use_lockfile` option is opt-in.
+**Migration note:** `dynamodb_table` is deprecated since Terraform 1.11 (`init` warns "Deprecated Parameter"). It still works. Migrate: set `use_lockfile = true` alongside `dynamodb_table` (both locks are taken), and remove `dynamodb_table` only after every client and pipeline uses `use_lockfile`.
 
 **Backend infrastructure setup (Terraform 1.10+ with lock-file):**
 
@@ -287,10 +287,36 @@ resource "azurerm_storage_account" "terraform_state" {
 
 resource "azurerm_storage_container" "terraform_state" {
   name                  = "tfstate"
-  storage_account_name  = azurerm_storage_account.terraform_state.name
+  storage_account_id    = azurerm_storage_account.terraform_state.id # azurerm 4.9+
   container_access_type = "private"
 }
 ```
+
+### Azure Subscriptions as State Boundaries
+
+| Boundary | Use for | Tradeoff |
+|----------|---------|----------|
+| Subscription | environment split (prod / non-prod), RBAC scope | one state per subscription per environment; cross-subscription reads via `terraform_remote_state` |
+| Resource group | one workload or component inside a subscription | inherits role assignments made at subscription scope |
+| State file (`key`) | one root module per component per environment | smallest blast radius; more backends to wire |
+
+```hcl
+provider "azurerm" {
+  features {}
+  subscription_id = var.subscription_id # required on azurerm 4.0+ (or ARM_SUBSCRIPTION_ID)
+}
+
+provider "azurerm" {
+  alias           = "connectivity" # second subscription in the same root
+  features {}
+  subscription_id = var.connectivity_subscription_id
+}
+```
+
+- ✅ Set `subscription_id` explicitly per provider block; azurerm 4.0+ errors without it or `ARM_SUBSCRIPTION_ID`
+- ❌ Relying on the active `az` CLI subscription (read since azurerm 4.60.0) in CI: the login context picks the target
+- ✅ Encode subscription and environment in `key`: `<subscription>/<env>/<component>.tfstate`
+- ✅ Backend `subscription_id` is only needed for access-key lookup or `lookup_blob_endpoint`; with `use_azuread_auth = true` omit it
 
 ### Google Cloud Storage Backend
 
@@ -418,7 +444,7 @@ terraform {
 # Pass sensitive config at init time
 terraform init \
   -backend-config="key=prod/vpc/terraform.tfstate" \
-  -backend-config="dynamodb_table=terraform-state-lock"
+  -backend-config="use_lockfile=true"
 
 # Or use a file
 terraform init -backend-config=backend-prod.hcl
@@ -589,20 +615,18 @@ git commit -m "Force-unlocked state after CI job termination"
 
 Lock timeout in Terraform Cloud is configured through workspace settings in the Terraform Cloud UI under "General Settings" → "Remote Operations" → "Lock Timeout". It cannot be configured through the `cloud` block in Terraform code.
 
-**For other backends, implement timeout in automation:**
+**Every backend with locking: wait for the lock with `-lock-timeout`:**
 
 ```bash
 #!/bin/bash
-# wrapper-script.sh
-LOCK_TIMEOUT=300  # 5 minutes
+set -euo pipefail
+LOCK_TIMEOUT=5m
 
-timeout $LOCK_TIMEOUT terraform apply -auto-approve
-
-if [ $? -eq 124 ]; then
-  echo "Terraform timed out - likely lock held"
-  exit 1
-fi
+terraform plan  -lock-timeout="$LOCK_TIMEOUT" -out=tfplan
+terraform apply -lock-timeout="$LOCK_TIMEOUT" tfplan
 ```
+
+- ❌ Never wrap `apply` in `timeout`: it kills an apply that already holds the lock and leaves resources tainted
 
 ### State Locking in CI/CD
 
@@ -670,8 +694,9 @@ terraform {
 
 **Enforce TLS-only access:**
 
+S3 bucket policy:
+
 ```json
-// S3 bucket policy
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -1148,7 +1173,7 @@ terraform state show aws_instance.web
 **Push state (upload):**
 
 ```bash
-# Restore from backup
+# Restore from backup (add -force if remote serial is higher; check lineage first)
 terraform state push terraform.tfstate.backup
 
 # DANGEROUS: Overwrites remote state
@@ -1221,7 +1246,13 @@ aws s3api get-object \
   terraform.tfstate.recovered
 
 # Step 2: Push recovered state
-terraform state push terraform.tfstate.recovered
+# Back up current state and confirm lineage matches before overwriting
+terraform state pull > pre-restore-backup.tfstate
+old=$(jq -er .lineage terraform.tfstate.recovered) && cur=$(jq -er .lineage pre-restore-backup.tfstate) \
+  && [ "$old" = "$cur" ] || { echo "lineage mismatch or unreadable state"; exit 1; }
+
+# -force required: the restored version has a lower serial than remote
+terraform state push -force terraform.tfstate.recovered
 
 # Step 3: Verify
 terraform plan
@@ -1515,7 +1546,13 @@ aws s3api get-object \
   --version-id PREVIOUS_VERSION \
   terraform.tfstate.restored
 
-terraform state push terraform.tfstate.restored
+# Back up current state and confirm lineage matches before overwriting
+terraform state pull > pre-restore-backup.tfstate
+old=$(jq -er .lineage terraform.tfstate.restored) && cur=$(jq -er .lineage pre-restore-backup.tfstate) \
+  && [ "$old" = "$cur" ] || { echo "lineage mismatch or unreadable state"; exit 1; }
+
+# -force required: the restored version has a lower serial than remote
+terraform state push -force terraform.tfstate.restored
 ```
 
 **B) Upgrade Terraform:**
@@ -1605,22 +1642,21 @@ Use concurrency controls instead of automatic force-unlock (see CI/CD section be
 **Solution 1: Use concurrency control**
 
 ```yaml
-# GitHub Actions
-concurrency:
-  group: terraform-${{ matrix.environment }}
-  cancel-in-progress: false
-
+# GitHub Actions - job-level: workflow-level concurrency cannot read `matrix`
 jobs:
   terraform:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         environment: [dev, staging, prod]
+    concurrency:
+      group: terraform-${{ matrix.environment }}
+      cancel-in-progress: false
 ```
 
 **Solution 2: Separate state per branch/PR**
 
-```bash
+```hcl
 # backend.tf (partial configuration - key provided dynamically)
 terraform {
   backend "s3" {
@@ -1632,7 +1668,7 @@ terraform {
 }
 
 # In CI/CD workflow (e.g., GitHub Actions):
-# terraform init -backend-config="key=pr-${GITHUB_PR_NUMBER}/terraform.tfstate"
+# terraform init -backend-config="key=pr-${{ github.event.pull_request.number }}/terraform.tfstate"
 ```
 
 ### State Refresh and Reconciliation
