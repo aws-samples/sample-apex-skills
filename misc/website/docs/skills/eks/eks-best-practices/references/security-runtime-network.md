@@ -233,7 +233,7 @@ spec:
 
 | Use Case | Network Policy | SG for Pods |
 |----------|---------------|-------------|
-| **Pod-to-pod traffic** (east-west) | Primary tool | Enforced, but not the primary tool; same-node traffic is enforced on EKS Auto Mode and in VPC CNI `strict` mode (which routes it through the VPC), not in `standard` mode |
+| **Pod-to-pod traffic** (east-west) | Primary tool | Enforced, but not the primary tool; same-node traffic is enforced on EKS Auto Mode 1.36+ (its own `eks.amazonaws.com/v1` `SecurityGroupPolicy`; the `v1beta1` example above does not apply there) and in VPC CNI `strict` mode (which routes it through the VPC), not in `standard` mode |
 | **Pod-to-AWS-service** (RDS, ElastiCache) | Cannot target AWS resources | Primary tool |
 | **Reuse existing SG rules** | No | Yes — reuse EC2 SGs |
 | **Isolate pod from node traffic** | No | Yes (`strict` mode) |
@@ -266,7 +266,7 @@ References: [Container associations](https://docs.aws.amazon.com/network-firewal
 
 | Mode | Behavior | Use When |
 |------|----------|----------|
-| **`standard`** | Node SG and pod SG both apply | Using both NP and SG for Pods |
+| **`standard`** | Node SG and pod SG both apply (not to traffic between Pods on the same node) | Using both NP and SG for Pods |
 | **`strict`** | Only pod SG applies, fully isolated from node | Complete pod traffic isolation |
 
 You **must** use `standard` mode when combining Network Policy and Security Groups for Pods.
