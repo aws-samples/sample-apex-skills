@@ -57,9 +57,9 @@ Severity is determined by the `monthly_waste` value:
 | Monthly Waste | Severity | Description |
 |---------------|----------|-------------|
 | > $500/month | **CRITICAL** | Major cost inefficiency requiring immediate attention |
-| $200–$500/month | **HIGH** | Significant waste that should be addressed within days |
-| $50–$200/month | **MEDIUM** | Moderate waste worth addressing in the next sprint |
-| < $50/month | **LOW** | Minor inefficiency — address opportunistically |
+| > $200 to $500/month | **HIGH** | Significant waste that should be addressed within days |
+| > $50 to $200/month | **MEDIUM** | Moderate waste worth addressing in the next sprint |
+| $50 or less/month | **LOW** | Minor inefficiency — address opportunistically |
 
 ### Severity Assignment Rules
 
@@ -87,7 +87,7 @@ Finding types are organized by dimension. Each type maps to a specific cost inef
 
 | Type | Description | Typical Severity |
 |------|-------------|-----------------|
-| `spot_opportunity` | Stateless multi-replica workloads running exclusively on On-Demand | HIGH–CRITICAL |
+| `spot_opportunity` | Stateless multi-replica workloads running exclusively on On-Demand | LOW–CRITICAL (by savings) |
 | `graviton_opportunity` | x86 workloads with arm64-compatible images not using Graviton | MEDIUM–HIGH |
 | `low_instance_diversity` | Spot NodePools with insufficient instance type diversity | MEDIUM |
 | `missing_interruption_handling` | Spot nodes without Node Termination Handler or Karpenter interruption handling | MEDIUM |

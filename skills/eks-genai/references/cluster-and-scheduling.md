@@ -111,7 +111,7 @@ Leave inference pools on `WhenEmptyOrUnderutilized`. Do not blanket-apply the tr
 | **AWS Neuron device plugin** (DaemonSet) | `aws.amazon.com/neuroncore`, `aws.amazon.com/neurondevice` | ✅ Yes | ✅ Yes | Neuron workloads on Karpenter or Auto Mode |
 | **AWS Neuron DRA driver** (K8s 1.34+) | `ResourceClaim`-based allocation | ⚠️ **Static NodePools only** (no dynamic provisioning) | ❌ **Not supported** | Topology-aware NeuronCore allocation on Karpenter static-capacity NodePools, EKS managed node groups, or self-managed nodes |
 
-**Decision rule**: On **EKS Auto Mode**, use the **Neuron device plugin**. The DRA driver is **not supported** there. The Neuron DRA driver (K8s 1.34+) adds topology-aware allocation and per-workload Logical NeuronCore config, and is **supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes**. It does **not** drive dynamic Karpenter provisioning: nodes must already exist (static NodePool capacity or a managed/self-managed node group), so pair it with pre-provisioned capacity rather than expecting Karpenter to scale up against a `ResourceClaim`.
+**Decision rule**: On **EKS Auto Mode**, use the **Neuron device plugin**. The Neuron DRA driver is **not supported** there. The Neuron DRA driver (K8s 1.34+) adds topology-aware allocation and per-workload Logical NeuronCore config, and is **supported on Karpenter static-capacity NodePools, EKS managed node groups, and self-managed nodes**. It does **not** drive dynamic Karpenter provisioning: nodes must already exist (static NodePool capacity or a managed/self-managed node group), so pair it with pre-provisioned capacity rather than expecting Karpenter to scale up against a `ResourceClaim`.
 
 Reference: [Manage Neuron devices on Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/device-management-neuron.html)
 
@@ -122,6 +122,8 @@ On EKS Auto Mode (Kubernetes 1.34+), the NVIDIA driver and device plugin are **e
 - `gpu-operator`
 - `nvidia-device-plugin` DaemonSet
 - Any CUDA driver management
+
+From Kubernetes 1.36, Auto Mode also includes the NVIDIA DRA driver ([compute-hardware.md](compute-hardware.md)).
 
 The "install nvidia-device-plugin DaemonSet" step in most guides applies to **self-managed / standard EKS only**. Auto Mode also auto-enables **SOCI snapshotter** on G/P/Trn instance families — container images pull in parallel from local NVMe, slashing cold-start time for multi-GB model images.
 

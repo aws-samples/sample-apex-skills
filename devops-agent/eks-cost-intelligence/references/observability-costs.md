@@ -125,9 +125,9 @@ Savings from disabling unnecessary log types:
 | Estimated Monthly Waste | Severity |
 |-------------------------|----------|
 | > $500 (rare for single cluster, possible with audit) | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Remediation
 
