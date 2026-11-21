@@ -115,7 +115,7 @@ State this boundary when handing the environment over, and name **`ecs-security`
 The generated code conforms to the repository `terraform-skill`'s conventions — the same requirement the Windows sibling carries, for the same reason: a user who already has Terraform in the repository should not receive code in a foreign style.
 
 - **Read the conventions before generating.** If the terraform-skill files cannot be read, apply the [edge case](#the-terraform-skill-files-cannot-be-read) — report the gap and generate with conservative, documented defaults rather than silently improvising a style.
-- **Explicit versions**: `required_version` and the provider `version` constraint are always set, as a floor for Terraform (`>= 1.5`) and a bounded range for the AWS provider (`>= 5.60, < 7.0`); neither is minor-pinned.
+- **Explicit versions**: `required_version` and the provider `version` constraint are always set. The shipped asset's constraints are looser than the terraform-skill version table: a Terraform floor, and an AWS provider range across majors 5 and 6.
 - **Variables carry `description` and `type`**; defaults only where a default is genuinely safe.
 - **Outputs expose what the next step needs** — at minimum the ALB DNS name, the cluster name, and the service name, because [deploy-verify-handoff.md](deploy-verify-handoff.md) needs them for steady-state verification.
 - **No secrets in the code** — secret values arrive via task-definition `secrets` referencing SSM/Secrets Manager, never as literals or variable defaults.
@@ -304,7 +304,7 @@ Apply the [input variable rule](#unresolved-image-uri--input-variable-rule). Gen
 
 ### The terraform-skill files cannot be read
 
-Report the gap explicitly, then generate with conservative documented defaults (pinned versions, described variables, no secrets in code) and state that conventions conformance could not be verified against the repository's terraform-skill.
+Report the gap explicitly, then generate with conservative documented defaults (explicit version constraints, described variables, no secrets in code) and state that conventions conformance could not be verified against the repository's terraform-skill.
 
 ### terraform is not installed / init cannot fetch providers
 

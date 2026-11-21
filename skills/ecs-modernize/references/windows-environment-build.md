@@ -95,7 +95,7 @@ The generated Windows_Environment_Terraform conforms to at least the following (
 | **Output contract** | Always `description`; name as `{name}_{type}_{attribute}` (e.g. `service_name`, `alb_dns_name`); never a `this_` prefix; mark sensitive outputs |
 | **Naming** | Descriptive resource names (`aws_ecs_service.app`, not `aws_ecs_service.main`); reserve `this` for genuine singletons; prefix variables with context (`image_uri`, `alb_subnet_ids`, not `uri`, `subnets`) |
 | **File layout** | Standard files: `main.tf`, `variables.tf`, `outputs.tf`, `versions.tf` in the approved output directory |
-| **Version constraints** | `versions.tf` pins the runtime to a minor (`required_version = "~> 1.x.0"`, which allows only patch releases of that minor) and the AWS provider to a major (`version = "~> N.0"`), the strategies of the terraform-skill version-management table |
+| **Version constraints** | `versions.tf` pins the runtime to a minor (`required_version = "~> 1.x.0"`) and the AWS provider to a major (`version = "~> N.0"`), the strategies of the terraform-skill version-management table |
 | **`count` vs `for_each`** | Boolean toggles use `count = condition ? 1 : 0`; keyed collections use `for_each`; never a list index as long-lived identity |
 | **Secrets** | No secret values in variables, defaults, or state-bound arguments — task `secrets` entries reference SSM Parameter Store / Secrets Manager ARNs, mirroring the Containerization_Artifact's config intake method. Credential values never appear in the generated files (the all-phases non-disclosure invariant of [SKILL.md](../SKILL.md)) |
 
@@ -174,7 +174,7 @@ Application Load Balancer, target group, and listener fronting the service:
 | `<dest>/main.tf` | Cluster + capacity (per the approved option), task definition with the Windows `runtime_platform`, service, ALB/target group/listener, IAM roles, log group |
 | `<dest>/variables.tf` | Typed, described inputs — network identifiers, sizing inputs, and `image_uri` (variable form per the unresolved rule when applicable) |
 | `<dest>/outputs.tf` | Described outputs (e.g. `alb_dns_name`, `service_name`, `cluster_arn`) |
-| `<dest>/versions.tf` | `required_version` (minor-pinned, `~> 1.x.0`) + `required_providers` (major-pinned AWS provider) |
+| `<dest>/versions.tf` | `required_version` (minor-pinned) + `required_providers` (major-pinned AWS provider) |
 
 ### As-shipped security posture (disclose at hand-off)
 
