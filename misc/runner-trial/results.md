@@ -4,12 +4,104 @@ Repo line cites are at commit 7efa0776.
 
 ## Status
 
-No paid run has happened (cost-estimate.md: $43.12 to $141.13). The eval role in the separate eval account, the only AWS credential the runner hands a subject or grader (in T7 the C1 driver also hands the subject a cluster session, cases.md, T7), now exists, and no model call has been made on it yet (the subject runs as your OS user with bypassPermissions, so it can read, write and run anything your user can, the runner's environment included (and on an EC2 host, the instance role through the metadata endpoint unless that is blocked); run it as another OS user or in a container for a hard fence (misc/evals/README.md, Eval-role setup); the role's status: cases.md, Credentials and permissions); the runs wait on one proven end-to-end run. Until then, these sections hold that line, except the cost per pull request, which is estimated now:
+The trial ran in part on 2026-11-20 and 2026-11-21 and has not passed: score-sheet.md's pass needs every cell filled, and several read "cannot run" below. No runner is picked. The run outputs are kept on the operator's host, not in the repo; each figure below names its out dir and file.
 
-- Results per candidate (score-sheet.md S1 to S10): waits on one proven end-to-end run.
-- The runner pick, with its reasons from S2, S6 and S10: waits on one proven end-to-end run.
-- The eval gate's cost per pull request: estimated now, re-measured from S2, S6 and S10 after the runs: C1 claude harness $19.79 to $44.64 for a pull request that adds a skill, which runs with and without the skill (subject $16.19 to $30.24 plus 36 grader calls), and $23.55 to $50.42 for one that changes a skill, which runs it against its previous version (the old arm priced at the with-skill rate, as in cost-estimate.md: subject $19.95 to $36.02 plus 36 grader calls); C2 $11.01 to $25.58 for six cases (T5 cannot run; C1 without T5: $13.41 to $34.58); C3 adds $2.85 to $34.82 to the runner that drives the subject (72 judged evaluations, cost-estimate.md, C3). Each figure is one gate pass of the trial's cases (seven; six for C2 and for C1 without T5), three runs each, not of main's 93 task cases (misc/evals/*/evals.json at 528dde41, _template left out), and holds if the gate runs those cases on each pull request.
-- Spend against the estimate: $0 of $43.12 to $141.13.
+What stopped it, each needing an action only the maintainers can take:
+- The eval-role session could not be renewed: the sign-in behind profile `apex-eval-admin` refused the renewal at 07:53:31Z (the identity provider rejected the refresh as `used_too_late`), so the driver stopped at that renewal, as designed ("eval-role session refused or failed to refresh, stopping", `c1-full-stderr.txt`), and C2 stopped before its third suite. After a fresh sign-in they were re-run (Runs, below). That second sign-in was refused the same way at 11:58:00Z, about 2 h 10 min after it was made, before C1's T6 re-run (next item) could start; after a third sign-in at 04:14Z on 2026-11-21 it ran.
+- T6 (C1): ran on 2026-11-21, 6 of 6 runs, in a throwaway copy outside this branch whose runner allows nine more built-in skill names (Runs, below). In the 2026-11-20 re-run every run was invalid: the runner checks that a triggering run's system/init lists only the skill under test and its known built-in skills (misc/evals/scripts/run_triggering.py:99-107, :586-588), and Claude Code 2.1.328 lists nine more built-ins (deep-research, dataviz, verify, code-review, doctor, workflow-authoring, run, run-skill-generator, plugin-authoring), so all six runs read "error" (`c1-resume-20261120T1000Z/runs.jsonl`).
+- T7 (C1): ran, 6 of 6 runs on one minted session (Runs, below). No run read "mint it again", so no re-mint was needed.
+- T7 (C2): cannot run on this host. Given the same minted session as C1 (a temp kubeconfig and an `aws` shim carrying only that session), the subject still had no shell: `claude plugin eval` grants a shell tool only with a sandbox backend, which is not installed on the operator's host (Findings, below).
+- Codex: the eval role is refused `bedrock:InvokeModel` on the `us.openai.gpt-5.6-sol` inference profile (HTTP 401, `codex-t1-20261120T0730Z/T1/codex_with_skill/run-1/events.jsonl`). It needs a policy change in the eval account.
+- C3: the eval role is refused `bedrock-agentcore:Evaluate` (AccessDeniedException, `c3-onecall-20261120T0830Z/evaluate-stderr.txt`), so the one-call check of whether Evaluate scores spans never ingested (score-sheet.md) did not settle. It needs a policy change in the eval account.
+
+## Runs
+
+The gate: `CLAUDE_CODE_USE_BEDROCK=1 python3 misc/runner-trial/drive_c1.py --case T4 --paid --out <new dir> --spend-limit-usd 0.01` (cost-estimate.md, Gate) stopped after its first subject run, which recorded $0.5404 (`gate-20261120T0630Z/runs.jsonl:1`). The gate passed. That run failed T4's pass condition (below).
+
+C1, claude harness: one invocation, `--case T1` to `--case T6`, `--spend-limit-usd 95` (`c1-full-20261120T0700Z/runs.jsonl`, 21 runs; no summary.json, since the stop ends the invocation before it is written). Pass count, subject cost and wall time per arm:
+
+| Case | Arm | Pass | Subject cost | duration_ms per run |
+|---|---|---|---|---|
+| T1 | with_skill | 3/3 | $1.28 | 44160, 38835, 41760 |
+| T1 | without_skill | 3/3 | $0.41 | 21559, 22141, 20894 |
+| T1 | old_skill | 3/3 | $0.77 | 37784, 42917, 35228 |
+| T2 | with_skill | 3/3 | $3.03 | 137360, 117130, 192056 |
+| T2 | without_skill | 0/3 | $0.67 | 35373, 38983, 36158 |
+| T2 | old_skill | 0/3 | $2.36 | 88504, 108016, 98199 |
+| T3 | with_skill | 3/3 | $10.23 | 514210, 755148, 1023680 |
+| T4 | with_skill | 0/1 (gate run only) | $0.54 | 104001 |
+
+C1, the re-run after the fresh sign-in: one invocation, `--case T3` to `--case T6`, `--spend-limit-usd 70` (`c1-resume-20261120T1000Z/runs.jsonl` and `summary.json`, subject cost $30.618). The driver has no per-arm option, so T3's with-skill arm ran again. Per-arm cost is the difference of the driver's running "subject spend" line (`c1-resume-stderr.txt`).
+
+| Case | Arm | Pass | Subject cost | wall_seconds per run |
+|---|---|---|---|---|
+| T3 | with_skill | 2/3 | $7.27 | 434.4, 657.15, 515.43 |
+| T3 | without_skill | 0/3 | $2.84 | 158.87, 188.48, 182.93 |
+| T3 | old_skill | 1/3 | $5.57 | 568.79, 408.23, 288.13 |
+| T4 | with_skill | 0/3 | $1.45 | 128.07, 118.43, 126.47 |
+| T4 | without_skill | 0/3 | $0.51 | 35.67, 35.27, 35.69 |
+| T4 | old_skill | 0/3 | $1.70 | 97.85, 124.22, 734.98 |
+| T5 | with_skill | 0/3 | $5.68 | 423.06, 287.45, 368.77 |
+| T5 | without_skill | 1/3 | $5.60 | 234.09, 243.2, 203.22 |
+| T6 | with_skill_q3 | invalid, 0 of 3 ran (Status) | $0.00 | 5.29, 5.08, 4.87 |
+| T6 | with_skill_q18 | invalid, 0 of 3 ran (Status) | $0.00 | 61.35, 4.41, 44.59 |
+
+C1, T7 on its own: `--case T7 --paid --spend-limit-usd 15 --kubeconfig <read-only kubeconfig> --cluster-credentials <minted file>`, run right after one mint whose `expiration` printed as `2026-11-20T11:01:10+00:00`, the CLI's ISO form, which the driver parsed (`c1-t7-20261120T1003Z/runs.jsonl`, `summary.json`: subject cost $5.259). All six runs started inside that one session.
+
+| Case | Arm | Pass | Subject cost | wall_seconds per run |
+|---|---|---|---|---|
+| T7 | with_skill | 0/3 (grader 3/4 each) | $4.53 | 267.8, 250.66, 248.15 |
+| T7 | without_skill | 0/3 (grader 3/4 each) | $0.73 | 67.36, 54.56, 86.12 |
+
+C1, T6 on its own, 2026-11-21: a throwaway clone of 29eea21f with one change, the nine built-in names above added to run_triggering.py's list of known built-ins (a 10-line patch, not in this branch), run as `CLAUDE_CODE_USE_BEDROCK=1 python3 -B misc/runner-trial/drive_c1.py --case T6 --paid --spend-limit-usd 5` on Claude Code 2.1.328 (`c1-t6-rerun-20261121T0523Z/runs.jsonl` and `summary.json`, `both_queries` 2/3). No triggering run records a cost (cost-estimate.md, T6), so summary.json's subject cost reads $0.0.
+
+| Case | Arm | Pass | Subject cost | wall_seconds per run |
+|---|---|---|---|---|
+| T6 | with_skill_q3 | 3/3 | not recorded | 5.39, 5.14, 5.23 |
+| T6 | with_skill_q18 | 2/3 (run 3 loaded the skill) | not recorded | 31.89, 35.9, 4.35 |
+
+Kiro, T1 with the skill, three runs by hand, graded by C1's grader: 3/3 (`kiro-t1-20261120T0715Z/runs.jsonl:1-3`). Each run had a new HOME holding only the skill at 7efa0776 in `~/.kiro/skills/` and a workspace holding only the three fixtures, run as `kiro-cli chat --no-interactive --output-format stream-json --trust-tools=fs_read --trust-workspace <prompt>`. Each run read the staged SKILL.md (its events.jsonl). `--trust-all-tools` was refused by the operator's permission check, so Kiro could read but not run the skill's offline scripts; its runs are narrower than C1's. Kiro bills to its own subscription, with no AWS charge.
+
+Codex, T1: cannot run (above); its first run stopped the arm, at no cost.
+
+C2, `claude plugin eval` 2.1.328, one wrapper per skill at 7efa0776, `--model global.anthropic.claude-opus-4-6-v1 --no-publish --ablation with-without --runs 3 --scaffold`, under one $60 ceiling across the calls (`c2-run-20261120T0820Z/c2-ledger.jsonl`):
+
+| Case | With | Without | Cost | Out file |
+|---|---|---|---|---|
+| T1 | 2/3 (two runs hit the 900 s case timeout; one of them still passed) | 3/3 | $2.36 | eks-security.json |
+| T4 | 0/3 | 1/3 | $2.39 | eks-upgrade-check.json |
+
+After the fresh sign-in, a second invocation of the same calls under a $40 ceiling (`c2-resume-20261120T1006Z/c2-ledger.jsonl`, $4.74), and T7 on its own under $10 with `-j 6` (`c2-t7-20261120T1012Z`, $6.76):
+
+| Case | With | Without | Cost | Out file |
+|---|---|---|---|---|
+| T2 | 2/3 | 0/3 | $3.37 | eks-recon.json |
+| T3 | cannot run: 0 of 3 started (no sandbox backend, Findings) | cannot run: 0 of 3 started | $0.02 | eks-build.json |
+| T6 q3 (should load the skill) | 3/3 | 3/3 | $1.35 (both queries) | eks-mcp-server.json |
+| T6 q18 (should not load it) | 3/3 | 2/3 (one 90 s timeout) | | eks-mcp-server.json |
+| T7 | cannot run: no shell (Findings), 0/3 | cannot run: no shell, 0/3 | $6.76 | eks-recon-t7.json |
+
+A first T4 call (`c2-20261120T0800Z/eks-upgrade-check.json`, $0.10) had every subject fail with "Could not load AWS credentials": `claude plugin eval` loads the user's Claude Code settings, and an AWS profile set there overrode the eval-role session; its judge calls may have run on that profile. The calls above ran with `CLAUDE_CONFIG_DIR` set to an empty dir, so no user setting applied.
+
+C3: cannot run (above).
+
+## Findings
+
+- **T4 fails on the skill at 7efa0776, on both runners.** The gate's run rated the cluster 87, GOOD, with "No blockers identified": it read the hard blocker for subnet IPs as the total over all subnets (3 + 12 = 15), not per subnet, so subnet-aaa with 3 IPs was a medium warning (`gate-20261120T0630Z/T4/with_skill/run-1/grading.json`). C2's three with-skill runs also failed T4's pass condition (0/3), and so did all nine C1 runs of the re-run, with the skill, without it and with v1.3.0 (`c1-resume-20261120T1000Z`). The case's pass rests on the EKS Best Practices Guide's five-IP rule per subnet (cases.md, T4); the skill's scoring text needs a fix.
+- **T7 fails on its IaC expectation in all six runs, with the skill and without.** Each grading.json fails only "The output identifies the IaC tool managing the cluster" (`c1-t7-20261120T1003Z/T7/<arm>/run-<n>/grading.json`). T7's prompt (misc/evals/eks-recon/evals.json, id 1) asks the skill to "focus on version info, compute strategy, and addon inventory", and the with-skill runs ran only those modules, reporting `iac` as not in scope. The case's prompt and its fourth expectation disagree; the expectations still carry "TODO: human review". The other three expectations passed in every run.
+- **C2 gives no shell on a host without a sandbox backend.** A call that grants Bash refuses each run before it starts ("Refusing to start without a working sandbox", bubblewrap and socat not installed), and a call that grants only pattern-scoped Bash rules (`Bash(kubectl get:*)` and the like) runs with no shell at all: T7's six C2 runs ($6.76, `c2-t7-20261120T1012Z/eks-recon-t7.json`) made no Bash call: five reported "No shell execution or MCP tools available", the sixth listed the commands for the user to run, and each scored 0 of 4. So T3 and T7 cannot run on C2 on this host until a sandbox backend is installed.
+- **C1's list of built-in skills is behind Claude Code 2.1.328.** On the shipped list every T6 run is invalid (Status); with the nine names added, all six run. C1 needs that list kept in step with the CLI, or read from it.
+- **T6's near-miss negative loaded eks-mcp-server in one of three C1 runs** (q18 run 3); in C2's with-skill arm it loaded in none of three.
+- **T1 passes without the skill** on both runners (C1 3/3, C2 3/3), so T1's single pass condition does not separate the arms.
+- **T2 separates the arms**: with the skill 3/3, without 0/3, and the v1.3.0 skill 0/3 on C1; with 2/3, without 0/3 on C2.
+- **T5 fails as written on C1.** No run called AskUserQuestion, so the runner gave no second turn in five of six runs ("result events 1"): the with-skill runs wrote the whole project in one turn, and one ended on a plain-text question, which the runner cannot answer (cases.md, T5). The one pass is a without-skill run that went to five result events.
+- **T3's cost is above its basis**: $2.20 to $4.48 per with-skill run over both invocations against the measured $0.831 to $1.211 (cost-estimate.md, Per-run basis). Re-stated at the highest measured run, T3 is about $30 against $10.32, and the total stays under the $205 budget. T1's runs ($0.135 to $0.472) sit inside its assumed $0.30 to $0.80 or below it; T4's one run ($0.54) is above its $0.309.
+
+## Spend
+
+$71.51 recorded: before the fresh sign-in $24.14 (the gate $0.5404, C1 $18.7426 subjects only, C2 $4.8527 subjects and judge, the $0.10 first call included); after it, C1 $30.618 (T3 to T6) and $5.259 (T7), C2 $4.7413 and $6.7557 (T7). Codex and C3 $0. Grader calls record no cost: 28 were made (C1's 9 on T1, 9 on T4 and 6 on T7, the gate's 1, Kiro's 3), at the assumed $0.10 to $0.40 each, $2.80 to $11.20. The 2026-11-21 T6 re-run records no cost either: 6 query runs at the assumed $0.05 to $0.30 each, $0.30 to $1.80 (cost-estimate.md, T6). So at most $84.51 of the $205 budget.
+
+- The eval gate's cost per pull request: estimated, not yet re-measured: C1 claude harness $19.79 to $44.64 for a pull request that adds a skill, which runs with and without the skill (subject $16.19 to $30.24 plus 36 grader calls), and $23.55 to $50.42 for one that changes a skill, which runs it against its previous version (the old arm priced at the with-skill rate, as in cost-estimate.md: subject $19.95 to $36.02 plus 36 grader calls); C2 $11.01 to $25.58 for six cases (T5 cannot run; C1 without T5: $13.41 to $34.58); C3 adds $2.85 to $34.82 to the runner that drives the subject (72 judged evaluations, cost-estimate.md, C3). Each figure is one gate pass of the trial's cases (seven; six for C2 and for C1 without T5), three runs each, not of main's 93 task cases (misc/evals/*/evals.json at 528dde41, _template left out), and holds if the gate runs those cases on each pull request.
 
 The shared prompt-injection case is not in this trial: it is its own eval piece (classes/apex-base/evals/injection/), built on the runner this trial picks.
 
