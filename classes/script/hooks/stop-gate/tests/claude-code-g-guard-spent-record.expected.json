@@ -1,0 +1,15 @@
+{
+  "exit": 0,
+  "stdout_contains": "\"systemMessage\"",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "operator.stop-gate"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE": "true",
+    "APEX_STOP_GATE_RECORDS": "[{\"tool\": \"classes/script/scripts/validate_output.py\", \"skill_dir\": \"skills/eks-recon\", \"files\": [\"classes/script/hooks/stop-gate/tests/no-such-recon-report.yaml\"], \"cwd\": \".\"}]"
+  },
+  "timeout": 60
+}

@@ -54,13 +54,21 @@ headed as above, to plugins/apex/hooks/<class>/<hook>/<file>.py, and every
 entry is written into plugins/apex/hooks/hooks.json (Claude Code and Codex:
 python3 "${CLAUDE_PLUGIN_ROOT}/hooks/<class>/<hook>/<file>.py" --mode <mode>
 --id <id>) and plugins/apex/kiro/apex-hooks.json (Kiro: the command with
-__APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). A Stop command
+__APEX_HOOKS_DIR__ and no --id, and the entry's `enabled`). An entry's
+optional `kiro_timeout` (whole seconds, at least 30) is written as the Kiro
+hook's `timeout` and passed to its command as --kiro-timeout <n> (no upper
+bound is checked: above 2147488 the Stop gate's wait overflows, it exits 3
+and the turn ends unchecked); with none, the Kiro hook has no `timeout`. The sync does
+not check that the script takes --kiro-timeout: one that does not exits 2 at
+its own argument parse, and a Stop command's ` || exit 3` then makes it 3,
+which fails closed. A Stop command
 ends ` || exit 3` and has no matcher. Entries go in class folder order, then
 file order. Codex keys a user's saved per-hook disables by position, so a
 new class that sorts earlier shifts them onto other hooks, and a shifted
 hook's saved trust no longer matches it, so Codex reads it as modified, not
 trusted. An entry with a
-missing or malformed field, a mode its script does not accept (the choices
+missing or malformed field, a `kiro_timeout` that is not a whole number of
+seconds of at least 30, a mode its script does not accept (the choices
 of the script's one add_argument("--mode", choices=[...]) call, read from
 its source; a script where they cannot be read is refused too), a script
 without one add_argument("--id") call that is not required (the sync reads only
@@ -738,6 +746,8 @@ TOKEN = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]*\Z")
 PART = r"([A-Za-z0-9_][A-Za-z0-9._-]*)"
 HOOK_SCRIPT = re.compile(rf"(?:\.\./{PART}/)?hooks/{PART}/{PART}\.py\Z")
 STOP_TAIL = " || exit 3"
+# The smallest Kiro timeout an entry may set: the gate keeps 5 s of it for itself, so 30 leaves today's 25 s.
+KIRO_TIMEOUT_MIN = 30
 
 
 def script_modes(root, src):
@@ -790,6 +800,10 @@ def hook_entries(raw, classes, root):
                                 f"../<class>/hooks/<hook>/<file>.py, found {h.get('script')!r}")
             if not isinstance(h.get("enabled"), bool):
                 raise SyncError(f"{who}: enabled must be true or false, found {h.get('enabled')!r}")
+            kiro_timeout = h.get("kiro_timeout")
+            if kiro_timeout is not None and (type(kiro_timeout) is not int or kiro_timeout < KIRO_TIMEOUT_MIN):
+                raise SyncError(f"{who}: kiro_timeout must be a whole number of seconds, at least "
+                                f"{KIRO_TIMEOUT_MIN}, found {kiro_timeout!r}")
             matcher = None
             if h["event"] != "Stop":
                 ms = h.get("matchers")
@@ -818,7 +832,7 @@ def hook_entries(raw, classes, root):
                                 "so --check cannot tell their commands apart")
             ids[hid], keys[key], forms[form] = cls, hid, hid
             entries.append({"id": hid, "class": cls, "event": h["event"], "mode": h["mode"],
-                            "enabled": h["enabled"], "matcher": matcher, "src": src,
+                            "enabled": h["enabled"], "kiro_timeout": kiro_timeout, "matcher": matcher, "src": src,
                             "path": f"{rc}/{hook}/{fname}"})
     return entries
 
@@ -844,8 +858,12 @@ def hook_outputs(root, entries):
              "trigger": e["event"]}
         if e["matcher"]:
             k["matcher"] = e["matcher"]["kiro"]
+        kt = e["kiro_timeout"]
+        flag = f" --kiro-timeout {kt}" if kt is not None else ""
         k["action"] = {"type": "command",
-                       "command": f'python3 "__APEX_HOOKS_DIR__/{e["path"]}" --mode {e["mode"]}{tail}'}
+                       "command": f'python3 "__APEX_HOOKS_DIR__/{e["path"]}" --mode {e["mode"]}{flag}{tail}'}
+        if kt is not None:
+            k["timeout"] = kt
         k["enabled"] = e["enabled"]
         kiro.append(k)
     for path, doc in ((HOOKS_JSON, {"description": "generated from classes/*/class.yaml, do not edit",
