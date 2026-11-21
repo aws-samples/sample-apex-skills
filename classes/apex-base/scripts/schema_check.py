@@ -28,7 +28,9 @@ schema or document nested too deep). Nothing ever exits 0 on absent input.
 import argparse
 import json
 import os
+import re
 import sys
+import time
 
 
 class CheckError(Exception):
@@ -56,9 +58,26 @@ def _no_dup_pairs(pairs):
     out = {}
     for k, v in pairs:
         if k in out:
-            raise CheckError(f"duplicate key {k!r}")
+            raise CheckError("duplicate key in a JSON object")
         out[k] = v
     return out
+
+
+def _yaml_problem(e):
+    """Where the YAML fails to parse and why, without the document text PyYAML's
+    message quotes: its snippet is dropped, and each quoted span (a tag or alias
+    name) becomes '...'. The document may be hostile, and stderr is not wrapped."""
+    if isinstance(e, _yaml().reader.ReaderError):
+        return f"unacceptable character #x{e.character:04x} at position {e.position}"
+    parts = []
+    for what, mark in ((getattr(e, "context", None), getattr(e, "context_mark", None)),
+                       (getattr(e, "problem", None), getattr(e, "problem_mark", None))):
+        what = re.sub(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"", "'...'", what or "")
+        if mark is not None:
+            what = f"{what} at line {mark.line + 1}, column {mark.column + 1}".strip()
+        if what:
+            parts.append(what)
+    return ": ".join(parts) or type(e).__name__
 
 
 def loads(text, name="<input>", fmt=None):
@@ -89,7 +108,7 @@ def loads(text, name="<input>", fmt=None):
             except TypeError:
                 raise CheckError(f"unhashable key at line {knode.start_mark.line + 1}")
             if key in out:
-                raise CheckError(f"duplicate key {key!r} at line {knode.start_mark.line + 1}")
+                raise CheckError(f"duplicate key at line {knode.start_mark.line + 1}, column {knode.start_mark.column + 1}")
             out[key] = loader.construct_object(vnode, deep=deep)
         return out
 
@@ -99,7 +118,9 @@ def loads(text, name="<input>", fmt=None):
     except CheckError as e:
         raise CheckError(f"{name}: {e}")
     except yaml.YAMLError as e:
-        raise CheckError(f"{name}: not valid YAML: {e}")
+        raise CheckError(f"{name}: not valid YAML: {_yaml_problem(e)}")
+    except (ValueError, KeyError, TypeError, AttributeError) as e:
+        raise CheckError(f"{name}: not valid YAML: a value does not fit its tag ({type(e).__name__})")
     if doc is None:
         raise CheckError(f"{name}: empty document")
     return doc
@@ -125,17 +146,49 @@ def check_schema(schema):
 
 
 def validate(instance, schema):
-    """Return a list of 'path: message' errors; empty means valid.
+    """Return a list of 'path: fails <keyword> <schema value>' errors; empty means valid.
 
-    An anyOf or oneOf failure reports only "is not valid under any of the
-    given schemas", not the branch errors; no shipped schema uses either."""
+    Only schema text is printed, never the document's values or the string
+    keys it chose: a string key the document chose reads [key], and an int or
+    bool key prints as [n] (see _path). The document may be hostile, and only
+    validate_output.py wraps its stdout. A required failure names the missing schema keys. An
+    anyOf or oneOf failure reports only the keyword, not the branch errors; no
+    shipped schema uses either."""
     jsonschema, ref_errors = _jsonschema()
     validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
     try:
         errors = list(validator.iter_errors(instance))
     except ref_errors.Unresolvable as e:
         raise CheckError(f"schema: $ref does not resolve: {e}")
-    return sorted(f"{e.json_path}: {e.message}{_quote_hint(e)}" for e in errors)
+    lines = set()
+    for e in errors:
+        want = e.validator_value
+        if e.validator == "required":
+            want = [k for k in want if k not in e.instance]
+        lines.add(f"{_path(e)}: fails {e.validator} {json.dumps(want, default=str)}{_quote_hint(e)}")
+    return sorted(lines)
+
+
+def _path(e):
+    """Where the error is: $, then a key the schema declares under properties, an
+    array index as [n], and [key] for a string key the document chose, never its
+    name (an int or bool key prints as [n])."""
+    names, steps = [], iter(list(e.absolute_schema_path)[:-1])
+    for kw in steps:
+        if kw == "properties":
+            names.append(next(steps, None))
+        elif kw in ("patternProperties", "prefixItems"):
+            next(steps, None)
+            names.append(None)
+        elif kw in ("additionalProperties", "unevaluatedProperties", "items", "unevaluatedItems"):
+            names.append(None)
+        elif kw == "dependentSchemas":
+            next(steps, None)
+    where = list(e.absolute_path)
+    if len(names) != len(where):
+        names = [None] * len(where)
+    return "$" + "".join(f"[{p}]" if isinstance(p, int) else f".{p}" if p == n else "[key]"
+                         for p, n in zip(where, names))
 
 
 def _quote_hint(e):
@@ -154,8 +207,9 @@ def load_schema(path):
     return schema
 
 
-def check_files(schema_path, files, out=sys.stdout):
+def check_files(schema_path, files, out=None):
     """Validate each file; print one result line per file. Return the worst exit code."""
+    out = out if out is not None else sys.stdout
     schema = load_schema(schema_path)
     rc = 0
     for f in files:
@@ -213,6 +267,39 @@ def default_skill_dir(script_file):
     return cand if os.path.isfile(os.path.join(cand, "SKILL.md")) else None
 
 
+def record_run(script_file, skill_dir, files):
+    """Leave a run record for the operator Stop gate (classes/script/hooks/stop-gate/stop_gate.py).
+
+    The record names paths only, never a verdict: the gate re-runs the tool
+    itself, when it is one the gate runs (stop_gate.py stale() and tool_kind()). One JSON
+    file run-<ns>-<pid>.json in <root>/.apex-stop-gate/, root the nearest
+    folder at or above the working folder holding .git (else the working
+    folder). The tool writes only into an existing .apex-stop-gate folder
+    there, never through a link (the gate makes it at each Stop it runs with
+    its switch on); the gate ignores one that is not a real folder this user
+    owns with no group or other write bit, so no run recorded there is checked.
+    Best effort: an OSError is ignored. The gate's own re-run sets
+    APEX_STOP_GATE_RUN, and then no record is written."""
+    if os.environ.get("APEX_STOP_GATE_RUN"):
+        return
+    try:
+        cwd = os.getcwd()
+        root = cwd
+        while not os.path.exists(os.path.join(root, ".git")) and os.path.dirname(root) != root:
+            root = os.path.dirname(root)
+        if not os.path.exists(os.path.join(root, ".git")):
+            root = cwd
+        folder = os.path.join(root, ".apex-stop-gate")
+        if not os.path.isdir(folder) or os.path.islink(folder):
+            return
+        rec = {"tool": os.path.abspath(script_file), "skill_dir": os.path.abspath(skill_dir),
+               "files": [os.path.abspath(f) for f in files], "cwd": cwd, "time": time.time()}
+        with open(os.path.join(folder, f"run-{time.time_ns()}-{os.getpid()}.json"), "x", encoding="utf-8") as f:
+            json.dump(rec, f)
+    except OSError:
+        pass
+
+
 def run_declared(key, argv, script_file, inline_json=False):
     """CLI shared by validate_input.py and validate_output.py."""
     p = argparse.ArgumentParser(description=f"Check a document against the skill's metadata.{key} schema.")
@@ -238,6 +325,8 @@ def run_declared(key, argv, script_file, inline_json=False):
             return 1 if errors else 0
         if not args.files:
             raise CheckError("no input given")
+        if key == "apex-outputs":
+            record_run(script_file, skill_dir, args.files)
         return check_files(schema_path, args.files)
     except CheckError as e:
         print(f"cannot check: {e}", file=sys.stderr)

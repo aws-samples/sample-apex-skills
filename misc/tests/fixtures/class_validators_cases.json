@@ -769,7 +769,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.report: 'generated_at' is a required property"
+   "message": "$.report: fails required [\"generated_at\"]"
   },
   {
    "id": "V2",
@@ -782,7 +782,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.cluster.version: 1.31 is not of type 'string', 'null'"
+   "message": "$.cluster.version: fails type [\"string\", \"null\"] (YAML read it as float; quote it)"
   },
   {
    "id": "V2b",
@@ -792,7 +792,7 @@
     "generated_at: 2026-11-17T02:15:00Z"
    ],
    "expect": 1,
-   "message": "$.report.generated_at: datetime.datetime(2026, 11, 17, 2, 15, tzinfo=datetime.timezone.utc) is not of type 'string'"
+   "message": "$.report.generated_at: fails type \"string\" (YAML read it as datetime; quote it)"
   },
   {
    "id": "V2c",
@@ -805,7 +805,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.report.generated_at: 'yesterday' is not a 'date-time'"
+   "message": "$.report.generated_at: fails format \"date-time\""
   },
   {
    "id": "V3",
@@ -835,7 +835,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.storage: 'reason' is a required property"
+   "message": "$.storage: fails required [\"reason\"]"
   },
   {
    "id": "V4",
@@ -870,7 +870,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.workloads.ingresses: None is not of type 'object'"
+   "message": "$.workloads.ingresses: fails type \"object\""
   },
   {
    "id": "V4c",
@@ -909,7 +909,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.report: 'schema_revision' is a required property"
+   "message": "$.report: fails required [\"schema_revision\"]"
   },
   {
    "id": "V5b",
@@ -922,7 +922,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.report.schema_revision: 'eks-recon/2026-11-11' was expected"
+   "message": "$.report.schema_revision: fails const \"eks-recon/2026-11-11\""
   },
   {
    "id": "V7",
@@ -935,7 +935,7 @@
     }
    ],
    "expect": 1,
-   "message": "$: Additional properties are not allowed ('computer' was unexpected)"
+   "message": "$: fails additionalProperties false"
   },
   {
    "id": "V8",
@@ -947,7 +947,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.compute: 'karpenter' is a required property"
+   "message": "$.compute: fails required [\"karpenter\"]"
   },
   {
    "id": "V9",
@@ -959,7 +959,7 @@
     }
    ],
    "expect": 1,
-   "message": "$: 'cluster' is a required property"
+   "message": "$: fails required [\"cluster\"]"
   },
   {
    "id": "V10",
@@ -996,7 +996,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.compute.strategy: 42 is not of type 'string', 'null'"
+   "message": "$.compute.strategy: fails type [\"string\", \"null\"] (YAML read it as int; quote it)"
   },
   {
    "id": "V13",
@@ -1009,7 +1009,7 @@
     }
    ],
    "expect": 1,
-   "message": "$.workloads.deployments.count: 'seven' is not of type 'integer', 'null'"
+   "message": "$.workloads.deployments.count: fails type [\"integer\", \"null\"]"
   }
  ],
  "unreadable_outputs": [
@@ -1032,7 +1032,7 @@
    "what": "a duplicate key",
    "text": "report: {}\nreport: {}\n",
    "expect": 2,
-   "message": "duplicate key 'report'"
+   "message": "duplicate key at line 2, column 1"
   },
   {
    "id": "V6e",
@@ -1079,7 +1079,7 @@
     "cluster_name": "demo-cluster"
    },
    "expect": 1,
-   "message": "$: 'region' is a required property"
+   "message": "$: fails required [\"region\"]"
   },
   {
    "id": "I2",
@@ -1089,7 +1089,7 @@
     "region": "us-west-2"
    },
    "expect": 1,
-   "message": "$.cluster_name: '-demo' does not match"
+   "message": "$.cluster_name: fails pattern \"^[0-9A-Za-z][A-Za-z0-9_-]*$\""
   },
   {
    "id": "I3",
@@ -1100,7 +1100,7 @@
     "namespace": "shop"
    },
    "expect": 1,
-   "message": "$: Additional properties are not allowed ('namespace' was unexpected)"
+   "message": "$: fails additionalProperties false"
   },
   {
    "id": "I4",
@@ -1113,7 +1113,7 @@
     ]
    },
    "expect": 1,
-   "message": "is not one of"
+   "message": "$.modules[0]: fails enum ["
   },
   {
    "id": "I5",
@@ -1123,7 +1123,7 @@
     "region": ""
    },
    "expect": 1,
-   "message": "$.region: '' should be non-empty"
+   "message": "$.region: fails minLength 1"
   },
   {
    "id": "I6",
@@ -1250,7 +1250,7 @@
    ],
    "artifact": "V1",
    "expect": 1,
-   "message": "$.report: 'generated_at' is a required property"
+   "message": "$.report: fails required [\"generated_at\"]"
   },
   {
    "id": "O2",
