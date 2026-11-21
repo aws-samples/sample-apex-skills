@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       skill:
-        description: 'Run key to gate (empty: every run key with a runnable case)'
+        description: 'Run key to gate (empty: every run key, which no longer fits the job timeout; pass one key)'
         required: false
         default: ''
 

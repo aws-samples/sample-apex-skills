@@ -68,7 +68,7 @@ checks:
     run: "python3 classes/apex-base/checks/ab-link.py"
 
 # Model-backed evals, kept out of the CI checks list above. A record only:
-# no runner reads this list yet. Same fields.
+# no runner reads this list yet. Same fields; an eval's `run` carries its own placeholders.
 evals:
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
