@@ -452,7 +452,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
-- **EKS Auto Mode:** the VPC CNI `SecurityGroupPolicy` (`vpcresources.k8s.aws/v1beta1`) is not supported at any version. On 1.36+, Auto Mode has its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)); below 1.36, the only option is NodeClass `podSecurityGroupSelectorTerms` (set with `podSubnetSelectorTerms`; one SG set for every Pod on that NodeClass's nodes, applied to in-VPC traffic). (as of 2026-11-21)
+- **EKS Auto Mode:** the VPC CNI `SecurityGroupPolicy` (`vpcresources.k8s.aws/v1beta1`) does not apply to Auto Mode nodes at any version; it still applies to Pods on the cluster's non-Auto-Mode nodes (such as a managed node group), so keep those policies in a mixed cluster. On 1.36+, Auto Mode has its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)), and a Pod that can land on either kind of node needs a policy in each API group; below 1.36, the only option for Pods on Auto Mode nodes is NodeClass `podSecurityGroupSelectorTerms` (set with `podSubnetSelectorTerms`; one SG set for every Pod on that NodeClass's nodes, applied to in-VPC traffic by default). (as of 2026-11-21)
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 
