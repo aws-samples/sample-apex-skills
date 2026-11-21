@@ -2,8 +2,8 @@
 """Task-axis runner for misc/evals/ (PLAN §2).
 
 For each case in <skill>/evals.json and in the shared evals of the run key's
-classes (CLASS_TARGETS;
-skipping "live_only": true entries unless --include-live-only), for each
+classes (CLASS_TARGETS), skipping "live_only": true entries unless
+--include-live-only, for each
 arm in {with_skill, base arm}, for k in 1..--runs (default
 regression.pass_k). The base arm is base_skill, the skill as it was at
 --base-ref (default DEFAULT_BASE_REF), or without_skill when the skill is
