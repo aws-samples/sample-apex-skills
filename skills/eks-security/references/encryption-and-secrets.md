@@ -31,7 +31,7 @@ Kubernetes Secrets are stored in etcd as **base64-encoded** strings (not encrypt
 | **Sealed Secrets / SOPS** | Asymmetric encryption so encrypted secrets are safe in Git | GitOps where secrets live in the repo |
 | **Plain Kubernetes Secrets** | base64 in etcd (envelope-encrypted at rest on 1.28+) | **Not recommended alone for production** |
 
-Additional AWS-recommended secret hygiene: **mount secrets as volumes, not env vars** (env values leak into logs; volume mounts are tmpfs, removed on pod deletion); **separate namespaces** to isolate secrets across apps; **rotate** (Kubernetes doesn't auto-rotate, use an external store); **audit secret access** via the EKS audit log (e.g. a CloudWatch metric filter `{($.verb="get") && ($.objectRef.resource="secrets")}`, note the resource is **`secrets`** plural, matching the API path; the singular form silently matches nothing).
+Additional AWS-recommended secret hygiene: **mount secrets as volumes, not env vars** (env values leak into logs; volume mounts are tmpfs, removed on pod deletion); **separate namespaces** to isolate secrets across apps; **rotate** (Kubernetes doesn't auto-rotate, use an external store); **audit secret access** via the EKS audit log (e.g. a CloudWatch metric filter `{(($.verb="get") || ($.verb="list") || ($.verb="watch")) && ($.objectRef.resource="secrets")}`, note the resource is **`secrets`** plural, matching the API path; the singular form silently matches nothing).
 
 If a secret or credential leaks, follow [security-event-response.md](security-event-response.md) (scope who could read it, revoke and rotate).
 
