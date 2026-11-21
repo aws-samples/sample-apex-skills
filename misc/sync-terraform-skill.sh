@@ -13,7 +13,7 @@
 #   - references/*.md (progressive disclosure content referenced by SKILL.md)
 # and writes `.vendor-sha` (upstream HEAD).
 #
-# Everything else (README, CLAUDE.md, CONTRIBUTING.md, CHANGELOG.md,
+# Everything else (README, AGENTS.md, CONTRIBUTING.md, CHANGELOG.md,
 # tests/, .github/, .claude-plugin/) is left behind — those are repo
 # management files, not skill components.
 #
