@@ -2,7 +2,7 @@
 
 This file documents the differences between the Claude Code version and the DevOps Agent port. It is for maintainers, not for the agent to read during execution.
 
-> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-08 (compliance-fedramp.md added; port rebuilt for the three review capabilities on 2026-11-05; the knowledge references re-copied from upstream at that date).
+> **Staleness check:** the table below describes the upstream skill at a point in time and can drift as `skills/eks-security/` evolves. Re-verify each row against upstream when materially changing either copy, and update the date here. Last verified: 2026-11-19 (auto-mode-security.md and workload-security.md re-synced for the Auto Mode Security Groups for Pods review: mixed-cluster rule, node-local exceptions, cluster-role permission, and Sources/heading dates; 2026-11-18: Auto Mode reference and SKILL.md Auto Mode fit line re-synced for Security Groups for Pods on 1.36+; 2026-11-08: compliance-fedramp.md added; port rebuilt for the three review capabilities on 2026-11-05; the knowledge references re-copied from upstream at that date).
 
 ## Differences from Claude Code Version
 
