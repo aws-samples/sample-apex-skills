@@ -274,7 +274,7 @@ With no dimension assessed the cell reads **Score: not computed**.
 
 ### Idle Resources
 
-{Same structure as Compute Efficiency}
+{Same structure as Compute Efficiency}, then the line: Orphaned Secrets not checked: this assessment does not read Secrets.
 
 ---
 
