@@ -404,6 +404,7 @@ For add-ons not managed by EKS (ingress controllers, cert-manager, etc.):
 | **Audit log query** | CloudWatch Logs | Historical API usage |
 | **Pluto** | CLI tool | CI/CD pipeline integration |
 | **kube-no-trouble (kubent)** | CLI tool | Quick cluster scan |
+| **kube-upgrade-check** | CLI tool / kubectl plugin | Live cluster scan beyond APIs: add-ons, node skew, drain preflight |
 | **kubectl convert** | Built-in | Manual manifest conversion |
 
 ### Monitor Deprecated API Usage (Prometheus)
@@ -454,6 +455,22 @@ pluto detect-api-resources --target-versions k8s=v1.34
 sh -c "$(curl -sSL https://git.io/install-kubent)"
 kubent --target-version 1.34
 ```
+
+### Using kube-upgrade-check
+
+```bash
+# Install as a kubectl plugin
+kubectl krew install upgrade-check
+
+# Scan the live cluster: removed APIs, in-tree volume plugins, node runtime and kubelet skew,
+# add-on support for the target (CoreDNS, kube-proxy, Karpenter, ...), and drain-blocking PDBs
+kubectl upgrade-check --target 1.34
+
+# Gate a pipeline on severity
+kubectl upgrade-check --target 1.34 --fail-on high
+```
+
+kube-upgrade-check reads a live cluster only; it does not scan manifest files or Helm charts.
 
 Scanning static manifests is generally more accurate than live cluster scanning (fewer false positives). Run `kubent`/`pluto` in CI pipelines to catch issues before deployment.
 
