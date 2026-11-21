@@ -272,7 +272,7 @@ jobs:
         env:
           HARNESS: ${{ matrix.harness }}
         run: |
-          pip install 'pyyaml>=6,<7'
+          pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'
           # Pinned to the CLI versions the adapters and parsers were written
           # against. The grader is claude -p on every harness.
           npm install -g @anthropic-ai/claude-code@2.1.121

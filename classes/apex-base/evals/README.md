@@ -16,12 +16,12 @@ These cases test the apex-base rules that a text check cannot prove: a check fin
 - No skill is a member yet: no `SKILL.md` declares `metadata.apex-classes`. A skill joins apex-base in its own rebuild step. The runners do not read membership: they run the shared cases on every target in `CLASS_TARGETS`, whether or not it declares the class.
 - A model run needs the eval role (`misc/evals/README.md`, Eval-role setup).
 - The three repo-owned DevOps Agent copies (`devops-agent/eks-cost-intelligence/`, `devops-agent/eks-recon/` and `devops-agent/eks-security/`) block. Every other target, the owner-held skills and their DevOps Agent copies included, is report-only: a failed shared case does not fail it by itself, but its grader score counts in the key's pooled pass-rate delta, which fails the gate past `THRESHOLD` when the key has a runnable own case. A DevOps Agent copy runs under its own run key, `devops-agent-<name>`, since it shares its `skills/` twin's name. `dotnet-aws-ecs` is not a target.
-- With these cases the eval gate's run keys go from 16 to 32 and its runs from 534 to 1686 (pass_k 3, two arms). A full `gate-all` runs the keys one after another and no longer fits the job's 350 minutes, so dispatch the eval-gate job per key (`skill` input).
+- With these cases the eval gate's run keys go from 16 to 32 and its runs from 534 to 1686 (pass_k 3, two arms). A full `gate-all` runs the keys one after another and no longer fits the job's 350 minutes, so dispatch the eval-gate job per key (`skill` input, for example `gh workflow run evals.yml -f skill=<run key>`; `python3 misc/evals/scripts/run_task_evals.py --list-targets` prints the run keys).
 
 ## Files and ids
 
 - Each `evals.json` has the case shape of `misc/evals/<skill>/evals.json` (`evals[]` with `id`, `name`, `prompt`, `expectations`, `files` and the assertion fields). It has no `skill_name`: a shared case runs under the member's name.
-- A case's fixtures sit in `files/eval-<id>/` and will be staged into the run's sandbox root, so the prompts name them by file name only.
+- A case's fixtures sit in `files/eval-<id>/` and are staged into the run's sandbox root, so the prompts name them by file name only.
 - The ids are integers from 9001, so they never repeat a member's own ids, which are integers from 1. The runner keys each case's run folder and results by id, and the benchmark step sorts a run's ids, so a string id mixed with integer ids would break it.
 
 
@@ -35,7 +35,7 @@ These cases test the apex-base rules that a text check cannot prove: a check fin
   ```
   python3 misc/evals/scripts/run_triggering.py \
     --class apex-base \
-    --skill-path skills/<member> \
+    --skill-path <target folder> \
     --runs-per-query 3 \
     --trigger-threshold 0.01
   ```
