@@ -463,7 +463,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
-- **EKS Auto Mode** below Kubernetes 1.36: branch-ENI `SecurityGroupPolicy` is not supported; use NodeClass `podSecurityGroupSelectorTerms` (one SG set per NodeClass). On 1.36+, Auto Mode supports its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)).
+- **EKS Auto Mode:** the VPC CNI `SecurityGroupPolicy` (`vpcresources.k8s.aws/v1beta1`) is not supported at any version. On 1.36+, Auto Mode has its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)); below 1.36, the only option is NodeClass `podSecurityGroupSelectorTerms` (set with `podSubnetSelectorTerms`; one SG set for every Pod on that NodeClass's nodes, applied to in-VPC traffic). (as of 2026-11-21)
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 
@@ -558,3 +558,4 @@ node_sg_additional_rules:
 - [Amazon EKS User Guide — Control plane egress](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-egress.html)
 - [AWS EKS Best Practices Guide — IPv6](https://docs.aws.amazon.com/eks/latest/best-practices/ipv6.html)
 - [AWS EKS Best Practices Guide — Security Groups Per Pod](https://docs.aws.amazon.com/eks/latest/best-practices/sgpp.html)
+- [Amazon EKS User Guide: Assign security groups to individual Pods in EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)
