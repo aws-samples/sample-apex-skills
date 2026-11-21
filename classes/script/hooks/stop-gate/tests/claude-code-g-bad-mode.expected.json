@@ -1,0 +1,10 @@
+{
+  "exit": 2,
+  "args": [
+    "--mode",
+    "ask",
+    "--id",
+    "operator.stop-gate"
+  ],
+  "stderr_contains": "invalid choice"
+}

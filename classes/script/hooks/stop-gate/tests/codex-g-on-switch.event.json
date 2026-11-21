@@ -1,0 +1,11 @@
+{
+  "session_id": "s1",
+  "transcript_path": null,
+  "cwd": "/apex-stop-gate-fixture",
+  "hook_event_name": "Stop",
+  "model": "gpt-5",
+  "permission_mode": "default",
+  "turn_id": "t1",
+  "stop_hook_active": false,
+  "last_assistant_message": "Done."
+}

@@ -1,0 +1,14 @@
+{
+  "exit": 0,
+  "decision": "none",
+  "args": [
+    "--mode",
+    "block",
+    "--id",
+    "operator.stop-gate"
+  ],
+  "env": {
+    "CLAUDE_PLUGIN_OPTION_OPERATOR_STOP_GATE": "true"
+  },
+  "stderr_contains": "is not Stop"
+}
