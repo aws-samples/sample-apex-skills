@@ -1197,7 +1197,8 @@ def run_eval(
 # report-only: a failed shared case does not fail the key by itself (a task
 # case's grader score still counts in the key's pooled delta). They
 # are the 22 planned skills, the 4 skills their owners hold and the 3
-# devops-agent copies of owner-held skills. dotnet-aws-ecs is not a target.
+# devops-agent copies of owner-held skills. dotnet-aws-ecs is not a target
+# until its own rebuild.
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
