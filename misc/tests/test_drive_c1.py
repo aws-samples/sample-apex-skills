@@ -1,8 +1,9 @@
 """Tests for misc/runner-trial/drive_c1.py with the runner's functions mocked.
 
 No model call, no claude process, no cluster or AWS access. The driver's git
-reads are not mocked: the case text comes from git archive of drive_c1.PIN and
-the old arm's skill from drive_c1.OLD, so the clone must hold both commits.
+reads are not mocked: the case text comes from git archive of drive_c1.PIN
+(T4's from drive_c1.T4_PIN) and the old arm's skill from drive_c1.OLD, so the
+clone must hold all three commits.
 Run: python3 -B -m unittest misc.tests.test_drive_c1 -v
 """
 import contextlib
@@ -14,6 +15,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -31,9 +33,9 @@ def fake_runner(calls):
         run_dir = kw["run_dir"]
         (run_dir / "outputs").mkdir(parents=True, exist_ok=True)
         (run_dir / "transcript.md").write_text("t")
-        results = 2 if kw["elicitation"].turns else 1
-        (run_dir / "events.jsonl").write_text("\n".join(
-            json.dumps({"type": "result", "total_cost_usd": 0.25, "result": "Pattern 2a"}) for _ in range(results)) + "\n")
+        done = {"type": "result", "total_cost_usd": 0.25, "result": "Pattern 2a"}
+        events = [ASKED, done, {"type": "system", "subtype": "init"}, done] if kw["elicitation"].turns else [done]
+        (run_dir / "events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n")
         (run_dir / "timing.json").write_text(json.dumps(
             {"total_tokens": 10, "input_tokens": 4, "output_tokens": 6, "token_source": "modelUsage",
              "duration_ms": 1500, "total_duration_seconds": 1.5}))
@@ -61,6 +63,10 @@ def fake_runner(calls):
                            read_skill_meta=lambda d: (Path(d).name, "desc"), subject_timeout=lambda s: 600,
                            default_model=lambda: "test-model", EvalCredentialError=EvalCredentialError,
                            start_eval_session=lambda timeout, source: calls.append(("session", timeout)))
+
+
+ASKED = {"type": "assistant", "message": {"content": [
+    {"type": "tool_use", "id": "q1", "name": "AskUserQuestion", "input": {"questions": [{"question": "Which region?"}]}}]}}
 
 
 class EvalCredentialError(RuntimeError):
@@ -160,7 +166,7 @@ class OutputShape(unittest.TestCase):
         self.assertEqual(t6, {("with_skill_q3", True), ("with_skill_q18", True)})
         self.assertTrue(all(r["status"] == "cannot run" for r in recs if r["case"] == "T7"))
         self.assertEqual(summary["cases"]["T1"]["old_skill"], {"pass": 3, "ran": 3, "runs": 3, "statuses": ["ran"] * 3})
-        self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)
+        self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)   # a question, then the answer's turn
         self.assertEqual(calls[0], ("session", 600), "one eval-role session, minted first, for the longest timeout")
         self.assertEqual(sum(1 for name, _ in calls if name == "session"), 1)
         self.assertNotIn("grader_cost_usd", summary)
@@ -326,15 +332,18 @@ users:
 """
 
 
-def session():
-    return {"AccessKeyId": "ASIATEST", "SecretAccessKey": "s3cret", "SessionToken": "tok",
-            "Expiration": "2026-01-01T00:00:00Z"}
+def minted(left=3600, extra="", profile="cluster-ro"):
+    """A --cluster-credentials file body: the minted session, `left` seconds to expiry."""
+    import datetime
+    exp = datetime.datetime.fromtimestamp(time.time() + left, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return (f"[{profile}]\naws_access_key_id = ASIATEST\naws_secret_access_key = s3cret\n"
+            f"aws_session_token = tok\nexpiration = {exp}\n{extra}")
 
 
 class LiveSession(unittest.TestCase):
-    """T7: the subject gets a short cluster session, never the host's profile path."""
+    """T7: the subject gets the minted cluster session, never the host's profile path."""
 
-    def run_t7(self, assume, with_config=True, relative=False):
+    def run_t7(self, body=None, relative=False, between=None):
         seen, calls = [], []
         runner = fake_runner(calls)
         inner = runner.run_subject
@@ -352,6 +361,8 @@ class LiveSession(unittest.TestCase):
                 extra=dict(extra), shim=shim, shim_text=shim.read_text() if shim.exists() else None,
                 shim_mode=shim.stat().st_mode & 0o777 if shim.exists() else None,
                 bin_mode=shim.parent.stat().st_mode & 0o777 if shim.exists() else None, ran=ran))
+            if between is not None and len(seen) == 1:
+                creds.write_text(between)   # a re-mint after the first run
             return inner(**kw)
         runner.run_subject = run_subject
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
@@ -360,29 +371,31 @@ class LiveSession(unittest.TestCase):
             kc.write_text(HOST_KUBECONFIG % host_cfg)
             fake = Path(k) / "fakebin"
             fake.mkdir()
-            (fake / "aws").write_text('#!/bin/sh\necho "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} default=${AWS_DEFAULT_PROFILE-unset} '
+            # any aws the driver itself ran would land in this log
+            log = Path(k) / "driver-aws.log"
+            (fake / "aws").write_text(f'#!/bin/sh\necho "$*" >> {log}\n'
+                                      'echo "key=$AWS_ACCESS_KEY_ID profile=${AWS_PROFILE-unset} default=${AWS_DEFAULT_PROFILE-unset} '
                                       'cfg=$AWS_CONFIG_FILE args=$*"\n')
             (fake / "aws").chmod(0o700)
             path = f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"
-            op_cfg = Path(k) / "operator-aws-config"
-            op_cfg.write_text("[profile cluster-ro]\n")
-            flags = ("--cluster-aws-config", op_cfg.name if relative else str(op_cfg)) if with_config else ()
+            creds = Path(k) / "minted"
+            flags = ()
+            if body is not None:
+                creds.write_text(body)
+                flags = ("--cluster-credentials", creds.name if relative else str(creds))
             cwd = os.getcwd()
             os.chdir(k)   # a relative path, as an operator would type it
             try:
-                with mock.patch.object(drive_c1, "assume_profile_role", assume, create=True), \
-                        mock.patch.dict(os.environ, {"PATH": path}):
+                with mock.patch.dict(os.environ, {"PATH": path}):
                     rc, _, recs, _ = paid(d, ["T7"], runner, "--kubeconfig", str(kc), *flags)
             finally:
                 os.chdir(cwd)
-        return rc, recs, seen, host_cfg, str(op_cfg.resolve())
+            driver_aws = log.read_text() if log.exists() else ""
+        return rc, recs, seen, host_cfg, driver_aws
 
-    def test_subject_gets_only_a_session_in_its_kubeconfig_and_aws_shim(self):
-        asked = []
-        rc, recs, seen, host_cfg, op_cfg = self.run_t7(lambda p, c, s: asked.append((p, c, s)) or session())
+    def test_subject_gets_only_the_minted_session_in_its_kubeconfig_and_aws_shim(self):
+        rc, recs, seen, host_cfg, driver_aws = self.run_t7(minted())
         self.assertEqual((rc, len(seen)), (0, 6))
-        # one session per live run, from the operator's config, never the kubeconfig's host config
-        self.assertEqual(asked, [("cluster-ro", op_cfg, 3600)] * 6)
         for s in seen:
             for bad in (".aws", host_cfg, "AWS_PROFILE", "cluster-ro", "host-admin"):
                 self.assertNotIn(bad, s.text)
@@ -394,113 +407,71 @@ class LiveSession(unittest.TestCase):
             self.assertEqual(sorted(s.extra), ["KUBECONFIG", "PATH"])
             self.assertEqual(s.extra["PATH"].split(os.pathsep)[0], str(s.shim.parent))
             self.assertEqual((s.shim_mode, s.bin_mode), (0o700, 0o700))
-            for bad in (".aws", host_cfg, "cluster-ro"):
+            for bad in (".aws", host_cfg, "cluster-ro", "minted"):
                 self.assertNotIn(bad, s.shim_text)
             # the shim replaces the subject's eval-role keys and drops its profile, for aws only
             self.assertEqual(s.ran.strip(), f"key=ASIATEST profile=unset default=unset cfg={os.devnull} args=eks list-clusters")
             self.assertFalse(s.kc.parent.exists())   # removed when the run ended
         self.assertTrue(all(r["status"] == "ran" for r in recs))
+        # the driver signs in nowhere: the only aws calls are the subject's, through the shim
+        self.assertEqual(driver_aws, "eks list-clusters\n" * 6)
 
-    def test_failed_session_reads_cannot_run(self):
-        def fail(p, c, s):
-            raise drive_c1.LiveSessionError("aws sts assume-role exited 254")
-        rc, recs, seen, _, _ = self.run_t7(fail)
+    def test_the_file_is_read_anew_for_each_run(self):
+        remint = minted().replace("ASIATEST", "ASIAREMINT").replace("= tok", "= tok2")
+        rc, recs, seen, _, _ = self.run_t7(minted(), between=remint)
+        self.assertEqual((rc, len(seen)), (0, 6))
+        keys = [{e["name"]: e["value"] for e in json.loads(s.text)["users"][0]["user"]["exec"]["env"]}
+                for s in seen]
+        self.assertEqual([(k["AWS_ACCESS_KEY_ID"], k["AWS_SESSION_TOKEN"]) for k in keys],
+                         [("ASIATEST", "tok")] + [("ASIAREMINT", "tok2")] * 5)
+
+    def test_session_too_short_for_the_run_reads_cannot_run(self):
+        # fake_runner's subject timeout is 600 s, plus the 120 s margin
+        rc, recs, seen, _, _ = self.run_t7(minted(left=600 + 60))
         self.assertEqual((rc, seen), (0, []))
-        self.assertTrue(all(r["status"] == "cannot run" and "exited 254" in r["reason"] for r in recs))
+        self.assertTrue(all(r["status"] == "cannot run" and "mint it again" in r["reason"] for r in recs))
+        rc, recs, seen, _, _ = self.run_t7(minted(left=600 + 300))
+        self.assertEqual((rc, len(seen)), (0, 6))
 
-    def test_no_cluster_aws_config_reads_cannot_run_with_no_fallback(self):
-        def assume(p, c, s):
-            raise AssertionError("assumed a role without the operator's config")
-        rc, recs, seen, _, _ = self.run_t7(assume, with_config=False)
-        self.assertEqual((rc, seen, len(recs)), (0, [], 6))
-        self.assertTrue(all(r["status"] == "cannot run" and "--cluster-aws-config" in r["reason"] for r in recs))
+    def test_malformed_files_read_cannot_run(self):
+        for body, why in ((minted(profile="other"), "no [cluster-ro] section"),
+                          (minted().replace("aws_session_token = tok\n", ""), "lacks aws_session_token"),
+                          (minted().replace("expiration = ", "expiration = soon #"), "not ISO 8601"),
+                          ("not an ini file", "cannot parse")):
+            rc, recs, seen, _, _ = self.run_t7(body)
+            self.assertEqual((rc, seen), (0, []), why)
+            self.assertTrue(all(r["status"] == "cannot run" and why in r["reason"] for r in recs), (why, recs[0]))
+
+    def test_no_cluster_credentials_reads_cannot_run_with_no_fallback(self):
+        rc, recs, seen, _, driver_aws = self.run_t7(None)
+        self.assertEqual((rc, seen, len(recs), driver_aws), (0, [], 6, ""))
+        self.assertTrue(all(r["status"] == "cannot run" and "--cluster-credentials" in r["reason"] for r in recs))
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text("k")
             calls = []
             rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc),
-                                 "--cluster-aws-config", str(Path(k) / "missing"))
+                                 "--cluster-credentials", str(Path(k) / "missing"))
         self.assertEqual((rc, calls), (2, []))
-        self.assertIn("cluster aws config is not a file", err)
+        self.assertIn("cluster credentials is not a file", err)
 
-    def test_cluster_aws_config_must_be_a_file_and_is_resolved(self):
+    def test_cluster_credentials_must_be_a_file_and_is_resolved(self):
         with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text("k")
             calls = []
-            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-aws-config", k)
+            rc, err, _, _ = paid(d, ["T7"], fake_runner(calls), "--kubeconfig", str(kc), "--cluster-credentials", k)
         self.assertEqual((rc, calls), (2, []))   # a directory is refused before any run
-        self.assertIn("cluster aws config is not a file", err)
-        asked = []
-        rc, recs, seen, _, op_cfg = self.run_t7(lambda p, c, s: asked.append(c) or session(), relative=True)
-        self.assertEqual((rc, len(seen)), (0, 6))
-        self.assertEqual(asked, [op_cfg] * 6)   # a relative path reaches the assume resolved
-
-
-    def test_assume_profile_role_runs_as_the_driver_without_the_parent_aws_env(self):
-        with tempfile.TemporaryDirectory() as k:
-            log = Path(k) / "log"
-            fake = Path(k) / "aws"
-            fake.write_text(
-                '#!/bin/sh\n'
-                f'echo "$* | ${{AWS_ACCESS_KEY_ID-unset}} ${{AWS_PROFILE-unset}} ${{AWS_DEFAULT_PROFILE-unset}} '
-                f'$AWS_CONFIG_FILE ${{AWS_SHARED_CREDENTIALS_FILE-unset}} ${{AWS_EC2_METADATA_DISABLED-unset}} '
-                f'${{BOTO_CONFIG-unset}}" >> {log}\n'
-                'case "$*" in\n'
-                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
-                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
-                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
-                '  *) exit 9 ;;\n'
-                'esac\n')
-            fake.chmod(0o700)
-            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "AWS_ACCESS_KEY_ID": "AKIAHOST",
-                   "AWS_PROFILE": "host-admin", "AWS_DEFAULT_PROFILE": "host-admin",
-                   "AWS_SHARED_CREDENTIALS_FILE": str(Path.home() / ".aws" / "credentials"),
-                   "BOTO_CONFIG": str(Path.home() / ".boto")}
-            with mock.patch.dict(os.environ, env):
-                creds = drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
-            lines = log.read_text().splitlines()
-        self.assertEqual(creds, {"AccessKeyId": "ASIATEST"})
-        self.assertEqual(len(lines), 3)
-        # the parent's AWS_* are stripped, only the operator's config is read, with no
-        # shared credentials file (no ~/.aws or host keys) and no instance metadata
-        for line in lines:
-            self.assertTrue(line.endswith(f"| unset unset unset /cfg/operator {os.devnull} true {os.devnull}"), line)
-        self.assertTrue(lines[2].startswith("sts assume-role --profile src --role-arn test-role-arn "
-                                            "--role-session-name apex-c1-live-"), lines[2])
-        self.assertIn("--duration-seconds 3600 --output json", lines[2])
-
-    def test_assume_profile_role_runs_aws_in_an_empty_private_home_removed_after(self):
-        with tempfile.TemporaryDirectory() as k:
-            log = Path(k) / "log"
-            fake = Path(k) / "aws"
-            fake.write_text(
-                '#!/bin/sh\n'
-                f'echo "$HOME $(stat -c %a "$HOME") $(ls -A "$HOME" | wc -l)" >> {log}\n'
-                'case "$*" in\n'
-                '  "configure get role_arn --profile cluster-ro") echo test-role-arn ;;\n'
-                '  "configure get source_profile --profile cluster-ro") echo src ;;\n'
-                '  sts*) echo \'{"Credentials": {"AccessKeyId": "ASIATEST"}}\' ;;\n'
-                '  *) exit 9 ;;\n'
-                'esac\n')
-            fake.chmod(0o700)
-            env = {"PATH": f"{k}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(Path.home())}
-            with mock.patch.dict(os.environ, env):
-                drive_c1.assume_profile_role("cluster-ro", "/cfg/operator", 3600)
-            homes = {tuple(line.split()) for line in log.read_text().splitlines()}
-        # one HOME for all three calls: not the parent's, mode 700, empty, and gone after
-        self.assertEqual(len(homes), 1, homes)
-        home, mode, entries = homes.pop()
-        self.assertNotEqual(Path(home), Path.home())
-        self.assertEqual((mode, entries), ("700", "0"))
-        self.assertFalse(Path(home).exists())
+        self.assertIn("cluster credentials is not a file", err)
+        rc, recs, seen, _, _ = self.run_t7(minted(), relative=True)
+        self.assertEqual((rc, len(seen)), (0, 6))   # a relative path is read resolved
 
     def test_aws_exec_without_a_profile_is_passed_through(self):
         with tempfile.TemporaryDirectory() as k:
             kc = Path(k) / "kc"
             kc.write_text(HOST_KUBECONFIG.replace("      - {name: AWS_PROFILE, value: cluster-ro}\n", "") % "/cfg")
-            with mock.patch.object(drive_c1, "assume_profile_role", side_effect=AssertionError("assumed")):
-                with drive_c1.live_env(str(kc), None) as extra:
+            with mock.patch.object(drive_c1, "read_minted_session", side_effect=AssertionError("read")):
+                with drive_c1.live_env(str(kc), None, 600) as extra:
                     self.assertEqual(extra, {"KUBECONFIG": str(kc)})
 
 
@@ -537,18 +508,25 @@ class FailingPaths(unittest.TestCase):
         self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
 
     def test_multiturn_not_resumed_is_not_a_pass(self):
-        runner = fake_runner([])
-        real = runner.run_subject
+        done = {"type": "result", "result": "Pattern 2a"}
+        unmatched = {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "q2", "name": "AskUserQuestion", "input": {"questions": [{"question": "Which pattern?"}]}}]}}
+        # one turn; result events with no question (background agents finishing); a question never answered;
+        # a question no canned answer matches, then a later result
+        for events in ([done], [done, {"type": "system", "subtype": "init"}, done] * 2, [done, ASKED, done],
+                       [{"type": "system", "subtype": "init"}, unmatched, done, done]):
+            runner = fake_runner([])
+            real = runner.run_subject
 
-        def one_turn(**kw):
-            subj = real(**kw)
-            (kw["run_dir"] / "events.jsonl").write_text(json.dumps({"type": "result", "result": "Pattern 2a"}) + "\n")
-            return subj
-        runner.run_subject = one_turn
-        with tempfile.TemporaryDirectory() as d:
-            rc, _, recs, _ = paid(d, ["T5"], runner)
-        self.assertEqual(rc, 0)
-        self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
+            def no_answer(events=events, **kw):
+                subj = real(**kw)
+                (kw["run_dir"] / "events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n")
+                return subj
+            runner.run_subject = no_answer
+            with tempfile.TemporaryDirectory() as d:
+                rc, _, recs, _ = paid(d, ["T5"], runner)
+            self.assertEqual(rc, 0)
+            self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs), events)
 
     def test_subject_failure_counts_in_runs(self):
         runner, n = fake_runner([]), []
@@ -598,6 +576,54 @@ class RunRecord(unittest.TestCase):
         self.assertEqual(rc, 2)
         self.assertIn(f"--paid refused: OLD commit {'0' * 40} is not in this clone", err)
         self.assertEqual(calls, [])
+
+
+class CasePins(unittest.TestCase):
+    def git_case(self, rev, skill, eval_id):
+        data = json.loads(subprocess.run(["git", "-C", str(ROOT), "show", f"{rev}:misc/evals/{skill}/evals.json"],
+                                         capture_output=True, check=True).stdout)
+        return next(e for e in data["evals"] if e["id"] == eval_id)
+
+    def test_t4_alone_reads_its_own_pin(self):
+        by_id = {c["id"]: c for c in drive_c1.CASES}
+        self.assertEqual({i: drive_c1.case_pin(c) for i, c in by_id.items()},
+                         {**{i: drive_c1.PIN for i in by_id}, "T4": drive_c1.T4_PIN})
+        trees = drive_c1.pin_paths(drive_c1.CASES)
+        self.assertEqual(trees[drive_c1.T4_PIN], ["misc/evals/eks-upgrade-check", "skills/eks-upgrade-check"])
+        self.assertFalse(any("eks-upgrade-check" in p for p in trees[drive_c1.PIN]))
+        with drive_c1.archived_trees(trees) as root:
+            drive_c1.check_specs(drive_c1.CASES, root)   # every case resolves on its own pin
+            self.assertEqual(drive_c1.load_case(by_id["T4"], root), self.git_case(drive_c1.T4_PIN, "eks-upgrade-check", 4))
+            self.assertEqual(drive_c1.load_case(by_id["T1"], root), self.git_case(drive_c1.PIN, "eks-security", 4))
+            self.assertNotEqual(self.git_case(drive_c1.PIN, "eks-upgrade-check", 4)["prompt"],
+                                drive_c1.load_case(by_id["T4"], root)["prompt"])
+        self.assertFalse(root.exists())
+
+    def test_dry_run_and_summary_name_each_case_pin(self):
+        rc, out, _ = run_main(["--case", "T1", "--case", "T4"])
+        self.assertEqual(rc, 0)
+        self.assertIn(f"T4 with_skill run-1 PIN {drive_c1.T4_PIN}\n", out)
+        self.assertIn(f"T4 old_skill run-1 OLD {drive_c1.OLD}\n", out)
+        self.assertIn(f"T1 with_skill run-1 PIN {drive_c1.PIN}\n", out)
+        calls = []
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, _, summary = paid(d, ["T1", "T4"], fake_runner(calls))
+        self.assertEqual(rc, 0)
+        self.assertEqual(summary["case_pins"], {"T1": drive_c1.PIN, "T4": drive_c1.T4_PIN})
+        prompts = {kw["eval_id"]: kw["prompt"] for name, kw in calls if name == "run_subject"
+                   and kw["skill_eval_dir"].name == "eks-upgrade-check"}
+        self.assertEqual(prompts, {4: self.git_case(drive_c1.T4_PIN, "eks-upgrade-check", 4)["prompt"]})
+        graded = [kw["expectations"] for name, kw in calls if name == "run_grader"]
+        self.assertIn([drive_c1.T4_PASS], graded)
+
+    def test_t4_pass_and_pin_follow_the_corrected_case(self):
+        self.assertEqual(drive_c1.T4_PIN, "8f16c66b")   # cases.md, T4
+        want = self.git_case("8f16c66b", "eks-upgrade-check", 4)["expectations"]
+        for part in ("names cluster subnet IP capacity as the blocker",
+                     "the complete cluster-subnet total of 4 available IPs (subnet-aaa 3, subnet-bbb 1) as below "
+                     "the threshold of 5"):
+            self.assertTrue(any(part in e for e in want), part)
+            self.assertIn(part, drive_c1.T4_PASS)
 
 
 EVENTS = [
@@ -652,6 +678,51 @@ class Spans(unittest.TestCase):
         junk = [None, 3, "x", [], {"type": "assistant", "message": "not a dict"},
                 {"type": "assistant", "message": {"content": "text"}}, {"type": "user", "message": {"content": [1]}}]
         self.assertEqual(drive_c1.events_to_spans(junk, [], "s"), [])
+
+    def test_span_times_from_event_timestamps(self):
+        ns = lambda s: drive_c1._unix_nano(s)
+        a, b, c = "2026-11-20T06:50:02.268Z", "2026-11-20T06:50:05.000Z", "2026-11-20T06:50:09.500+00:00"
+        self.assertEqual(ns(a), 1795157402268000000)   # date -u -d 2026-11-20T06:50:02Z +%s, plus 268 ms
+        self.assertEqual((ns(None), ns(3), ns("not a time")), (None, None, None))
+        events = [
+            {"type": "assistant", "timestamp": a, "message": {"content": [
+                {"type": "tool_use", "id": "tu1", "name": "Read", "input": {}},
+                {"type": "tool_use", "id": "tu2", "name": "Bash", "input": {}}]}},
+            {"type": "user", "timestamp": b, "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu1", "content": "body"}]}},
+            {"type": "assistant", "timestamp": c, "message": {"content": [{"type": "text", "text": "done"}]}},
+            {"type": "result", "result": "done"},
+        ]
+        agent, read, bash = drive_c1.events_to_spans(events, ["p"], "s")
+        times = lambda sp: (sp["startTimeUnixNano"], sp["endTimeUnixNano"])
+        self.assertEqual(times(agent), (ns(a), ns(c)))
+        self.assertEqual(times(read), (ns(a), ns(c)))   # every TOOL span has its turn's times
+        self.assertEqual(times(bash), (ns(a), ns(c)))
+        self.assertTrue(all(s["startTimeUnixNano"] <= s["endTimeUnixNano"] for s in (agent, read, bash)))
+        untimed = drive_c1.events_to_spans(EVENTS, ["first prompt", "second prompt"], "s1")
+        self.assertFalse(any("startTimeUnixNano" in s or "endTimeUnixNano" in s for s in untimed))
+
+    def test_turns_past_the_last_prompt_fold_into_the_turn_before(self):
+        a, b = "2026-11-20T06:50:02Z", "2026-11-20T06:51:00Z"
+        events = [
+            {"type": "assistant", "timestamp": a, "message": {"content": [
+                {"type": "tool_use", "id": "tu1", "name": "Bash", "input": {"command": "find /"}}]}},
+            {"type": "result", "result": "first answer"},
+            {"type": "assistant", "timestamp": b, "message": {"content": [
+                {"type": "tool_use", "id": "tu2", "name": "Read", "input": {}}]}},
+            {"type": "result", "result": "the background task finished"},
+        ]
+        spans = drive_c1.events_to_spans(events, ["the one prompt"], "s")
+        agents = [s for s in spans if s["attributes"]["openinference.span.kind"] == "AGENT"]
+        self.assertEqual(len(agents), 1)
+        self.assertEqual(agents[0]["attributes"]["input.value"], "the one prompt")
+        self.assertEqual(agents[0]["attributes"]["output.value"], "the background task finished")
+        self.assertEqual((agents[0]["startTimeUnixNano"], agents[0]["endTimeUnixNano"]),
+                         (drive_c1._unix_nano(a), drive_c1._unix_nano(b)))
+        self.assertEqual([s["name"] for s in spans[1:]], ["Bash", "Read"])
+        self.assertTrue(all(s["parentSpanId"] == agents[0]["spanId"] for s in spans[1:]))
+        two = drive_c1.events_to_spans(events, ["p1", "p2"], "s")   # one prompt per turn: no fold
+        self.assertEqual(sum(s["attributes"]["openinference.span.kind"] == "AGENT" for s in two), 2)
 
     def test_unfinished_turn_reads_error(self):
         spans = drive_c1.events_to_spans(EVENTS[:3], [], "s")

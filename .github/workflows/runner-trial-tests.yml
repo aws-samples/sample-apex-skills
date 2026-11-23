@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # fetch-depth 0 brings the full history, so the pinned trial commits
-      # (7efa0776 and 0678d921, the v1.3.0 tag) are present for git archive.
+      # (7efa0776, 8f16c66b for T4, and 0678d921, the v1.3.0 tag) are present for git archive.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
