@@ -20,8 +20,12 @@ concurrency:
 
 jobs:
   mutate:
-    name: installer mutation gate
+    name: installer mutation gate (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     timeout-minutes: 360
     steps:
       # Cases V7, OLD1 and IS3 need the v1.2.0 and v1.3.0 tags and commit 6103231, so fetch the full history.
@@ -32,4 +36,4 @@ jobs:
         with:
           node-version: 22
       - name: Every mutant is killed
-        run: bash misc/installer/test/mutate.sh
+        run: bash misc/installer/test/mutate.sh --shard ${{ matrix.shard }}/2

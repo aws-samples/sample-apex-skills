@@ -30,9 +30,12 @@
 # past the job's 360-minute cap (timeout-minutes in installer-mutation.yml;
 # GitHub's 6-hour hosted-runner job limit). A job stopped at the
 # cap is a timeout, not a surviving mutant: rerun each mutant it did not
-# reach with --only <ID> (one ID per run).
+# reach with --only <ID> (one ID per run). With --shard <k>/<n> a run keeps
+# the baseline and runs only the mutants whose 0-based index i in the list
+# below has i % n == k - 1, so each of the 2 CI jobs (--shard 1/2, 2/2) runs
+# about half the mutants, about 3.5 hours there.
 #
-# Usage: misc/installer/test/mutate.sh [--only <ID>]
+# Usage: misc/installer/test/mutate.sh [--only <ID> | --shard <k>/<n>]
 # Exit: 0 every mutant killed; 1 a mutant survived, did not apply, or the
 # harness did not run for it, or the unmutated baseline failed; 2 a bad
 # argument, or --only names no mutant.
@@ -43,13 +46,23 @@ SRC="$SCRIPT_DIR/../bin/cli.mjs"
 PKG="$SCRIPT_DIR/../package.json"
 HARNESS="$SCRIPT_DIR/install-paths.sh"
 ONLY=""
+SHARD=""; SHARD_SET=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --only) ONLY="$2"; shift 2 ;;
+    --shard) [ $# -ge 2 ] || { echo "--shard needs <k>/<n>" >&2; exit 2; }; SHARD="$2"; SHARD_SET=1; shift 2 ;;
     -h|--help) sed -n '2,/^set -u$/p' "$0" | sed '$d'; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+SHARD_K=1; SHARD_N=1
+if [ -n "$SHARD_SET" ]; then
+  if [ -n "$ONLY" ]; then echo "--only and --shard cannot be used together" >&2; exit 2; fi
+  if ! [[ "$SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+    echo "bad --shard value '$SHARD': use <k>/<n> with whole numbers 1 <= k <= n" >&2; exit 2
+  fi
+  SHARD_K="${BASH_REMATCH[1]}"; SHARD_N="${BASH_REMATCH[2]}"
+fi
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/apex-mutate.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -356,6 +369,7 @@ echo "BASELINE PASS: $(/usr/bin/grep '^SUMMARY' "$WORK/base/log")"
 count="$(node -e 'console.log(require(process.argv[1]).length)' "$WORK/mutants.cjs")"
 killed=0; survived=0; broken=0
 for i in $(seq 0 $((count - 1))); do
+  if [ $((i % SHARD_N)) -ne $((SHARD_K - 1)) ]; then continue; fi
   d="$WORK/m$i"
   mkdir -p "$d/bin"
   cp "$PKG" "$d/package.json"
