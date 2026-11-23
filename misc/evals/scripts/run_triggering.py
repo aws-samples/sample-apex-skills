@@ -747,16 +747,17 @@ def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
 # "The run's ACP events as JSON Lines on stdout, one self-describing event per
 # line" and implies --no-interactive. A headless run signs in with the
 # KIRO_API_KEY environment variable when it is set (kiro.dev/docs/cli/headless,
-# read 2026-11-19), else with the operator's existing kiro-cli sign-in, which
-# kiro-cli keeps in its data dir under XDG_DATA_HOME (harness_env passes the
-# parent's). Either way Kiro's model calls go to Kiro's service, not to
+# read 2026-11-19); else the runner relies on the operator's existing kiro-cli
+# sign-in, which kiro-cli keeps in its data dir under XDG_DATA_HOME
+# (harness_env passes the parent's). `kiro-cli whoami` was checked on that
+# sign-in; a `chat` run on it is first seen in the live runs. Either way Kiro's model calls go to Kiro's service, not to
 # Bedrock on the eval-role session; the eval-role env still reaches the subprocess for
 # its AWS tool calls. Kiro reads global skills from ~/.kiro/skills/
 # (kiro.dev/docs/skills). A trigger is read as a file-read tool call on
 # .../skills/<name>/SKILL.md: assumed, not seen in a recorded stream (that
 # page names no activation mechanism). The record types read here
 # (runStarted, sessionUpdate, runFinished) are the names in the 3.4.0
-# binary; the runError record is documented for Kiro CLI 3.5.0 or later
+# and 3.5.0 binaries; the runError record is documented for Kiro CLI 3.5.0 or later
 # (kiro.dev/docs/cli/headless, read 2026-11-19). Events, tool calls and
 # tokens are read with parse_trajectory's helpers, the task runner's rules.
 
@@ -850,8 +851,10 @@ CODEX_DROPPED_VARS = frozenset({"CODEX_HOME", "CODEX_API_KEY", "OPENAI_API_KEY",
 def harness_env(env: dict[str, str], home: Path, harness: str) -> dict[str, str]:
     """A copy of build_subprocess_env's `env` for a `harness` subject, used
     by both runners: codex loses CODEX_DROPPED_VARS and gets CODEX_HOME in
-    the clean HOME; kiro gets the parent's data dir as XDG_DATA_HOME, where
-    kiro-cli keeps the operator's sign-in, and the parent's KIRO_API_KEY when
+    the clean HOME; kiro keeps the parent's XDG_DATA_HOME, else gets the
+    parent's ~/.local/share, so a kiro subject reads and writes the
+    operator's kiro-cli data (its sign-in and chat history) and runs as the
+    operator's Kiro identity; kiro also gets the parent's KIRO_API_KEY when
     it is set, which every other subject and the grader never see."""
     env = dict(env)
     if harness == "codex":
@@ -860,18 +863,11 @@ def harness_env(env: dict[str, str], home: Path, harness: str) -> dict[str, str]
         (home / ".codex").mkdir(exist_ok=True)
         env["CODEX_HOME"] = str(home / ".codex")
     elif harness == "kiro":
-        env["XDG_DATA_HOME"] = parent_data_home()
+        if not env.get("XDG_DATA_HOME"):
+            env["XDG_DATA_HOME"] = str(Path.home() / ".local" / "share")
         if os.environ.get("KIRO_API_KEY"):
             env["KIRO_API_KEY"] = os.environ["KIRO_API_KEY"]
     return env
-
-
-def parent_data_home() -> str:
-    """The runner's own XDG data dir, read from its own env: XDG_DATA_HOME
-    when set and not empty, else $HOME/.local/share (the XDG Base Directory
-    default). The subject's HOME is the clean one, so this is read here."""
-    return (os.environ.get("XDG_DATA_HOME")
-            or str(Path(os.environ.get("HOME") or Path.home()) / ".local" / "share"))
 
 
 def parse_codex_stream(process: subprocess.Popen, skill_name: str, skill_dir: Path,

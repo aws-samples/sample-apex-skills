@@ -774,7 +774,8 @@ def run_subject(
 # non-interactive run whose stdout is JSON Lines. Every adapter runs under
 # the triggering runner's env: build_subprocess_env with the eval-role
 # session (eval_aws_env), a clean HOME and no host AWS_* variables, then
-# harness_env (codex: no CODEX_DROPPED_VARS, CODEX_HOME in the clean HOME).
+# harness_env (codex: no CODEX_DROPPED_VARS, CODEX_HOME in the clean HOME;
+# kiro: the parent's XDG data dir, and KIRO_API_KEY when set).
 
 
 def _claude_cmd_base(model: str) -> list[str]:

@@ -704,7 +704,7 @@ CLAUDE_RESULT = j({"type": "result", "subtype": "success", "is_error": False,
                    "usage": {"input_tokens": 10, "output_tokens": 5,
                              "cache_read_input_tokens": 100, "cache_creation_input_tokens": 0}})
 
-# kiro-cli chat --output-format stream-json (record names from kiro-cli 3.4.0)
+# kiro-cli chat --output-format stream-json (record names in the kiro-cli 3.4.0 and 3.5.0 binaries)
 KIRO_START = j({"type": "runStarted", "data": {"sessionId": "s1", "acpProtocolVersion": 1}})
 KIRO_TEXT = j({"type": "sessionUpdate", "data": {"sessionId": "s1", "update": {
     "sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "ok"}}}})
@@ -2006,12 +2006,17 @@ class SubjectEnv(Tmp):
     def test_kiro_env_gets_the_parent_data_dir(self):
         env = run_triggering.build_subprocess_env(self.tmp, aws_env=dict(ROLE))
         self.assertEqual(env["HOME"], str(self.tmp))
-        with mock.patch.dict(os.environ, {"XDG_DATA_HOME": "/host/data"}):
-            self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["XDG_DATA_HOME"],
-                             "/host/data")
-        with mock.patch.dict(os.environ, {"HOME": "/host/home", "XDG_DATA_HOME": ""}):
-            self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["XDG_DATA_HOME"],
-                             "/host/home/.local/share")
+        env.pop("XDG_DATA_HOME", None)
+        with mock.patch.dict(os.environ, {"HOME": "/host/home"}):
+            os.environ.pop("XDG_DATA_HOME", None)
+            # a set value in the subject env passes through
+            self.assertEqual(run_triggering.harness_env(
+                dict(env, XDG_DATA_HOME="/host/data"), self.tmp, "kiro")["XDG_DATA_HOME"],
+                "/host/data")
+            # unset or empty: the parent's ~/.local/share, not the clean HOME's
+            for e in (env, dict(env, XDG_DATA_HOME="")):
+                self.assertEqual(run_triggering.harness_env(e, self.tmp, "kiro")["XDG_DATA_HOME"],
+                                 "/host/home/.local/share")
 
 
 class SubjectModelPerHarness(unittest.TestCase):
