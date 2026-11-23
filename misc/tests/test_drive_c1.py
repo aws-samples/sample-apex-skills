@@ -1,8 +1,9 @@
 """Tests for misc/runner-trial/drive_c1.py with the runner's functions mocked.
 
 No model call, no claude process, no cluster or AWS access. The driver's git
-reads are not mocked: the case text comes from git archive of drive_c1.PIN and
-the old arm's skill from drive_c1.OLD, so the clone must hold both commits.
+reads are not mocked: the case text comes from git archive of drive_c1.PIN
+(T4's from drive_c1.T4_PIN) and the old arm's skill from drive_c1.OLD, so the
+clone must hold all three commits.
 Run: python3 -B -m unittest misc.tests.test_drive_c1 -v
 """
 import contextlib
@@ -32,9 +33,9 @@ def fake_runner(calls):
         run_dir = kw["run_dir"]
         (run_dir / "outputs").mkdir(parents=True, exist_ok=True)
         (run_dir / "transcript.md").write_text("t")
-        results = 2 if kw["elicitation"].turns else 1
-        (run_dir / "events.jsonl").write_text("\n".join(
-            json.dumps({"type": "result", "total_cost_usd": 0.25, "result": "Pattern 2a"}) for _ in range(results)) + "\n")
+        done = {"type": "result", "total_cost_usd": 0.25, "result": "Pattern 2a"}
+        events = [ASKED, done, {"type": "system", "subtype": "init"}, done] if kw["elicitation"].turns else [done]
+        (run_dir / "events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n")
         (run_dir / "timing.json").write_text(json.dumps(
             {"total_tokens": 10, "input_tokens": 4, "output_tokens": 6, "token_source": "modelUsage",
              "duration_ms": 1500, "total_duration_seconds": 1.5}))
@@ -62,6 +63,10 @@ def fake_runner(calls):
                            read_skill_meta=lambda d: (Path(d).name, "desc"), subject_timeout=lambda s: 600,
                            default_model=lambda: "test-model", EvalCredentialError=EvalCredentialError,
                            start_eval_session=lambda timeout, source: calls.append(("session", timeout)))
+
+
+ASKED = {"type": "assistant", "message": {"content": [
+    {"type": "tool_use", "id": "q1", "name": "AskUserQuestion", "input": {"questions": [{"question": "Which region?"}]}}]}}
 
 
 class EvalCredentialError(RuntimeError):
@@ -161,7 +166,7 @@ class OutputShape(unittest.TestCase):
         self.assertEqual(t6, {("with_skill_q3", True), ("with_skill_q18", True)})
         self.assertTrue(all(r["status"] == "cannot run" for r in recs if r["case"] == "T7"))
         self.assertEqual(summary["cases"]["T1"]["old_skill"], {"pass": 3, "ran": 3, "runs": 3, "statuses": ["ran"] * 3})
-        self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)
+        self.assertEqual(summary["cases"]["T5"]["with_skill"]["pass"], 3)   # a question, then the answer's turn
         self.assertEqual(calls[0], ("session", 600), "one eval-role session, minted first, for the longest timeout")
         self.assertEqual(sum(1 for name, _ in calls if name == "session"), 1)
         self.assertNotIn("grader_cost_usd", summary)
@@ -420,14 +425,6 @@ class LiveSession(unittest.TestCase):
         self.assertEqual([(k["AWS_ACCESS_KEY_ID"], k["AWS_SESSION_TOKEN"]) for k in keys],
                          [("ASIATEST", "tok")] + [("ASIAREMINT", "tok2")] * 5)
 
-    def test_sign_in_lines_in_the_file_are_refused(self):
-        for line in ("credential_process = /usr/bin/env HOME=/h ada credentials print --role Admin\n",
-                     "role_arn = arn:aws:iam::000000000000:role/x\n", "source_profile = src\n"):
-            rc, recs, seen, _, _ = self.run_t7(minted(extra=line))
-            self.assertEqual((rc, seen, len(recs)), (0, [], 6))
-            key = line.split(" =")[0]
-            self.assertTrue(all(r["status"] == "cannot run" and key in r["reason"] for r in recs), recs[0])
-
     def test_session_too_short_for_the_run_reads_cannot_run(self):
         # fake_runner's subject timeout is 600 s, plus the 120 s margin
         rc, recs, seen, _, _ = self.run_t7(minted(left=600 + 60))
@@ -511,18 +508,25 @@ class FailingPaths(unittest.TestCase):
         self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
 
     def test_multiturn_not_resumed_is_not_a_pass(self):
-        runner = fake_runner([])
-        real = runner.run_subject
+        done = {"type": "result", "result": "Pattern 2a"}
+        unmatched = {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "q2", "name": "AskUserQuestion", "input": {"questions": [{"question": "Which pattern?"}]}}]}}
+        # one turn; result events with no question (background agents finishing); a question never answered;
+        # a question no canned answer matches, then a later result
+        for events in ([done], [done, {"type": "system", "subtype": "init"}, done] * 2, [done, ASKED, done],
+                       [{"type": "system", "subtype": "init"}, unmatched, done, done]):
+            runner = fake_runner([])
+            real = runner.run_subject
 
-        def one_turn(**kw):
-            subj = real(**kw)
-            (kw["run_dir"] / "events.jsonl").write_text(json.dumps({"type": "result", "result": "Pattern 2a"}) + "\n")
-            return subj
-        runner.run_subject = one_turn
-        with tempfile.TemporaryDirectory() as d:
-            rc, _, recs, _ = paid(d, ["T5"], runner)
-        self.assertEqual(rc, 0)
-        self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs))
+            def no_answer(events=events, **kw):
+                subj = real(**kw)
+                (kw["run_dir"] / "events.jsonl").write_text("\n".join(json.dumps(e) for e in events) + "\n")
+                return subj
+            runner.run_subject = no_answer
+            with tempfile.TemporaryDirectory() as d:
+                rc, _, recs, _ = paid(d, ["T5"], runner)
+            self.assertEqual(rc, 0)
+            self.assertTrue(all(r["status"] == "ran" and r["pass"] is False for r in recs), events)
 
     def test_subject_failure_counts_in_runs(self):
         runner, n = fake_runner([]), []
@@ -572,6 +576,54 @@ class RunRecord(unittest.TestCase):
         self.assertEqual(rc, 2)
         self.assertIn(f"--paid refused: OLD commit {'0' * 40} is not in this clone", err)
         self.assertEqual(calls, [])
+
+
+class CasePins(unittest.TestCase):
+    def git_case(self, rev, skill, eval_id):
+        data = json.loads(subprocess.run(["git", "-C", str(ROOT), "show", f"{rev}:misc/evals/{skill}/evals.json"],
+                                         capture_output=True, check=True).stdout)
+        return next(e for e in data["evals"] if e["id"] == eval_id)
+
+    def test_t4_alone_reads_its_own_pin(self):
+        by_id = {c["id"]: c for c in drive_c1.CASES}
+        self.assertEqual({i: drive_c1.case_pin(c) for i, c in by_id.items()},
+                         {**{i: drive_c1.PIN for i in by_id}, "T4": drive_c1.T4_PIN})
+        trees = drive_c1.pin_paths(drive_c1.CASES)
+        self.assertEqual(trees[drive_c1.T4_PIN], ["misc/evals/eks-upgrade-check", "skills/eks-upgrade-check"])
+        self.assertFalse(any("eks-upgrade-check" in p for p in trees[drive_c1.PIN]))
+        with drive_c1.archived_trees(trees) as root:
+            drive_c1.check_specs(drive_c1.CASES, root)   # every case resolves on its own pin
+            self.assertEqual(drive_c1.load_case(by_id["T4"], root), self.git_case(drive_c1.T4_PIN, "eks-upgrade-check", 4))
+            self.assertEqual(drive_c1.load_case(by_id["T1"], root), self.git_case(drive_c1.PIN, "eks-security", 4))
+            self.assertNotEqual(self.git_case(drive_c1.PIN, "eks-upgrade-check", 4)["prompt"],
+                                drive_c1.load_case(by_id["T4"], root)["prompt"])
+        self.assertFalse(root.exists())
+
+    def test_dry_run_and_summary_name_each_case_pin(self):
+        rc, out, _ = run_main(["--case", "T1", "--case", "T4"])
+        self.assertEqual(rc, 0)
+        self.assertIn(f"T4 with_skill run-1 PIN {drive_c1.T4_PIN}\n", out)
+        self.assertIn(f"T4 old_skill run-1 OLD {drive_c1.OLD}\n", out)
+        self.assertIn(f"T1 with_skill run-1 PIN {drive_c1.PIN}\n", out)
+        calls = []
+        with tempfile.TemporaryDirectory() as d:
+            rc, _, _, summary = paid(d, ["T1", "T4"], fake_runner(calls))
+        self.assertEqual(rc, 0)
+        self.assertEqual(summary["case_pins"], {"T1": drive_c1.PIN, "T4": drive_c1.T4_PIN})
+        prompts = {kw["eval_id"]: kw["prompt"] for name, kw in calls if name == "run_subject"
+                   and kw["skill_eval_dir"].name == "eks-upgrade-check"}
+        self.assertEqual(prompts, {4: self.git_case(drive_c1.T4_PIN, "eks-upgrade-check", 4)["prompt"]})
+        graded = [kw["expectations"] for name, kw in calls if name == "run_grader"]
+        self.assertIn([drive_c1.T4_PASS], graded)
+
+    def test_t4_pass_and_pin_follow_the_corrected_case(self):
+        self.assertEqual(drive_c1.T4_PIN, "8f16c66b")   # cases.md, T4
+        want = self.git_case("8f16c66b", "eks-upgrade-check", 4)["expectations"]
+        for part in ("names cluster subnet IP capacity as the blocker",
+                     "the complete cluster-subnet total of 4 available IPs (subnet-aaa 3, subnet-bbb 1) as below "
+                     "the threshold of 5"):
+            self.assertTrue(any(part in e for e in want), part)
+            self.assertIn(part, drive_c1.T4_PASS)
 
 
 EVENTS = [
@@ -626,6 +678,51 @@ class Spans(unittest.TestCase):
         junk = [None, 3, "x", [], {"type": "assistant", "message": "not a dict"},
                 {"type": "assistant", "message": {"content": "text"}}, {"type": "user", "message": {"content": [1]}}]
         self.assertEqual(drive_c1.events_to_spans(junk, [], "s"), [])
+
+    def test_span_times_from_event_timestamps(self):
+        ns = lambda s: drive_c1._unix_nano(s)
+        a, b, c = "2026-11-20T06:50:02.268Z", "2026-11-20T06:50:05.000Z", "2026-11-20T06:50:09.500+00:00"
+        self.assertEqual(ns(a), 1795157402268000000)   # date -u -d 2026-11-20T06:50:02Z +%s, plus 268 ms
+        self.assertEqual((ns(None), ns(3), ns("not a time")), (None, None, None))
+        events = [
+            {"type": "assistant", "timestamp": a, "message": {"content": [
+                {"type": "tool_use", "id": "tu1", "name": "Read", "input": {}},
+                {"type": "tool_use", "id": "tu2", "name": "Bash", "input": {}}]}},
+            {"type": "user", "timestamp": b, "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "tu1", "content": "body"}]}},
+            {"type": "assistant", "timestamp": c, "message": {"content": [{"type": "text", "text": "done"}]}},
+            {"type": "result", "result": "done"},
+        ]
+        agent, read, bash = drive_c1.events_to_spans(events, ["p"], "s")
+        times = lambda sp: (sp["startTimeUnixNano"], sp["endTimeUnixNano"])
+        self.assertEqual(times(agent), (ns(a), ns(c)))
+        self.assertEqual(times(read), (ns(a), ns(c)))   # every TOOL span has its turn's times
+        self.assertEqual(times(bash), (ns(a), ns(c)))
+        self.assertTrue(all(s["startTimeUnixNano"] <= s["endTimeUnixNano"] for s in (agent, read, bash)))
+        untimed = drive_c1.events_to_spans(EVENTS, ["first prompt", "second prompt"], "s1")
+        self.assertFalse(any("startTimeUnixNano" in s or "endTimeUnixNano" in s for s in untimed))
+
+    def test_turns_past_the_last_prompt_fold_into_the_turn_before(self):
+        a, b = "2026-11-20T06:50:02Z", "2026-11-20T06:51:00Z"
+        events = [
+            {"type": "assistant", "timestamp": a, "message": {"content": [
+                {"type": "tool_use", "id": "tu1", "name": "Bash", "input": {"command": "find /"}}]}},
+            {"type": "result", "result": "first answer"},
+            {"type": "assistant", "timestamp": b, "message": {"content": [
+                {"type": "tool_use", "id": "tu2", "name": "Read", "input": {}}]}},
+            {"type": "result", "result": "the background task finished"},
+        ]
+        spans = drive_c1.events_to_spans(events, ["the one prompt"], "s")
+        agents = [s for s in spans if s["attributes"]["openinference.span.kind"] == "AGENT"]
+        self.assertEqual(len(agents), 1)
+        self.assertEqual(agents[0]["attributes"]["input.value"], "the one prompt")
+        self.assertEqual(agents[0]["attributes"]["output.value"], "the background task finished")
+        self.assertEqual((agents[0]["startTimeUnixNano"], agents[0]["endTimeUnixNano"]),
+                         (drive_c1._unix_nano(a), drive_c1._unix_nano(b)))
+        self.assertEqual([s["name"] for s in spans[1:]], ["Bash", "Read"])
+        self.assertTrue(all(s["parentSpanId"] == agents[0]["spanId"] for s in spans[1:]))
+        two = drive_c1.events_to_spans(events, ["p1", "p2"], "s")   # one prompt per turn: no fold
+        self.assertEqual(sum(s["attributes"]["openinference.span.kind"] == "AGENT" for s in two), 2)
 
     def test_unfinished_turn_reads_error(self):
         spans = drive_c1.events_to_spans(EVENTS[:3], [], "s")

@@ -104,6 +104,16 @@ BUILTIN_SKILLS = frozenset({
     "fewer-permission-prompts",
     "loop",
     "claude-api",
+    # listed in system/init by Claude Code 2.1.328
+    "deep-research",
+    "dataviz",
+    "verify",
+    "code-review",
+    "doctor",
+    "workflow-authoring",
+    "run",
+    "run-skill-generator",
+    "plugin-authoring",
 })
 
 

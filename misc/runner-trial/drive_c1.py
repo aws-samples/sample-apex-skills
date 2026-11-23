@@ -34,7 +34,8 @@ Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
 (pass count per case and arm, for score-sheet.md S1 and S2, plus a T6
 "both_queries" cell counting runs k where both query arms passed at run k,
-and runner_head, the git HEAD of the checkout whose runner ran), and each
+case_pins, the commit each case's text was read from, and runner_head, the
+git HEAD of the checkout whose runner ran), and each
 run's runner files under <case>/<arm>/run-<k>/. runner_head is HEAD only;
 uncommitted changes are not recorded. S2 reads `pass` over the runs
 whose status is 'ran' or 'error' (an 'error' run counts as a failed run, as
@@ -71,6 +72,7 @@ from types import SimpleNamespace
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "misc" / "evals" / "scripts"
 PIN = "7efa0776"        # case text, fixtures and skills are read from this commit (cases.md)
+T4_PIN = "8f16c66b"     # T4 alone reads its corrected case text from this commit (#505, cases.md T4)
 OLD = "0678d921"        # tag v1.3.0, the old arm on T1 to T4 (cases.md)
 RUNS = 3
 TRIGGER_TIMEOUT = 90    # run_triggering.py --timeout default
@@ -78,13 +80,16 @@ GRADER_TIMEOUT = 600    # run_task_evals.py --grader-timeout default
 
 T4_PASS = ("The headline rating field reads NOT READY (score 59 or lower, the "
            "hard-blocker cap), not a READY found by substring elsewhere in the "
-           "report, and subnet-aaa (3 available IPs) is named as the blocker.")
+           "report, and the Blockers section names cluster subnet IP capacity as "
+           "the blocker, giving the complete cluster-subnet total of 4 available "
+           "IPs (subnet-aaa 3, subnet-bbb 1) as below the threshold of 5.")
 
 # grade: (kind, value). Kinds: suite (run_grader on the suite expectations
 # that contain each string), text (run_grader on this one expectation),
 # artifact (validate_run on the one assertion named by key and value),
-# multiturn (resumed at least once and the suite's first knowledge
-# assertion holds), trigger (run_single_query on query index, should_trigger).
+# multiturn (a turn ended on an AskUserQuestion that one of the case's canned
+# answers matches and a later turn followed, and the suite's first knowledge
+# assertion holds on the last result), trigger (run_single_query on query index, should_trigger).
 CASES = [
     {"id": "T1", "skill": "eks-security", "eval_id": 4,
      "arms": ("with_skill", "without_skill", "old_skill"),
@@ -95,7 +100,7 @@ CASES = [
     {"id": "T3", "skill": "eks-build", "eval_id": 1,
      "arms": ("with_skill", "without_skill", "old_skill"),
      "grade": ("artifact", ("validators", "path", "skills/eks-build/scripts/validate_project.sh"))},
-    {"id": "T4", "skill": "eks-upgrade-check", "eval_id": 4,
+    {"id": "T4", "skill": "eks-upgrade-check", "eval_id": 4, "pin": T4_PIN,
      "arms": ("with_skill", "without_skill", "old_skill"),
      "grade": ("text", T4_PASS)},
     {"id": "T5", "skill": "eks-build", "eval_id": 3,
@@ -136,6 +141,19 @@ def load_runner() -> SimpleNamespace:
         default_model=lambda: (run_task_evals._resolve_makefile_default("MODEL")
                                or "global.anthropic.claude-opus-4-6-v1"),  # run_task_evals.py:1032 @528dde41
     )
+
+
+def case_pin(case: dict) -> str:
+    """The commit a case's text, fixtures and skill are read from: its own "pin", else PIN."""
+    return case.get("pin", PIN)
+
+
+def pin_paths(cases: list[dict]) -> dict[str, list[str]]:
+    """The repo paths to read at each commit, for one tree that holds every case."""
+    by_rev = {}
+    for case in cases:
+        by_rev.setdefault(case_pin(case), set()).update((f"misc/evals/{case['skill']}", f"skills/{case['skill']}"))
+    return {rev: sorted(paths) for rev, paths in by_rev.items()}
 
 
 def case_source(case: dict, root: Path) -> Path:
@@ -194,8 +212,10 @@ def check_specs(cases: list[dict], root: Path) -> dict:
 
 
 def plan_runs(cases: list[dict]) -> list[dict]:
-    """Every (case, arm, run) and the skill revision it reads (PIN or OLD)."""
-    return [{"case": case["id"], "arm": arm, "run": k, "rev": "OLD" if arm == "old_skill" else "PIN"}
+    """Every (case, arm, run), the skill revision it reads (PIN or OLD) and that commit
+    (the case's own pin for PIN)."""
+    return [{"case": case["id"], "arm": arm, "run": k, "rev": "OLD" if arm == "old_skill" else "PIN",
+             "commit": OLD if arm == "old_skill" else case_pin(case)}
             for case in cases for arm in case["arms"] for k in range(1, RUNS + 1)]
 
 
@@ -220,14 +240,23 @@ def runner_head() -> str:
 def archived(rev: str, *paths: str):
     """The repo paths as they stand at rev, extracted to a temp dir that is yielded as
     the tree's root (git, no model call). Raises GitError when git archive fails."""
+    with archived_trees({rev: list(paths)}) as tmp:
+        yield tmp
+
+
+@contextlib.contextmanager
+def archived_trees(trees: dict[str, list[str]]):
+    """archived for several commits at once: each commit's paths ({rev: paths}, as
+    pin_paths gives) extracted into one temp dir, yielded as the tree's root."""
     tmp = Path(tempfile.mkdtemp(prefix="drive-c1-"))
     try:
-        r = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", rev, *paths], capture_output=True)
-        if r.returncode != 0:
-            raise GitError(f"git archive {rev} failed: {r.stderr.decode(errors='replace').strip()}")
-        with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
-            # filter= (PEP 706) is missing from older interpreters such as Python 3.9.16, so feature-detect it
-            tar.extractall(tmp, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))
+        for rev, paths in trees.items():
+            r = subprocess.run(["git", "-C", str(REPO_ROOT), "archive", rev, *paths], capture_output=True)
+            if r.returncode != 0:
+                raise GitError(f"git archive {rev} failed: {r.stderr.decode(errors='replace').strip()}")
+            with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
+                # filter= (PEP 706) is missing from older interpreters such as Python 3.9.16, so feature-detect it
+                tar.extractall(tmp, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))
         yield tmp
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -245,11 +274,44 @@ def last_result(events_path: Path) -> tuple[dict, int]:
     return (results[-1] if results else {}), len(results)
 
 
+def answered_question(events_path: Path, elicitation: dict | None) -> bool:
+    """True when a turn ended on an AskUserQuestion that one of the case's
+    canned answers matches (misc/evals/scripts/elicitation.py,
+    detect_pending_question and match_answer, as the runner resumes on them)
+    and a later turn followed. The events do not record the injected text, so
+    a background turn can still stand in for the answer turn."""
+    sys.path.insert(0, str(SCRIPTS))
+    from elicitation import ElicitationConfig, detect_pending_question, match_answer
+    turns = ElicitationConfig.from_dict(elicitation).turns
+    events = []
+    if events_path.exists():
+        for line in events_path.read_text().splitlines():
+            with contextlib.suppress(json.JSONDecodeError):
+                evt = json.loads(line)
+                if isinstance(evt, dict):
+                    events.append(evt)
+    ends = [i for i, e in enumerate(events) if e.get("type") == "result"]
+    return any(i != ends[-1] and bool((q := detect_pending_question(events[:i])) and match_answer(q, turns))
+               for i in ends)
+
+
 OI_SCOPE = "openinference.instrumentation.claude_agent_sdk"
 
 
 def _span_id(session_id: str, *parts: object, n: int = 16) -> str:
     return hashlib.sha256("/".join(map(str, (session_id, *parts))).encode()).hexdigest()[:n]
+
+
+def _unix_nano(stamp: object) -> int | None:
+    """An ISO 8601 timestamp (`2026-11-20T06:50:02.268Z`) as Unix nanoseconds, else None."""
+    if not isinstance(stamp, str):
+        return None
+    from datetime import datetime
+    try:
+        dt = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return int(dt.timestamp()) * 1_000_000_000 + dt.microsecond * 1000
 
 
 def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[dict]:
@@ -270,11 +332,23 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     (tool.name, tool.id, input.value = the input as JSON, output.value = the
     matching tool_result content, paired by tool_use_id). Tool calls after the
     last result event are a turn that did not finish: its AGENT span has no
-    output.value and status ERROR. A line that is not a JSON object is skipped.
-    IDs are derived from session_id, so the output is deterministic. No start
-    or end times are emitted (the examples omit them). Tool spans share the
+    output.value and status ERROR, unless it folds into the turn before (below).
+    A line that is not a JSON object is skipped.
+    IDs are derived from session_id, so the output is deterministic. Span
+    times come from the events' `timestamp` (ISO 8601, on assistant and user
+    events) as startTimeUnixNano and endTimeUnixNano: an AGENT span runs from
+    the first to the last timestamp of its turn, and each TOOL span has its
+    turn's times; Evaluate refuses a span with no
+    start_time or end_time (SpanParsingException). Turns past the last prompt
+    (the session going on by itself after a background task or subagent
+    finishes) fold into the turn before, whose output.value is then the last
+    result: Evaluate refuses an AGENT span with no input.value ("Failed to
+    parse user_query"). The fold handles extra turns only after the last
+    prompt: a background turn between two prompts shifts every later span
+    onto the wrong prompt. Tool spans share the
     turn's trace with a parentSpanId (the unified example gives the tool span
-    its own traceId). Whether Evaluate needs either is untested. A session
+    its own traceId); Evaluate scored spans of this shape on 2026-11-21
+    (results.md, Runs). A session
     with no result event and no tool call gives no spans, and a text-only turn
     after the last result event is dropped.
 
@@ -285,13 +359,16 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
     `openinference.span.kind` = `TOOL`", "User prompt and agent response: from
     `input.value` and `output.value` on the invoke agent span", "Tool call: the
     tool name from `tool.name`, the tool call ID from `tool.id`, the arguments
-    from `input.value`, and the result from `output.value`". Whether Evaluate
-    scores spans never ingested into CloudWatch is untested (score-sheet.md, C3).
+    from `input.value`, and the result from `output.value`". Evaluate scores
+    spans never ingested into CloudWatch (results.md, Runs, C3).
     """
-    turns, cur = [], {"tools": [], "result": None}
+    turns, cur = [], {"tools": [], "result": None, "ts": []}
     for evt in events:
         if not isinstance(evt, dict):
             continue
+        ts = _unix_nano(evt.get("timestamp"))
+        if ts is not None:
+            cur["ts"].append(ts)
         msg = evt.get("message")
         content = msg.get("content") if isinstance(msg, dict) else None
         blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
@@ -308,9 +385,17 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
         elif evt.get("type") == "result":
             cur["result"] = evt
             turns.append(cur)
-            cur = {"tools": [], "result": None}
+            cur = {"tools": [], "result": None, "ts": []}
     if cur["tools"]:
         turns.append(cur)
+    # A turn past the last prompt is the session going on by itself (a background task or
+    # subagent finished, no user prompt): fold it into the turn before, keeping the last result.
+    while len(turns) > max(len(prompts), 1):
+        extra = turns.pop()
+        turns[-1]["tools"] += extra["tools"]
+        turns[-1]["ts"] += extra["ts"]
+        if extra["result"] is not None:
+            turns[-1]["result"] = extra["result"]
     spans = []
     for i, turn in enumerate(turns):
         trace_id, agent_id = _span_id(session_id, "trace", i, n=32), _span_id(session_id, "agent", i)
@@ -321,8 +406,10 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
         if res is not None and isinstance(res.get("result"), str):
             attrs["output.value"] = res["result"]
         ok = res is not None and not res.get("is_error")
+        times = {"startTimeUnixNano": min(turn["ts"]), "endTimeUnixNano": max(turn["ts"])} if turn["ts"] else {}
         spans.append({"traceId": trace_id, "spanId": agent_id, "name": "ClaudeCode.turn", "kind": "INTERNAL",
-                      "scope": {"name": OI_SCOPE}, "attributes": attrs, "status": {"code": "OK" if ok else "ERROR"}})
+                      "scope": {"name": OI_SCOPE}, "attributes": attrs, "status": {"code": "OK" if ok else "ERROR"},
+                      **times})
         for j, t in enumerate(turn["tools"]):
             tattrs = {"openinference.span.kind": "TOOL", "tool.name": t["name"], "session.id": session_id,
                       "input.value": json.dumps(t["input"])}
@@ -332,7 +419,7 @@ def events_to_spans(events: list, prompts: list[str], session_id: str) -> list[d
                 tattrs["output.value"] = t["result"]
             spans.append({"traceId": trace_id, "spanId": _span_id(session_id, "tool", i, j), "parentSpanId": agent_id,
                           "name": t["name"], "kind": "INTERNAL", "scope": {"name": OI_SCOPE}, "attributes": tattrs,
-                          "status": {"code": "ERROR" if t["error"] else "OK"}})
+                          "status": {"code": "ERROR" if t["error"] else "OK"}, **times})
     return spans
 
 
@@ -356,9 +443,10 @@ def grade_task(runner, case: dict, spec: dict, subj: dict, run_dir: Path, model:
         failed = res.structural_failed + res.validators_failed
         return (passed == 1 and failed == 0), f"artifact {passed} passed, {failed} failed"
     if kind == "multiturn":
-        final, n_results = last_result(run_dir / "events.jsonl")
+        final, _ = last_result(run_dir / "events.jsonl")
+        asked = answered_question(run_dir / "events.jsonl", spec.get("elicitation"))
         ka = runner.evaluate_knowledge(final.get("result") or "", [spec["knowledge_assertions"][value]])
-        return (n_results >= 2 and ka.failed == 0 and ka.passed == 1), f"result events {n_results}, pattern {ka.passed}/1"
+        return (asked and ka.failed == 0 and ka.passed == 1), f"question matched and resumed {asked}, pattern {ka.passed}/1"
     raise ValueError(f"{case['id']}: unknown grade kind {kind}")
 
 
@@ -377,9 +465,8 @@ def read_minted_session(path: str, profile: str, timeout: int) -> dict:
     aws_access_key_id, aws_secret_access_key, aws_session_token and
     expiration (ISO 8601). The driver never signs in or assumes a role
     itself, so the sign-in that minted the session stays outside the runner.
-    A section that names a credential_process, role_arn or source_profile is
-    refused, and so is a session that would not outlast a `timeout`-second
-    run by LIVE_SESSION_MARGIN. Read anew for each run, so a session minted
+    A session that would not outlast a `timeout`-second
+    run by LIVE_SESSION_MARGIN is refused. Read anew for each run, so a session minted
     again between runs is picked up. Returns the STS-shaped Credentials dict."""
     import configparser
     import datetime
@@ -392,9 +479,6 @@ def read_minted_session(path: str, profile: str, timeout: int) -> dict:
     if not parser.has_section(profile):
         raise LiveSessionError(f"{path} has no [{profile}] section")
     sec = parser[profile]
-    signin = [k for k in ("credential_process", "role_arn", "source_profile") if k in sec]
-    if signin:
-        raise LiveSessionError(f"[{profile}] in {path} names {', '.join(signin)}: give the minted session only")
     missing = [k for k in MINTED_KEYS if not sec.get(k, "").strip()]
     if missing:
         raise LiveSessionError(f"[{profile}] in {path} lacks {', '.join(missing)}")
@@ -546,7 +630,8 @@ def execute(runner, cases: list[dict], out_dir: Path, *, model: str, spend_limit
             log.flush()
             print(f"[c1] {rec['case']} {rec['arm']} run-{rec['run']}: {rec['status']} pass={rec['pass']} "
                   f"subject spend ${spent:.2f} of ${spend_limit} {rec.get('reason') or ''}", file=sys.stderr)
-    summary = {"model": model, "pin": PIN, "old": OLD, "runner_head": head,
+    summary = {"model": model, "pin": PIN, "case_pins": {c["id"]: case_pin(c) for c in cases},
+               "old": OLD, "runner_head": head,
                "spend_limit_usd": spend_limit, "subject_cost_usd": round(spent, 4), "cases": {}}
     for rec in records:
         cell = summary["cases"].setdefault(rec["case"], {}).setdefault(
@@ -589,7 +674,7 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
                                                  "aws_access_key_id, aws_secret_access_key, aws_session_token and "
                                                  "expiration (the only keys used); the driver reads it before each T7 run and "
                                                  "never signs in itself, though the subject runs as your user and can "
-                                                 "still reach cluster-aws-config, ada and ~/.aws by path (without it, a "
+                                                 "still read your sign-in and ~/.aws by path (without it, a "
                                                  "kubeconfig whose exec runs aws with AWS_PROFILE reads 'cannot run')")
     args = p.parse_args(argv)
 
@@ -598,10 +683,10 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         print(f"unknown case id: {', '.join(unknown)} (known: {', '.join(CASE_IDS)})", file=sys.stderr)
         return 2
     cases = [c for c in CASES if not args.case or c["id"] in args.case]
-    # The case files, fixtures and skills are read from PIN, never the working tree.
-    paths = sorted({p for c in cases for p in (f"misc/evals/{c['skill']}", f"skills/{c['skill']}")})
+    # The case files, fixtures and skills are read from each case's pin (PIN, or T4's
+    # T4_PIN), never the working tree.
     try:
-        with archived(PIN, *paths) as root:
+        with archived_trees(pin_paths(cases)) as root:
             return drive(args, cases, root, runner)
     except GitError as e:
         print(f"git read failed: {e}", file=sys.stderr)
@@ -618,7 +703,7 @@ def drive(args: argparse.Namespace, cases: list[dict], root: Path, runner: Simpl
     if not args.paid:
         plan = plan_runs(cases)
         for item in plan:
-            print(f"{item['case']} {item['arm']} run-{item['run']} {item['rev']} {PIN if item['rev'] == 'PIN' else OLD}")
+            print(f"{item['case']} {item['arm']} run-{item['run']} {item['rev']} {item['commit']}")
         print(f"dry run: {len(plan)} runs planned, no model call made")
         return 0
 
