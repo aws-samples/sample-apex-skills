@@ -26,7 +26,7 @@
 # time; a pass takes longer when a mutant makes an installer run hang until
 # its 60 s limit). With 128 mutants and the baseline, the 129 passes take
 # about 213 to 290 minutes there. On a GitHub-hosted runner a pass averaged
-# about 3.2 min in run 45111689075 (2026-11-23), about 410 minutes in all,
+# about 3.2 min in run 45111689075 (2026-11-23), so all 129 passes would take about 410 minutes,
 # past the job's 360-minute cap (timeout-minutes in installer-mutation.yml;
 # GitHub's 6-hour hosted-runner job limit). A job stopped at the
 # cap is a timeout, not a surviving mutant: rerun each mutant it did not
