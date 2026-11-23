@@ -85,10 +85,7 @@ from parse_trajectory import (
     kiro_usage,
 )
 
-try:  # PyYAML is present in this eval env (siblings import it unconditionally).
-    import yaml  # The class-membership read (run_checks, below) needs it, so the
-except ImportError:  # yaml-is-None branches no longer make a bare interpreter work.
-    yaml = None
+import yaml  # also needed by the class-membership read (run_checks, below)
 
 
 # Claude Code ships these skills in v2.1.121; system/init.skills lists them
@@ -159,6 +156,35 @@ def stage_empty_sandbox():
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
         shutil.rmtree(clean_home, ignore_errors=True)
+
+
+def wall_off_host(cmd: list[str], sandbox: Path, home: Path,
+                  skill_dir: Path | None = None) -> list[str]:
+    """`cmd` under bubblewrap, so a subject cannot read the host's skill
+    copies (a C1 run read one from another worktree). The runner's HOME,
+    the repo and the temp dir, where this host keeps those copies, each
+    read as an empty tmpfs; the run's sandbox and clean HOME are bound back
+    read-write, and the staged skill folder (`skill_dir`, none for
+    without_skill) and ~/.local (the harness CLIs) read-only. The rest of
+    the filesystem and the network are unchanged. Raises RuntimeError
+    when bwrap is not installed, before any subject starts."""
+    if shutil.which("bwrap") is None:
+        raise RuntimeError("bwrap is not installed: the subject sandbox needs it to wall off "
+                           "the host's skill copies (dnf install bubblewrap)")
+    walls: list[Path] = []
+    for p in sorted({Path.home().resolve(), REPO_ROOT.resolve(), Path(tempfile.gettempdir()).resolve()},
+                    key=lambda p: len(p.parts)):
+        if len(p.parts) > 1 and not any(p == w or w in p.parents for w in walls):
+            walls.append(p)
+    args = ["bwrap", "--dev-bind", "/", "/", "--die-with-parent"]
+    for w in walls:
+        args += ["--tmpfs", str(w)]
+    for p in [Path.home().resolve() / ".local"] + ([Path(skill_dir).resolve()] if skill_dir else []):
+        if p.exists():
+            args += ["--ro-bind", str(p), str(p)]
+    for p in (sandbox, home):
+        args += ["--bind", str(Path(p).resolve()), str(Path(p).resolve())]
+    return args + ["--chdir", str(Path(sandbox).resolve()), "--", *cmd]
 
 
 def build_subprocess_env(
@@ -731,7 +757,7 @@ def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     process = subprocess.Popen(
-        cmd,
+        wall_off_host(cmd, sandbox, home, skill_dir),
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         cwd=str(sandbox),
@@ -816,8 +842,9 @@ def run_kiro(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     cmd.append(query)
-    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
+    process = subprocess.Popen(wall_off_host(cmd, sandbox, home, skill_dir), stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=str(sandbox),
+                               env=env)
     return parse_kiro_stream(process, skill_name, skill_dir, timeout)
 
 
@@ -930,8 +957,9 @@ def run_codex(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     cmd.append(query)
-    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
+    process = subprocess.Popen(wall_off_host(cmd, sandbox, home, skill_dir), stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=str(sandbox),
+                               env=env)
     return parse_codex_stream(process, skill_name, skill_dir, timeout)
 
 
@@ -1004,12 +1032,9 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
-    """Parse SKILL.md frontmatter for (name, description).
-
-    Uses yaml.safe_load when PyYAML is importable (matching the docs
-    pipeline's parsing contract); falls back to the original stdlib-only
-    regex scraper otherwise. Raises RuntimeError on missing frontmatter,
-    missing `name`, or (yaml path only) invalid YAML.
+    """Parse SKILL.md frontmatter for (name, description) with
+    yaml.safe_load (the docs pipeline's parsing contract). Raises
+    RuntimeError on missing frontmatter, missing `name` or invalid YAML.
     """
     text = (skill_dir / "SKILL.md").read_text()
     m = _FRONTMATTER_RE.match(text)
@@ -1018,59 +1043,16 @@ def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
     fm = m.group(1)
     if len(fm.encode("utf-8")) > 256 * 1024:
         raise RuntimeError(f"SKILL.md frontmatter exceeds maximum allowed size: {skill_dir}")
-
-    if yaml is not None:
-        try:
-            data = yaml.safe_load(fm)
-        except yaml.YAMLError as e:
-            raise RuntimeError(
-                f"SKILL.md frontmatter is not valid YAML: {skill_dir}: {e}"
-            ) from e
-        if not isinstance(data, dict) or not data.get("name"):
-            raise RuntimeError(f"SKILL.md frontmatter missing `name`: {skill_dir}")
-        name = str(data["name"]).strip()
-        description = str(data.get("description") or "").strip()
-        return name, description
-
-    return _read_skill_meta_regex(fm, skill_dir)
-
-
-def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
-    """Stdlib-only fallback frontmatter scraper (pre-PyYAML behavior).
-    Only understands top-level `name:` and `description:` (plain or block
-    scalar) — kept for environments without PyYAML installed.
-    Known divergence from the YAML path: quoted values keep their
-    surrounding quotes (cosmetic; description is output-metadata only).
-    """
-    name = None
-    description_lines: list[str] = []
-    in_description = False
-    description_indent: int | None = None
-
-    for line in fm.splitlines():
-        if in_description:
-            if line.startswith(" " * (description_indent or 1)) or not line.strip():
-                description_lines.append(line)
-                continue
-            in_description = False
-
-        key_match = re.match(r"^(\w+):\s*(.*)$", line)
-        if not key_match:
-            continue
-        key, value = key_match.group(1), key_match.group(2)
-        if key == "name":
-            name = value.strip().strip("'\"")
-        elif key == "description":
-            if value.strip() in ("|", ">", "|-", ">-"):
-                in_description = True
-                description_indent = 2
-                description_lines = []
-            else:
-                description_lines = [value]
-
-    if not name:
+    try:
+        data = yaml.safe_load(fm)
+    except yaml.YAMLError as e:
+        raise RuntimeError(
+            f"SKILL.md frontmatter is not valid YAML: {skill_dir}: {e}"
+        ) from e
+    if not isinstance(data, dict) or not data.get("name"):
         raise RuntimeError(f"SKILL.md frontmatter missing `name`: {skill_dir}")
-    description = "\n".join(description_lines).strip()
+    name = str(data["name"]).strip()
+    description = str(data.get("description") or "").strip()
     return name, description
 
 
@@ -1265,12 +1247,8 @@ def class_parents(name: str, classes_root: Path) -> list[str]:
         text = path.read_text()
     except OSError as e:
         raise EvalSetError(f"no class {name!r}: cannot read {path}") from e
-    if yaml is not None:
-        data = yaml.safe_load(text) or {}
-        parents = data.get("parents") or []
-    else:
-        m = re.search(r"^parents:\s*\[(.*)\]\s*$", text, re.MULTILINE)
-        parents = [p.strip().strip("'\"") for p in m.group(1).split(",") if p.strip()] if m else []
+    data = yaml.safe_load(text) or {}
+    parents = data.get("parents") or []
     if not isinstance(parents, list) or not all(isinstance(p, str) for p in parents):
         raise EvalSetError(f"{path}: parents must be a list of class names")
     return parents
@@ -1308,26 +1286,36 @@ def declared_classes(skill_md: Path) -> list[str]:
 
 
 def class_targets(repo_root: Path = REPO_ROOT, classes_root: Path | None = None,
-                  explicit: dict[str, dict[str, bool]] = EXPLICIT_CLASS_TARGETS
-                  ) -> dict[str, dict[str, bool]]:
+                  explicit: dict[str, dict[str, bool]] = EXPLICIT_CLASS_TARGETS,
+                  refused: dict[str, str] | None = None) -> dict[str, dict[str, bool]]:
     """Each class's targets: the explicit list, plus every skill and
     devops-agent copy whose metadata.apex-classes names the class or one of
     its children (a member of a class is a member of its parents), as a
-    blocking target."""
+    blocking target. A SKILL.md whose classes cannot be read is left out
+    and its folder's error goes into `refused`, so it stops only its own
+    run (build_eval_set, run_task_evals.run_skill), not every import."""
     classes_root = classes_root or (repo_root / "classes")
     targets = {cls: dict(listed) for cls, listed in explicit.items()}
     for pattern in run_checks.SKILL_GLOBS:
         for skill_md in sorted(repo_root.glob(pattern)):
-            names = declared_classes(skill_md)
+            rel = skill_md.parent.relative_to(repo_root).as_posix()
+            try:
+                names = declared_classes(skill_md)
+            except EvalSetError as e:
+                if refused is None:
+                    raise
+                refused[rel] = str(e)
+                continue
             if not names:
                 continue
-            rel = skill_md.parent.relative_to(repo_root).as_posix()
             for cls in class_chain(names, classes_root):
                 targets.setdefault(cls, {})[rel] = True
     return targets
 
 
-CLASS_TARGETS: dict[str, dict[str, bool]] = class_targets()
+# Folder (repo-relative) -> why its SKILL.md's classes could not be read.
+CLASS_TARGETS_REFUSED: dict[str, str] = {}
+CLASS_TARGETS: dict[str, dict[str, bool]] = class_targets(refused=CLASS_TARGETS_REFUSED)
 
 
 def _check_cases(cases, where: str) -> list[dict]:
@@ -1362,6 +1350,8 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
             raise EvalSetError(f"cannot read {where}: {e}") from e
         cases += [dict(c, source="member") for c in _check_cases(loaded, where)]
     target = target_path(skill_dir)
+    if target in CLASS_TARGETS_REFUSED:
+        raise EvalSetError(CLASS_TARGETS_REFUSED[target])
     blocking = None
     chain: list[str] = []
     if classes:
@@ -1408,6 +1398,11 @@ def main() -> int:
                         metavar="CLASS",
                         help="Also run this class's shared trigger evals (and its parents'); "
                              "the skill must be on the class's target list. Repeatable")
+    parser.add_argument("--run-key", default=None,
+                        help="The gate's form, in place of --eval-set, --skill-path and --class: "
+                             "the run key's misc/evals/<key>/triggering.json, skill folder and "
+                             "classes (run_task_evals.resolve_target). A key with no trigger case "
+                             "prints {\"run_key\": <key>, \"skipped\": <why>} and exits 0")
     parser.add_argument("--harness", choices=HARNESSES, default="claude")
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=90, help="Per-query wallclock seconds")
@@ -1428,6 +1423,26 @@ def main() -> int:
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     model = subject_model(args.harness, args.model, args.subject_model)
+
+    if args.run_key:
+        if args.eval_set or args.skill_path or args.classes:
+            print("error: --run-key takes no --eval-set, --skill-path or --class", file=sys.stderr)
+            return 1
+        import run_task_evals  # its target resolution; imported here, as it imports this module
+        t = run_task_evals.resolve_target(args.run_key)
+        own = run_task_evals.EVALS_ROOT / args.run_key / "triggering.json"
+        try:
+            shared = [c for c in class_chain(t["classes"], REPO_ROOT / "classes")
+                      if (REPO_ROOT / "classes" / c / "evals" / "trigger" / "triggering.json").is_file()]
+        except EvalSetError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        if not own.is_file() and not shared:
+            print(json.dumps({"run_key": args.run_key,
+                              "skipped": "no trigger case: no triggering.json and no class trigger file"}))
+            return 0
+        args.eval_set = str(own) if own.is_file() else None
+        args.skill_path, args.classes = str(t["skill_repo_dir"]), t["classes"]
 
     if not args.skill_path:
         print("error: --skill-path is required", file=sys.stderr)

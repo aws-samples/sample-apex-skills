@@ -7,8 +7,8 @@ Each entry's tokens_per_run is the with_skill arm's mean tokens per run
 (a row with no harness field is claude), the only committed place the task
 runner records tokens (baseline.json carries none); null when that row has no
 per-skill summary (older rows), its mean is null (no run recorded a token
-count) or there is no such row. A history line that is not JSON is
-skipped with a warning.
+count) or there is no such row. A history line that is not a JSON object
+is skipped with a warning.
 
 --check builds the same content and compares it with the committed file:
 exit 0 when they match, 1 when they differ or the file is missing. It
@@ -51,7 +51,9 @@ def latest_task_row(skill: str) -> dict | None:
         try:
             row = json.loads(line)
         except ValueError:
-            print(f"warning: {path}: skipping a line that is not JSON", file=sys.stderr)
+            row = None
+        if not isinstance(row, dict):
+            print(f"warning: {path}: skipping a line that is not a JSON object", file=sys.stderr)
             continue
         if row.get("kind") == "task" and row.get("harness", "claude") == "claude":
             return row

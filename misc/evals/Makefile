@@ -125,7 +125,8 @@ help:
 	@echo ""
 	@echo "Merge gate (LIVE: subject + grader; exits 2 on a regression):"
 	@echo "  gate SKILL=<run key>   deterministic stages, then the task runner on with_skill"
-	@echo "                         against the skill at BASE_REF, scored per case on Pass@k"
+	@echo "                         against the skill at BASE_REF, scored per case on Pass@k,"
+	@echo "                         and the triggering runner on with_skill, scored per query"
 	@echo "  gate-all               the same for every run key with a runnable case"
 	@echo "  gate-changed BASE=<commit>  the same for each run key with a skill, eval or class"
 	@echo "                         eval file changed between BASE and HEAD (a gate"
@@ -306,9 +307,12 @@ task-all-parallel:
 # ---------- gate (LIVE; the merge gate) ---------------------------------------
 # gate SKILL=<run key>: the deterministic stages (gate-stages), then the task
 # runner on HARNESS with with_skill against the skill at BASE_REF, RUNS_PER_PROMPT
-# runs per case (default the skill's regression.pass_k), then
-# `regression.py --gate` on that run's own result. A case that fails Pass@k
-# fails the gate on its own; so does a pooled pass-rate drop past THRESHOLD.
+# runs per case (default the skill's regression.pass_k), then the triggering
+# runner on with_skill (`run_triggering.py --run-key`, three runs per query; a
+# key with no trigger case skips it), then `regression.py --gate` on both
+# results. A case that fails Pass@k fails the gate on its own; so does a
+# trigger query that fails on with_skill, and a pooled pass-rate drop past
+# THRESHOLD.
 # Tokens and time are reported and do not block: only pass rate blocks.
 # regression.py exits 2 on a regression and 1 when the run gives nothing to
 # score (a runner error, a refused eval-role session, no runnable case) or
@@ -317,12 +321,15 @@ task-all-parallel:
 # RUNS_PER_PROMPT) other than 3 before any model call.
 # SKILL takes any run key `run_task_evals.py --list-targets` prints.
 define gate_one
-( out=$$(mktemp) || exit 1; \
+( out=$$(mktemp) || exit 1; tout=$$(mktemp) || { rm -f "$$out"; exit 1; }; \
   python3 $(EVALS_ROOT)/scripts/run_task_evals.py --skill $(1) --harness $(HARNESS) \
     $(TASK_BASE) $(TASK_RUNS) --model $(MODEL) $(SUBJECT_ARG) $(TASK_LIVE) --gate > "$$out"; rc=$$?; \
+  python3 $(EVALS_ROOT)/scripts/run_triggering.py --run-key $(1) --harness $(HARNESS) \
+    --runs-per-query 3 --num-workers $(NUM_WORKERS) --model $(MODEL) $(SUBJECT_ARG) > "$$tout"; trc=$$?; \
   python3 $(EVALS_ROOT)/scripts/regression.py --gate --skill $(1) --task-result "$$out" \
-    --threshold $(THRESHOLD); grc=$$?; \
-  rm -f "$$out"; if [ $$grc -ne 0 ]; then exit $$grc; fi; exit $$rc )
+    --trigger-result "$$tout" --threshold $(THRESHOLD); grc=$$?; \
+  rm -f "$$out" "$$tout"; if [ $$grc -ne 0 ]; then exit $$grc; fi; \
+  if [ $$trc -ne 0 ]; then exit $$trc; fi; exit $$rc )
 endef
 
 gate-stages:
@@ -331,7 +338,7 @@ gate-stages:
 
 gate:
 	@if [ -z "$$SKILL" ]; then \
-	  echo "usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] [BASE_REF=<ref>] [RUNS_PER_PROMPT=<n>]"; \
+	  echo "usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] [BASE_REF=<ref>] [RUNS_PER_PROMPT=3]"; \
 	  exit 1; fi
 	$(skill_ok)
 	@$(MAKE) --no-print-directory gate-stages
@@ -369,7 +376,7 @@ gate-all: gate-stages
 gate-changed: BASE_REF = $(BASE)
 gate-changed:
 	@if [ -z "$$BASE" ]; then \
-	  echo "usage: make gate-changed BASE=<commit> [HARNESS=claude|kiro|codex] [RUNS_PER_PROMPT=<n>]"; \
+	  echo "usage: make gate-changed BASE=<commit> [HARNESS=claude|kiro|codex] [RUNS_PER_PROMPT=3]"; \
 	  exit 1; fi
 	@[[ "$$BASE" =~ ^[A-Za-z0-9_./-]+$$ ]] || { echo "BASE must match [A-Za-z0-9_./-]+"; exit 1; }
 	@$(MAKE) --no-print-directory gate-stages

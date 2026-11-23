@@ -73,6 +73,7 @@ from typing import Any
 
 from run_triggering import (
     CLASS_TARGETS as CLASS_TARGET_PATHS,
+    CLASS_TARGETS_REFUSED,
     EvalCredentialError,
     HARNESS_SUBJECT_MODELS,
     build_subprocess_env,
@@ -86,6 +87,7 @@ from run_triggering import (
     stage_skill_sandbox,
     read_skill_meta,
     subject_model,
+    wall_off_host,
 )
 from parse_trajectory import (
     HARNESSES,
@@ -160,6 +162,9 @@ def targets_by_folder(class_targets: dict[str, dict[str, bool]]) -> tuple[dict, 
 
 
 CLASS_TARGETS: tuple[dict, ...] = targets_by_folder(CLASS_TARGET_PATHS)
+# Run key -> folder of each SKILL.md whose classes could not be read: listed
+# and run like any key, so its run fails with the reason (run_skill).
+REFUSED_TARGETS: dict[str, str] = {run_key_for(REPO_ROOT / p): p for p in CLASS_TARGETS_REFUSED}
 
 
 # ---------- stream consumption ------------------------------------------------
@@ -366,7 +371,9 @@ def extract_result_summary(events: list[dict]) -> dict:
     else 0, so it stays comparable with earlier runs. With `modelUsage` it
     can be below input_tokens + output_tokens.
 
-    `total_tokens_with_cache` reads the same `usage` and adds cache reads
+    `total_tokens_with_cache` reads the same top-level `usage` (the agent
+    loop only, no subagent request, while the per-category counts beside
+    it come from `modelUsage`, subagents included) and adds cache reads
     and writes: input + cache read + cache write + output. Codex's
     input_tokens already counts its cached input (parse_trajectory.py,
     harness shapes), so a codex run's value is input + output.
@@ -700,10 +707,11 @@ def run_subject(
                                                     aws_env=eval_aws_env(timeout)),
                                home, harness)
 
+        staged_skill = repo_skill_dir if with_skill else None
         if refused:
             pass
         elif multiturn:
-            cmd_base = _claude_cmd_base(model)
+            cmd_base = wall_off_host(_claude_cmd_base(model), sandbox, home, staged_skill)
             with _recording_popen() as procs:
                 raw_events, timed_out, _ = run_multiturn_subject(
                     initial_prompt=prompt,
@@ -718,7 +726,7 @@ def run_subject(
             env = subject_env()
             cmd = HARNESS_ADAPTERS[harness](prompt=prompt, model=model, sandbox=sandbox, env=env)
             process = subprocess.Popen(
-                cmd,
+                wall_off_host(cmd, sandbox, home, staged_skill),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(sandbox),
@@ -1123,20 +1131,22 @@ def changed_paths(base: str) -> list[str]:
     return [p for p in r.stdout.decode().split("\0") if p]
 
 
-# The gate's own files (its scripts, the Makefile, the grader spec): a change
-# to one can change any run key's result, so it gates every run key.
+# The gate's own files (its scripts, the Makefile, the grader spec, the
+# skill-creator scripts it runs, and the class-membership readers its target
+# list is built with): a change to one can change any run key's result, so it
+# gates every run key.
 GATE_PATHS = ("misc/evals/scripts", "misc/evals/Makefile",
-              "skills/skill-creator/agents/grader.md")
+              "skills/skill-creator/agents/grader.md", "skills/skill-creator/scripts",
+              "classes/steward/scripts/run_checks.py", "misc/safe_frontmatter.py")
 
 
 def target_changed(target: dict, paths: list[str]) -> bool:
     """True when a path is under the target's skill folder, its
-    misc/evals/<run key>/ folder, the evals/ folder of one of its classes
-    or one of GATE_PATHS."""
-    roots = ([target["skill_rel"]] + [f"classes/{c}/evals" for c in target["classes"]]
+    misc/evals/<run key>/ folder, the evals/ folder or class.yaml of one of
+    its classes or one of GATE_PATHS."""
+    roots = ([target["skill_rel"], (EVALS_ROOT / target["run_key"]).relative_to(REPO_ROOT).as_posix()]
+             + [f"classes/{c}/{leaf}" for c in target["classes"] for leaf in ("evals", "class.yaml")]
              + list(GATE_PATHS))
-    with contextlib.suppress(ValueError):
-        roots.append((EVALS_ROOT / target["run_key"]).relative_to(REPO_ROOT).as_posix())
     return any(p == r or p.startswith(r + "/") for p in paths for r in roots)
 
 
@@ -1186,7 +1196,7 @@ def resolve_target(run_key: str) -> dict:
     target = class_target(run_key) or {}
     own = EVALS_ROOT / run_key
     own_dir = own if (own / "evals.json").exists() else None
-    skill_dir = target.get("skill_dir", f"skills/{run_key}")
+    skill_dir = target.get("skill_dir") or REFUSED_TARGETS.get(run_key, f"skills/{run_key}")
     workspace = (own if own_dir else TARGETS_WORKSPACE / run_key) / "workspace"
     return {
         "run_key": run_key,
@@ -1196,6 +1206,7 @@ def resolve_target(run_key: str) -> dict:
         "classes": list(target.get("classes", [])),
         "blocking": target.get("blocking"),
         "workspace": workspace,
+        "refused": CLASS_TARGETS_REFUSED.get(skill_dir),
     }
 
 
@@ -1324,6 +1335,7 @@ def summarize_arm(records: list[dict], k: int) -> dict:
         "passes": passes,
         "pass_at_k": passes > 0,
         "pass_all_k": len(records) == k and passes == k,
+        "pass_per_run": [r["pass"] for r in records],
         "pass_rate_mean": _mean([r["grader_pass_rate"] for r in records]),
         "tokens_per_run": [r["tokens"] for r in records],
         "tokens_mean": _mean_recorded([r["tokens"] for r in records]),
@@ -1460,6 +1472,8 @@ def run_skill(
     arm, default regression.pass_k from .skilleval.yaml. The subject runs
     on `subject_model_id` (default `model`), the grader on `model`."""
     target = resolve_target(skill)
+    if target["refused"]:
+        return {"skill": skill, "error": target["refused"]}
     skill_repo_dir = target["skill_repo_dir"]
     skill_eval_dir = target["own_eval_dir"]
     if skill_eval_dir is None and class_target(skill) is None:
@@ -1814,12 +1828,12 @@ def main() -> int:
             except BaseRefError as e:
                 print(f"error: {e}", file=sys.stderr)
                 return 2
-        for key in sorted(set(skills) | {t["run_key"] for t in CLASS_TARGETS}):
+        for key in sorted(set(skills) | {t["run_key"] for t in CLASS_TARGETS} | set(REFUSED_TARGETS)):
             t = resolve_target(key)
             if paths is not None and not target_changed(t, paths):
                 continue
             try:
-                runnable = bool(target_cases(t, args.include_live_only))
+                runnable = bool(t["refused"]) or bool(target_cases(t, args.include_live_only))
             except ValueError:
                 runnable = True  # listed, so a run reports the error
             if not runnable:
@@ -1830,7 +1844,8 @@ def main() -> int:
                               "classes": t["classes"], "blocking": t["blocking"]}))
         return 0
     if args.skill:
-        if args.skill not in skills and class_target(args.skill) is None:
+        if (args.skill not in skills and class_target(args.skill) is None
+                and args.skill not in REFUSED_TARGETS):
             print(f"unknown skill: {args.skill}", file=sys.stderr)
             return 2
         skills = [args.skill]

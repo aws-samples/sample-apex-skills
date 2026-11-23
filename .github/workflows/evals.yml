@@ -182,6 +182,7 @@ jobs:
           'misc/evals/scripts/**'
           'misc/evals/Makefile'
           'misc/safe_frontmatter.py'
+          'classes/steward/scripts/run_checks.py'
           'misc/tests/test_parse_trajectory_tokens.py'
           'misc/tests/test_eval_runner_robust.py'
           'misc/tests/test_safe_frontmatter.py'
