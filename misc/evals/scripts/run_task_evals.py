@@ -970,9 +970,11 @@ def run_grader(
         if not isinstance(exp, dict) or "text" not in exp or "passed" not in exp:
             return {"error": f"grading.json expectation missing required fields: {exp}"}
 
-    # Ensure summary is present — aggregate_benchmark reads it.
+    # Ensure summary is an object with a numeric pass_rate: aggregate_benchmark
+    # reads it, and a null pass_rate crashes its stats.
     changed = False
-    if "summary" not in grading or "pass_rate" not in (grading.get("summary") or {}):
+    summary = grading.get("summary")
+    if not (isinstance(summary, dict) and isinstance(summary.get("pass_rate"), (int, float))):
         passed = sum(1 for e in expectations_raw if e.get("passed"))
         total = len(expectations_raw)
         grading["summary"] = {

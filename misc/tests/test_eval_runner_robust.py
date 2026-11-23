@@ -2019,10 +2019,22 @@ class GraderNullObjects(Tmp):
         for k in ("timing", "execution_metrics", "user_notes_summary"):
             self.assertEqual(out[k], {}, k)
         out = self.grade(bench / "eval-1" / "with_skill" / "run-2",
-                         dict(base, user_notes_summary={"uncertainties": None, "needs_review": ["n"]}))
-        self.assertEqual(out["user_notes_summary"], {"uncertainties": [], "needs_review": ["n"]})
+                         dict(base, user_notes_summary={"uncertainties": None, "needs_review": None,
+                                                        "workarounds": None}))
+        self.assertEqual(out["user_notes_summary"],
+                         {"uncertainties": [], "needs_review": [], "workarounds": []})
         saved = json.loads((bench / "eval-1" / "with_skill" / "run-2" / "grading.json").read_text())
         self.assertEqual(saved["user_notes_summary"], out["user_notes_summary"])
+        rebuilt = {"passed": 1, "failed": 0, "total": 1, "pass_rate": 1.0}
+        for n, summary in ((3, "absent"), (4, {"pass_rate": None}), (5, "pass_rate")):
+            run = bench / "eval-1" / "with_skill" / f"run-{n}"
+            grading = dict(base)
+            if summary == "absent":
+                del grading["summary"]
+            else:
+                grading["summary"] = summary
+            self.grade(run, grading)
+            self.assertEqual(json.loads((run / "grading.json").read_text())["summary"], rebuilt, n)
         with contextlib.redirect_stderr(io.StringIO()):
             run_task_evals.run_benchmark("apex", bench, skill_path=REPO / "skills" / "apex")
         self.assertTrue((bench / "benchmark.json").is_file())
