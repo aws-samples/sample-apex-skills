@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import types
 import unittest
@@ -2086,6 +2087,146 @@ class RunSkill(Tmp):
             entry = self.run_it("eks-recon", runs=1, harness=harness,
                                 subject_model_id="s-id")["history_entry"]
             self.assertEqual((entry["model"], entry["subject_model"]), ("m", "s-id"))
+
+    # The k runs of a case on one arm run at the same time, and the report
+    # is the one a serial run of the same results gives.
+
+    def two_cases(self):
+        self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]},
+                                     {"id": 2, "prompt": "q", "expectations": ["e"]}])
+        self.graded = []
+
+    def grader(self, **kw):
+        run = kw["run_dir"]
+        self.graded.append(run)
+        if run.parts[-3:] == ("eval-2", "with_skill", "run-3"):
+            return {"error": "grader produced no grading.json"}
+        return self.fake_grader(**kw)
+
+    def run_with(self, subject=None, serial=False):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(
+                run_task_evals, "run_subject", side_effect=subject or self.fake_subject))
+            stack.enter_context(mock.patch.object(
+                run_task_evals, "run_grader", side_effect=self.grader))
+            if serial:
+                stack.enter_context(mock.patch.object(
+                    run_task_evals, "_side_by_side", lambda fn, items: [fn(i) for i in items]))
+            return self.run_it("eks-recon", runs=3)
+
+    def test_runs_overlap(self):
+        self.two_cases()
+        lock, live, peak = threading.Lock(), [0], [0]
+        barrier = threading.Barrier(3, timeout=10)  # a serial loop never passes it
+
+        def side_by_side(fn):
+            def call(**kw):
+                with lock:
+                    live[0] += 1
+                    peak[0] = max(peak[0], live[0])
+                try:
+                    barrier.wait()
+                    return fn(**kw)
+                finally:
+                    with lock:
+                        live[0] -= 1
+            return call
+
+        self.grader = side_by_side(self.grader)
+        self.run_with(subject=side_by_side(self.fake_subject))
+        self.assertEqual(peak[0], 3, "three runs at once, one arm at a time")
+        self.assertEqual(len(self.calls), 12)
+
+    def test_report_equals_a_serial_run_of_the_same_results(self):
+        self.two_cases()
+        self.subject_fails = {(1, "with_skill", "run-2")}
+        self.fail_case = {(2, "without_skill")}
+
+        def run_1_ends_last(**kw):
+            time.sleep({"run-1": 0.3, "run-2": 0.1}.get(kw["run_dir"].name, 0))
+            return self.fake_subject(**kw)
+
+        reports = []
+        for serial in (False, True):
+            out = self.run_with(subject=run_1_ends_last, serial=serial)
+            runs_dir = Path(out["runs_dir"])
+            entry = dict(out["history_entry"])
+            entry.pop("ts")
+            files = {str(f.relative_to(runs_dir)): f.read_text()
+                     for f in sorted(runs_dir.glob("eval-*/*/run-*/*.json"))}
+            reports.append((entry, (runs_dir / "cases.json").read_text(), files))
+            shutil.rmtree(runs_dir)
+        self.assertEqual(reports[0], reports[1])
+        by_id = {c["eval_id"]: c for c in reports[0][0]["cases"]}
+        self.assertEqual(by_id[1]["arms"]["with_skill"]["pass_per_run"], [True, False, True])
+        self.assertEqual(by_id[2]["arms"]["with_skill"]["pass_per_run"], [True, True, False])
+
+    def test_one_failed_run_is_recorded_without_losing_the_others(self):
+        self.two_cases()
+        self.subject_fails = {(1, "with_skill", "run-2")}
+        out = self.run_with()
+        case = {c["eval_id"]: c for c in out["history_entry"]["cases"]}[1]
+        arm = case["arms"]["with_skill"]
+        self.assertEqual(arm["pass_per_run"], [True, False, True])
+        self.assertEqual((arm["runs"], arm["valid_runs"]), (3, 2))
+        self.assertEqual(arm["invalid_reasons"], ["subject exited 1"])
+        self.assertEqual(arm["tokens_per_run"], [100, 100, 100])
+        self.assertTrue(case["pass"])
+        run_2 = Path(out["runs_dir"]) / "eval-1" / "with_skill" / "run-2"
+        self.assertTrue(json.loads((run_2 / "grading.json").read_text())["invalid_run"])
+        self.assertNotIn(run_2, self.graded)
+        self.assertEqual(len(self.graded), 11)
+
+    def test_an_error_in_one_run_is_raised_after_the_others_end(self):
+        self.two_cases()
+        ended = []
+
+        def subject(**kw):
+            if kw["run_dir"].name == "run-1":
+                raise run_triggering.EvalCredentialError("refresh failed")
+            time.sleep(0.2)
+            ended.append(kw["run_dir"].name)
+            return self.fake_subject(**kw)
+
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "refresh failed"):
+            self.run_with(subject=subject)
+        self.assertEqual(sorted(ended), ["run-2", "run-3"])
+        self.assertEqual(self.graded, [])
+
+
+class SharedStateSideBySide(unittest.TestCase):
+    def test_multiturn_runs_side_by_side_read_their_own_exit_codes(self):
+        barrier = threading.Barrier(2, timeout=10)
+        got = {}
+
+        def run(code):
+            with run_task_evals._recording_popen() as procs:
+                barrier.wait()
+                elicitation.subprocess.Popen(
+                    [sys.executable, "-c", f"raise SystemExit({code})"]).wait()
+                barrier.wait()
+                got[code] = [proc.returncode for proc in procs]
+
+        run_task_evals._side_by_side(run, [3, 5])
+        self.assertEqual(got, {3: [3], 5: [5]})
+        self.assertIs(elicitation.subprocess, subprocess)
+
+    def test_one_eval_role_refresh_at_a_time(self):
+        lock, live, peak = threading.Lock(), [0], [0]
+
+        def env(timeout):
+            with lock:
+                live[0] += 1
+                peak[0] = max(peak[0], live[0])
+            time.sleep(0.05)
+            with lock:
+                live[0] -= 1
+            return {"AWS_REGION": "r"}
+
+        with mock.patch.object(run_task_evals, "eval_aws_env", side_effect=env):
+            out = run_task_evals._side_by_side(run_task_evals._eval_env, [600, 600, 600])
+        self.assertEqual(out, [{"AWS_REGION": "r"}] * 3)
+        self.assertEqual(peak[0], 1)
 
 
 class ChangedSince(unittest.TestCase):

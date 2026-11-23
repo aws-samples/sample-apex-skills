@@ -67,7 +67,9 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -704,7 +706,7 @@ def run_subject(
 
         def subject_env() -> dict[str, str]:
             return harness_env(build_subprocess_env(home, extra=run_extra or None,
-                                                    aws_env=eval_aws_env(timeout)),
+                                                    aws_env=_eval_env(timeout)),
                                home, harness)
 
         staged_skill = repo_skill_dir if with_skill else None
@@ -858,32 +860,73 @@ HARNESS_ADAPTERS = {
 }
 
 
+_EVAL_ENV_LOCK = threading.Lock()
+
+
+def _eval_env(timeout: int) -> dict[str, str]:
+    """eval_aws_env under a lock: runs side by side share one eval-role
+    session, and one refresh at a time keeps two runs from each minting
+    a new one."""
+    with _EVAL_ENV_LOCK:
+        return eval_aws_env(timeout)
+
+
 class _PopenRecorder:
-    """Stands in for the subprocess module inside elicitation.py for one
-    multi-turn run, keeping every Popen so each turn's exit code is read
+    """Stands in for the subprocess module inside elicitation.py while any
+    multi-turn run is live, keeping each thread's Popen calls in that
+    thread's own list, so each run reads only its own turns' exit codes
     (elicitation.run_multiturn_subject does not return them)."""
 
     def __init__(self) -> None:
-        self.procs: list[subprocess.Popen] = []
+        self.local = threading.local()
+        self.lock = threading.Lock()
+        self.users = 0
+        self.saved: Any = None
 
     def __getattr__(self, name: str) -> Any:
         return getattr(subprocess, name)
 
     def Popen(self, *args: Any, **kwargs: Any) -> subprocess.Popen:  # noqa: N802
         proc = subprocess.Popen(*args, **kwargs)
-        self.procs.append(proc)
+        procs = getattr(self.local, "procs", None)
+        if procs is not None:
+            procs.append(proc)
         return proc
+
+
+_RECORDER = _PopenRecorder()
 
 
 @contextlib.contextmanager
 def _recording_popen():
-    recorder = _PopenRecorder()
-    saved = elicitation.subprocess
-    elicitation.subprocess = recorder
+    """The recorder is in place from the first live multi-turn run until
+    the last one ends; elicitation.subprocess is then restored."""
+    with _RECORDER.lock:
+        if _RECORDER.users == 0:
+            _RECORDER.saved = elicitation.subprocess
+            elicitation.subprocess = _RECORDER
+        _RECORDER.users += 1
+    _RECORDER.local.procs = procs = []
     try:
-        yield recorder.procs
+        yield procs
     finally:
-        elicitation.subprocess = saved
+        _RECORDER.local.procs = None
+        with _RECORDER.lock:
+            _RECORDER.users -= 1
+            if _RECORDER.users == 0:
+                elicitation.subprocess = _RECORDER.saved
+
+
+def _side_by_side(fn: Any, items: list) -> list:
+    """fn(item) for every item at the same time, one thread each, the
+    results in the items' order whatever order they finish in. It waits
+    for every call; then the first call that raised, in item order,
+    raises here, as it would have in a serial loop."""
+    if len(items) <= 1:
+        return [fn(item) for item in items]
+    with ThreadPoolExecutor(max_workers=len(items)) as pool:
+        futures = [pool.submit(fn, item) for item in items]
+    return [f.result() for f in futures]
 
 
 # ---------- grader run --------------------------------------------------------
@@ -938,7 +981,7 @@ def run_grader(
         grading_path.unlink()
 
     with stage_empty_sandbox() as (sandbox, home):
-        env = build_subprocess_env(home, aws_env=eval_aws_env(timeout))
+        env = build_subprocess_env(home, aws_env=_eval_env(timeout))
         cmd = [
             "claude",
             "-p", prompt,
@@ -1531,6 +1574,18 @@ def _run_cases(
     harness: str,
     subject_model_id: str | None = None,
 ) -> dict:
+    """Run every case on both arms, one arm after the other. On each arm
+    the case's `runs` subjects run side by side, one thread each; the
+    process assertions and artifact checks then run in this thread once
+    every subject has ended (no thread is live when they fork); then the
+    graders of the runs left valid run side by side. Each run keeps its own
+    sandbox, clean HOME and bwrap wall (fresh temp dirs per run), its own
+    run-<k> folder and its own timing.json (its own wall time and tokens),
+    and records are kept in run order, so the report is the one a serial
+    run of the same results gives. A run that fails or times out is an
+    invalid run and the others go on; a throttle the harness does not
+    recover from fails that run alone. An exception in one run (such as a
+    refused eval-role refresh) is raised once the others have ended."""
     skill_repo_dir = target["skill_repo_dir"]
     effective_timeout = timeout
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
@@ -1560,15 +1615,15 @@ def _run_cases(
         for config in (NEW_ARM, base_arm):
             config_dir = eval_dir / config
             config_dir.mkdir(exist_ok=True)
-            by_arm[config] = []
+            run_dirs = [config_dir / f"run-{k}" for k in range(1, runs + 1)]
             for k in range(1, runs + 1):
-                run_dir = config_dir / f"run-{k}"
                 print(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (subject)",
                     file=sys.stderr,
                 )
-                eval_elicitation = ElicitationConfig.from_dict(p.get("elicitation"))
-                subj = run_subject(
+
+            def subject(run_dir: Path) -> dict:
+                return run_subject(
                     prompt=p["prompt"],
                     skill_name=(base_name if config == BASE_ARM else skill_name),
                     repo_skill_dir=(base_dir if config == BASE_ARM else skill_repo_dir),
@@ -1577,16 +1632,24 @@ def _run_cases(
                     timeout=effective_timeout,
                     run_dir=run_dir,
                     extra_env=extra_env,
-                    elicitation=eval_elicitation,
+                    elicitation=ElicitationConfig.from_dict(p.get("elicitation")),
                     skill_eval_dir=p["_fixture_root"],
                     eval_id=eval_id,
                     fixture_files=p.get("files"),
                     harness=harness,
                 )
+
+            # The case's k runs on this arm run side by side; the checks
+            # below run in this thread once all have ended, then the
+            # graders run side by side (see the docstring of _run_cases).
+            subjects = _side_by_side(subject, run_dirs)
+            to_grade: list[int] = []
+            for k, (run_dir, subj) in enumerate(zip(run_dirs, subjects), 1):
                 process_assertion_defs = p.get("process_assertions")
                 events_file = run_dir / "events.jsonl"
                 if subj["ok"] and process_assertion_defs and not events_file.exists():
-                    subj = dict(subj, ok=False, invalid=True, reason="events.jsonl missing")
+                    subj = subjects[k - 1] = dict(subj, ok=False, invalid=True,
+                                                  reason="events.jsonl missing")
                 if not subj["ok"]:
                     print(
                         f"[task]   subject failed: {subj.get('reason')}",
@@ -1620,8 +1683,6 @@ def _run_cases(
                             invalid_run_assertions(process_assertion_defs,
                                                    subj.get("reason") or "").to_dict(),
                             indent=2))
-                    by_arm[config].append(run_record(run_dir, arm=config, k=k, subj=subj,
-                                                     harness=harness))
                     continue
 
                 # --- Layer 1: Process assertions (deterministic, no LLM) ---
@@ -1669,14 +1730,20 @@ def _run_cases(
                     f"[task] {skill} eval-{eval_id} {config} run-{k} (grader)",
                     file=sys.stderr,
                 )
-                grading = run_grader(
+                to_grade.append(k)
+
+            def grade(k: int) -> dict:
+                return run_grader(
                     expectations=p["expectations"],
-                    transcript_path=Path(subj["transcript_path"]),
-                    outputs_dir=Path(subj["outputs_dir"]),
-                    run_dir=run_dir,
+                    transcript_path=Path(subjects[k - 1]["transcript_path"]),
+                    outputs_dir=Path(subjects[k - 1]["outputs_dir"]),
+                    run_dir=run_dirs[k - 1],
                     model=model,
                     timeout=grader_timeout,
                 )
+
+            for k, grading in zip(to_grade, _side_by_side(grade, to_grade)):
+                run_dir = run_dirs[k - 1]
                 if "error" in grading:
                     print(f"[task]   grader failed: {grading['error']}", file=sys.stderr)
                     (run_dir / "grading.json").write_text(
@@ -1701,8 +1768,8 @@ def _run_cases(
                             indent=2,
                         )
                     )
-                by_arm[config].append(run_record(run_dir, arm=config, k=k, subj=subj,
-                                                 harness=harness))
+            by_arm[config] = [run_record(run_dir, arm=config, k=k, subj=subj, harness=harness)
+                              for k, (run_dir, subj) in enumerate(zip(run_dirs, subjects), 1)]
         per_prompt.append({"eval_id": eval_id, "prompt": p["prompt"][:80]})
         cases.append(summarize_case(eval_id, p["_source"], by_arm, base_arm, runs))
 
