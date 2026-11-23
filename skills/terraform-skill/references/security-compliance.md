@@ -43,11 +43,14 @@ brew install trivy
 curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
 # In CI
-- uses: aquasecurity/trivy-action@master
+- uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
   with:
     scan-type: 'config'
     scan-ref: '.'
 ```
+
+- ✅ Pin third-party actions to a full commit SHA with the version in a comment
+- ❌ `@master` or mutable tags: in March 2026 attackers force-pushed 76 `trivy-action` tags to credential-stealing code ([GHSA-69fq-xp46-6x23](https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23)); tags are now `v`-prefixed
 
 **Note:** Trivy now includes tfsec's rule set; tfsec itself is in maintenance mode since its absorption into Trivy (2022), but still receives maintenance releases. Both are maintained by Aqua Security.
 
@@ -305,51 +308,61 @@ conftest test tfplan.json --policy policy/
 ### Open Policy Agent (OPA)
 
 ```rego
-# policy/s3_encryption.rego
-package terraform.s3
+# policy/s3_encryption.rego - Rego v1 syntax (default since OPA 1.0)
+package main  # conftest evaluates only `main` unless --namespace/--all-namespaces
 
 # AWS provider v4+ moved S3 encryption to the separate
 # aws_s3_bucket_server_side_encryption_configuration resource.
-# Iterate those resources and verify the rule block sets an accepted algorithm.
-
 valid_algorithms := {"aws:kms", "aws:kms:dsse", "AES256"}
 
-# Collect buckets that have an encryption config with a valid algorithm
-encrypted_buckets[bucket] {
-  sse := input.resource_changes[_]
+valid_sse contains sse if {
+  some sse in input.resource_changes
   sse.type == "aws_s3_bucket_server_side_encryption_configuration"
-  rule := sse.change.after.rule[_]
-  algo := rule.apply_server_side_encryption_by_default[_].sse_algorithm
-  valid_algorithms[algo]
-  bucket := sse.change.after.bucket
+  some rule in sse.change.after.rule
+  some d in rule.apply_server_side_encryption_by_default
+  valid_algorithms[d.sse_algorithm]
 }
 
-deny[msg] {
-  sse := input.resource_changes[_]
-  sse.type == "aws_s3_bucket_server_side_encryption_configuration"
-  rule := sse.change.after.rule[_]
-  algo := rule.apply_server_side_encryption_by_default[_].sse_algorithm
-  not valid_algorithms[algo]
+# Literal bucket name in the encryption config
+encrypted contains sse.change.after.bucket if some sse in valid_sse
 
-  msg := sprintf(
-    "S3 encryption config '%s' uses unsupported sse_algorithm '%s' (expected aws:kms or AES256)",
-    [sse.address, algo],
+# bucket = aws_s3_bucket.x.id is unknown at plan time: match the config reference.
+# Config addresses carry no count/for_each key, so compare without it.
+# Root module only; walk configuration.root_module.module_calls for child modules.
+base(addr) := regex.replace(addr, `\[[^\]]*\]$`, "")
+
+encrypted contains ref if {
+  some sse in valid_sse
+  some cfg in input.configuration.root_module.resources
+  cfg.address == base(sse.address)
+  refs := array.concat(
+    object.get(cfg, ["expressions", "bucket", "references"], []),
+    object.get(cfg, ["for_each_expression", "references"], []),
   )
+  some ref in refs
 }
 
-# Flag buckets that have no matching encryption configuration at all.
-deny[msg] {
-  bucket := input.resource_changes[_]
-  bucket.type == "aws_s3_bucket"
-  bucket_name := bucket.change.after.bucket
-  not encrypted_buckets[bucket_name]
+deny contains msg if {
+  some sse in input.resource_changes
+  sse.type == "aws_s3_bucket_server_side_encryption_configuration"
+  some rule in sse.change.after.rule
+  some d in rule.apply_server_side_encryption_by_default
+  not valid_algorithms[d.sse_algorithm]
+  msg := sprintf("S3 encryption config '%s' uses unsupported sse_algorithm '%s'", [sse.address, d.sse_algorithm])
+}
 
-  msg := sprintf(
-    "S3 bucket '%s' has no aws_s3_bucket_server_side_encryption_configuration",
-    [bucket.address],
-  )
+deny contains msg if {
+  some b in input.resource_changes
+  b.type == "aws_s3_bucket"
+  b.change.after != null
+  not encrypted[base(b.address)]
+  not encrypted[b.change.after.bucket]
+  msg := sprintf("S3 bucket '%s' has no aws_s3_bucket_server_side_encryption_configuration", [b.address])
 }
 ```
+
+- ✅ Add a `test_` rule with an unencrypted-bucket fixture and run `conftest verify`: a policy that matches nothing also exits 0
+- ❌ Never use `package terraform.*` with plain `conftest test` - it evaluates 0 rules and passes
 
 ---
 
@@ -393,6 +406,29 @@ resource "aws_secretsmanager_secret" "app_api_key" {
 # secret_string populated out-of-band (console, CLI, or a write-only argument on
 # providers that support it) — not via random_password stored in state.
 ```
+
+### Azure Key Vault Write-Only Secret
+
+Requires Terraform 1.11+, azurerm 4.23.0+ (`value_wo`), random 3.7.1+ (ephemeral `random_password`).
+
+```hcl
+ephemeral "random_password" "app" {
+  length = 32
+}
+
+resource "azurerm_key_vault_secret" "app" {
+  name             = "app-password"
+  key_vault_id     = azurerm_key_vault.this.id
+  value_wo         = ephemeral.random_password.app.result
+  value_wo_version = 1 # increment to write a new value
+}
+```
+
+- ❌ `value = ...`: azurerm stores every argument of this resource, including `value`, in state as plaintext
+- ✅ Increment `value_wo_version` to rotate; Terraform keeps no `value_wo` to diff against
+- ✅ Consumers reference the secret without a version (`versionless_id` URI or `resource_versionless_id` ARM ID, whichever the consuming service accepts) so new versions roll out; never pass it through Terraform outputs
+- ❌ Multi-line values: Key Vault strips newlines; wrap with `base64encode()`
+- ✅ Destroy/recreate under the same name hits soft-delete; set `features { key_vault { recover_soft_deleted_secrets = true } }` or purge on destroy
 
 ### Environment Variables
 
@@ -588,6 +624,29 @@ resource "aws_iam_policy" "bad_policy" {
 | Network firewalling | `aws_security_group` + `aws_vpc_security_group_*_rule` | `azurerm_network_security_group` + `azurerm_network_security_rule` | `google_compute_firewall` |
 | Identity | IAM (`aws_iam_role` / `aws_iam_policy`) | RBAC (`azurerm_role_assignment`) | IAM (`google_project_iam_*`) |
 | Encryption at rest | explicit (SSE / KMS) | default-on (optional CMK) | default-on (optional CMEK) |
+
+### Azure Managed Identity Role Assignment
+
+```hcl
+resource "azurerm_user_assigned_identity" "app" {
+  name                = "id-app-prod"
+  resource_group_name = azurerm_resource_group.app.name
+  location            = azurerm_resource_group.app.location
+}
+
+resource "azurerm_role_assignment" "app_kv" {
+  scope                = azurerm_key_vault.this.id # resource scope, not the subscription
+  role_definition_name = "Key Vault Secrets User"  # needs rbac_authorization_enabled = true on the vault
+  principal_id         = azurerm_user_assigned_identity.app.principal_id
+  principal_type       = "ServicePrincipal" # new principal: avoids Entra replication-delay failures
+}
+```
+
+- ✅ `principal_id` is the object ID; never pass `client_id`
+- ✅ Grant the Terraform identity `Role Based Access Control Administrator` (or User Access Administrator / Owner) on the scope; `Contributor` cannot create role assignments
+- ✅ Omit `name`: azurerm derives a deterministic UUID from scope, principal and role
+- ❌ `skip_service_principal_aad_check = true` on a user or group principal: the assignment fails; use it only for a newly created service principal
+- ❌ Subscription-scope `Contributor` for a workload identity; assign a data-plane role on the one resource it reads
 
 ---
 

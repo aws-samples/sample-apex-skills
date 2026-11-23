@@ -55,7 +55,7 @@ Opinionated defaults applied to every generated ECS project. Deviate only when t
 
 ## State and versions
 
-- Remote state via `configs/backend.hcl` (S3 backend with lockfile or DynamoDB locking per org standard).
+- Remote state via `configs/backend.hcl`: S3 backend with S3-native locking (`use_lockfile = true`, Terraform 1.11+). DynamoDB locking (`dynamodb_table`) is deprecated; use it only below Terraform 1.11, or alongside `use_lockfile` while migrating. With `use_lockfile`, the identity running Terraform also needs `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the lock file (`<key>.tflock`).
 - Terraform >= 1.5.7 and AWS provider >= 6.34 are the module floor as of 2026-07-10 -- always re-check per [version-matrix.md](version-matrix.md).
 
 ## Sources
