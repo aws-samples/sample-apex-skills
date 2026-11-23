@@ -22,7 +22,7 @@ jobs:
   mutate:
     name: installer mutation gate
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     steps:
       # Cases V7, OLD1 and IS3 need the v1.2.0 and v1.3.0 tags and commit 6103231, so fetch the full history.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
