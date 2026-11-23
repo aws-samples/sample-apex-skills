@@ -25,9 +25,10 @@
 # one 16-CPU Linux machine on 2026-10-20 (the harness runs its cases one at a
 # time; a pass takes longer when a mutant makes an installer run hang until
 # its 60 s limit). With 128 mutants and the baseline, the 129 passes take
-# about 213 to 290 minutes there, so the weekly job may stop at its
-# 240-minute cap (timeout-minutes in installer-mutation.yml) on a
-# GitHub-hosted runner, where a pass has not been timed. A job stopped at the
+# about 213 to 290 minutes there. On a GitHub-hosted runner a pass averaged
+# about 3.2 min in run 45111689075 (2026-11-23), about 410 minutes in all,
+# past the job's 360-minute cap (timeout-minutes in installer-mutation.yml;
+# GitHub's 6-hour hosted-runner job limit). A job stopped at the
 # cap is a timeout, not a surviving mutant: rerun each mutant it did not
 # reach with --only <ID> (one ID per run).
 #
