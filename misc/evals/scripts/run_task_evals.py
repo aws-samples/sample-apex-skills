@@ -971,6 +971,7 @@ def run_grader(
             return {"error": f"grading.json expectation missing required fields: {exp}"}
 
     # Ensure summary is present — aggregate_benchmark reads it.
+    changed = False
     if "summary" not in grading or "pass_rate" not in (grading.get("summary") or {}):
         passed = sum(1 for e in expectations_raw if e.get("passed"))
         total = len(expectations_raw)
@@ -980,6 +981,21 @@ def run_grader(
             "total": total,
             "pass_rate": (passed / total) if total else 0.0,
         }
+        changed = True
+    # aggregate_benchmark (vendored) calls .get on each of these objects and
+    # extends its notes from the three lists, so a grader that writes null
+    # (as one does when it has no notes) would crash the benchmark after the
+    # run. Each non-object reads as {} and each non-list note as [].
+    for key in ("timing", "execution_metrics", "user_notes_summary"):
+        if key in grading and not isinstance(grading[key], dict):
+            grading[key] = {}
+            changed = True
+    notes = grading.get("user_notes_summary", {})
+    for key in ("uncertainties", "needs_review", "workarounds"):
+        if key in notes and not isinstance(notes[key], list):
+            notes[key] = []
+            changed = True
+    if changed:
         grading_path.write_text(json.dumps(grading, indent=2))
 
     return grading

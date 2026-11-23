@@ -1998,6 +1998,36 @@ class SubjectEnv(Tmp):
             self.assertIsNone(seen[k], k)
 
 
+class GraderNullObjects(Tmp):
+
+    def grade(self, run_dir, grading):
+        run_dir.mkdir(parents=True)
+        fake_exe(self.bin, "claude", [RESULT], 0, extra="open(%r, 'w').write(%r)\n" % (
+            str(run_dir / "grading.json"), json.dumps(grading)))
+        with contextlib.redirect_stderr(io.StringIO()):
+            return run_task_evals.run_grader(expectations=["e"], transcript_path=self.tmp / "t.md",
+                                             outputs_dir=self.tmp / "o", run_dir=run_dir,
+                                             model="m", timeout=30)
+
+    def test_null_grader_objects_reach_the_benchmark_as_empty(self):
+        bench = self.tmp / "bench"
+        base = {"expectations": [{"text": "e", "passed": True, "evidence": "x"}],
+                "summary": {"passed": 1, "failed": 0, "total": 1, "pass_rate": 1.0}}
+        out = self.grade(bench / "eval-1" / "with_skill" / "run-1",
+                         dict(base, timing=None, execution_metrics=None, user_notes_summary=None))
+        self.assertNotIn("error", out)
+        for k in ("timing", "execution_metrics", "user_notes_summary"):
+            self.assertEqual(out[k], {}, k)
+        out = self.grade(bench / "eval-1" / "with_skill" / "run-2",
+                         dict(base, user_notes_summary={"uncertainties": None, "needs_review": ["n"]}))
+        self.assertEqual(out["user_notes_summary"], {"uncertainties": [], "needs_review": ["n"]})
+        saved = json.loads((bench / "eval-1" / "with_skill" / "run-2" / "grading.json").read_text())
+        self.assertEqual(saved["user_notes_summary"], out["user_notes_summary"])
+        with contextlib.redirect_stderr(io.StringIO()):
+            run_task_evals.run_benchmark("apex", bench, skill_path=REPO / "skills" / "apex")
+        self.assertTrue((bench / "benchmark.json").is_file())
+
+
 class SubjectModelPerHarness(unittest.TestCase):
 
     def test_defaults(self):
