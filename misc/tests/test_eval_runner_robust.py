@@ -1114,17 +1114,23 @@ class TriggeringCli(unittest.TestCase):
         self.assertEqual(seen["harness"], "codex")
         self.assertEqual(json.loads(out)["run_key"], SKILL)
 
-    def test_kiro_without_its_key_is_refused_before_any_call(self):
+    def test_kiro_without_a_key_runs_on_the_existing_sign_in(self):
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
         eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
         env = {k: v for k, v in os.environ.items() if k != "KIRO_API_KEY"}
+        seen = {}
+
+        def fake_run_eval(**kw):
+            seen.update(kw)
+            return {"results": [], "summary": {"total": 0, "passed": 0, "failed": 0}}
+
         with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint:
+                mock.patch.object(run_triggering, "mint_eval_role_credentials", return_value=None), \
+                mock.patch.object(run_triggering, "run_eval", side_effect=fake_run_eval):
             code, _, err = self.main(["--eval-set", eval_set, "--skill-path", skill,
                                       "--harness", "kiro"])
-        self.assertEqual(code, 2)
-        self.assertIn("KIRO_API_KEY", err)
-        mint.assert_not_called()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(seen["harness"], "kiro")
 
     def test_unknown_harness_is_a_usage_error(self):
         with self.assertRaises(SystemExit):
@@ -1995,6 +2001,17 @@ class SubjectEnv(Tmp):
         seen = json.loads(self.envlog.read_text())
         for k in ("APEX_EVAL_AWS_CONFIG", "APEX_EVAL_EXPECTED_ACCOUNT", "KIRO_API_KEY"):
             self.assertIsNone(seen[k], k)
+
+
+    def test_kiro_env_gets_the_parent_data_dir(self):
+        env = run_triggering.build_subprocess_env(self.tmp, aws_env=dict(ROLE))
+        self.assertEqual(env["HOME"], str(self.tmp))
+        with mock.patch.dict(os.environ, {"XDG_DATA_HOME": "/host/data"}):
+            self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["XDG_DATA_HOME"],
+                             "/host/data")
+        with mock.patch.dict(os.environ, {"HOME": "/host/home", "XDG_DATA_HOME": ""}):
+            self.assertEqual(run_triggering.harness_env(env, self.tmp, "kiro")["XDG_DATA_HOME"],
+                             "/host/home/.local/share")
 
 
 class SubjectModelPerHarness(unittest.TestCase):
