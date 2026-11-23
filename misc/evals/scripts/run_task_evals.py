@@ -795,7 +795,7 @@ def adapter_claude(*, prompt: str, model: str, sandbox: Path, env: dict[str, str
 
 
 def adapter_kiro(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
-    """`kiro-cli chat` (kiro-cli 3.4.0 `chat --help`): --output-format
+    """`kiro-cli chat` (kiro-cli 3.5.0 `chat --help`): --output-format
     stream-json gives "The run's ACP events as JSON Lines on stdout" and
     "implies --no-interactive"; --trust-all-tools lets it run tools without
     asking, the counterpart of claude's bypassPermissions; --agent-engine

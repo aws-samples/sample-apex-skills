@@ -91,7 +91,8 @@ except ImportError:  # still works in a bare interpreter.
     yaml = None
 
 
-# Claude Code ships these skills in v2.1.121; system/init.skills lists them
+# Claude Code ships these skills (the v2.1.121 set plus those 2.1.328 lists,
+# below); system/init.skills lists them
 # before any project-level or plugin skills. Update if a CLI bump changes
 # the built-in set. An unexpected entry in the subject subprocess's init
 # event means a plugin-registered skill leaked past the HOME isolation;
@@ -742,7 +743,7 @@ def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
 
 # ---------- kiro adapter ------------------------------------------------------
 #
-# Kiro CLI 3.4.0, `kiro-cli chat --help`: `--output-format stream-json` prints
+# Kiro CLI 3.5.0, `kiro-cli chat --help`: `--output-format stream-json` prints
 # "The run's ACP events as JSON Lines on stdout, one self-describing event per
 # line" and implies --no-interactive. Headless runs authenticate with the
 # KIRO_API_KEY environment variable (kiro.dev/docs/cli/headless, read
@@ -955,8 +956,8 @@ def subject_model(harness: str, model: str | None, override: str | None) -> str 
 
 # The CLI and version each adapter was written against; .github/workflows/
 # evals.yml installs the same claude and codex pins (kiro is not in CI).
-HARNESS_CLI_VERSIONS = {"claude": ("claude", "2.1.121"), "codex": ("codex", "0.163.0"),
-                        "kiro": ("kiro-cli", "3.4.0")}
+HARNESS_CLI_VERSIONS = {"claude": ("claude", "2.1.328"), "codex": ("codex", "0.163.0"),
+                        "kiro": ("kiro-cli", "3.5.0")}
 
 
 def check_cli_versions(harnesses) -> str | None:

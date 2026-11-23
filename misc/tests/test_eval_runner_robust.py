@@ -2613,7 +2613,7 @@ class EvalGateWorkflow(unittest.TestCase):
 
     def test_pinned_clis(self):
         install = next(s for s in self.job["steps"] if s.get("name") == "Install the eval tools")
-        self.assertIn("@anthropic-ai/claude-code@2.1.121", install["run"])
+        self.assertIn("@anthropic-ai/claude-code@2.1.328", install["run"])
         self.assertIn("@openai/codex@0.163.0", install["run"])
 
     def test_a_dispatched_run_is_not_cancelled(self):
@@ -2646,18 +2646,18 @@ class CliVersionCheck(unittest.TestCase):
             self.assertEqual(call.args[0][1:], ["--version"])
 
     def test_matching_versions_pass(self):
-        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("claude", "2.1.328 (Claude Code)")
         self.cli("codex", "codex-cli 0.163.0")
-        self.cli("kiro-cli", "kiro-cli 3.4.0")
+        self.cli("kiro-cli", "kiro-cli 3.5.0")
         self.assertIsNone(REAL_CHECK_CLI_VERSIONS(["claude", "codex", "kiro"]))
 
     def test_a_missing_cli_stops(self):
         err = REAL_CHECK_CLI_VERSIONS(["kiro"])
         self.assertIn("kiro-cli --version", err)
-        self.assertIn("3.4.0", err)
+        self.assertIn("3.5.0", err)
 
     def test_a_different_version_stops_triggering_before_any_run(self):
-        self.cli("claude", "2.1.328 (Claude Code)")
+        self.cli("claude", "2.1.121 (Claude Code)")
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
         eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
         argv = ["run_triggering.py", "--eval-set", eval_set, "--skill-path", skill]
@@ -2667,14 +2667,14 @@ class CliVersionCheck(unittest.TestCase):
                 mock.patch.object(run_triggering, "run_eval") as run_eval, \
                 contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(run_triggering.main(), 2)
-        self.assertIn("claude 2.1.328 is installed", err.getvalue())
-        self.assertIn("claude 2.1.121", err.getvalue())
+        self.assertIn("claude 2.1.121 is installed", err.getvalue())
+        self.assertIn("claude 2.1.328", err.getvalue())
         mint.assert_not_called()
         run_eval.assert_not_called()
         self.assert_only_version_reads()
 
     def test_a_different_version_stops_task_evals_before_any_run(self):
-        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("claude", "2.1.328 (Claude Code)")
         self.cli("codex", "codex-cli 0.170.0")
         argv = ["run_task_evals.py", "--skill", "eks-recon", "--harness", "codex",
                 "--model", "grader-id", "--base-ref", "none"]
