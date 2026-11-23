@@ -85,9 +85,9 @@ from parse_trajectory import (
     kiro_usage,
 )
 
-try:  # PyYAML is present in this eval env (siblings import it unconditionally),
-    import yaml  # but keep the stdlib-only regex fallback below so this runner
-except ImportError:  # still works in a bare interpreter.
+try:  # PyYAML is present in this eval env (siblings import it unconditionally).
+    import yaml  # The class-membership read (run_checks, below) needs it, so the
+except ImportError:  # yaml-is-None branches no longer make a bare interpreter work.
     yaml = None
 
 
@@ -1201,13 +1201,15 @@ def run_eval(
 # A class's shared trigger cases live at classes/<class>/evals/trigger/
 # triggering.json. They run against each target of the
 # class, merged with the target's own cases, a class's parents' cases first.
-# A class's targets are this explicit list (no runner reads class membership
-# from a skill's frontmatter); run_task_evals.py builds its target list from
-# it too. Only the 3 repo-owned devops-agent copies block. The other 29 are
-# report-only: a failure stays in the run results and stops no merge. They
-# are the 22 planned skills, the 4 skills their owners hold and the 3
-# devops-agent copies of owner-held skills. dotnet-aws-ecs runs once it is
-# de-vendored in its own later rebuild.
+# A class's targets (CLASS_TARGETS, built by class_targets below) are every
+# skill or devops-agent copy whose SKILL.md frontmatter names the class, or
+# a child of it, in metadata.apex-classes (each a blocking target), plus the
+# explicit list here; run_task_evals.py builds its target list from it too.
+# In the explicit list only the 3 repo-owned devops-agent copies block. The
+# other 29 are report-only: a failure stays in the run results and stops no
+# merge. They are the 22 planned skills, the 4 skills their owners hold and
+# the 3 devops-agent copies of owner-held skills. dotnet-aws-ecs runs once
+# it is de-vendored in its own later rebuild.
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -1227,10 +1229,12 @@ _APEX_BASE_REPORT_ONLY = (
 _APEX_BASE_BLOCKING = (
     "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon", "devops-agent/eks-security",
 )
-CLASS_TARGETS: dict[str, dict[str, bool]] = {
+EXPLICIT_CLASS_TARGETS: dict[str, dict[str, bool]] = {
     "apex-base": {**{p: True for p in _APEX_BASE_BLOCKING},
                   **{p: False for p in _APEX_BASE_REPORT_ONLY}},
 }
+sys.path.insert(0, str(REPO_ROOT / "classes" / "steward" / "scripts"))
+import run_checks  # noqa: E402  (class membership, as the admission runner reads it)
 
 
 class EvalSetError(ValueError):
@@ -1293,6 +1297,39 @@ def class_chain(names: list[str], classes_root: Path) -> list[str]:
     return order
 
 
+def declared_classes(skill_md: Path) -> list[str]:
+    """metadata.apex-classes in a SKILL.md's frontmatter as a list ([] when
+    absent), read by the admission runner's own reader
+    (classes/steward/scripts/run_checks.py)."""
+    try:
+        return run_checks.declared_classes(skill_md)
+    except (run_checks.ClassError, run_checks.FrontmatterError) as e:
+        raise EvalSetError(f"{skill_md}: {e}") from e
+
+
+def class_targets(repo_root: Path = REPO_ROOT, classes_root: Path | None = None,
+                  explicit: dict[str, dict[str, bool]] = EXPLICIT_CLASS_TARGETS
+                  ) -> dict[str, dict[str, bool]]:
+    """Each class's targets: the explicit list, plus every skill and
+    devops-agent copy whose metadata.apex-classes names the class or one of
+    its children (a member of a class is a member of its parents), as a
+    blocking target."""
+    classes_root = classes_root or (repo_root / "classes")
+    targets = {cls: dict(listed) for cls, listed in explicit.items()}
+    for pattern in run_checks.SKILL_GLOBS:
+        for skill_md in sorted(repo_root.glob(pattern)):
+            names = declared_classes(skill_md)
+            if not names:
+                continue
+            rel = skill_md.parent.relative_to(repo_root).as_posix()
+            for cls in class_chain(names, classes_root):
+                targets.setdefault(cls, {})[rel] = True
+    return targets
+
+
+CLASS_TARGETS: dict[str, dict[str, bool]] = class_targets()
+
+
 def _check_cases(cases, where: str) -> list[dict]:
     if not isinstance(cases, list):
         raise EvalSetError(f"{where}: must be a JSON list of cases")
@@ -1311,8 +1348,9 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
     """Merge the member's own cases (source "member") with each named
     class's shared cases (source "class:<name>"), parents first. Returns
     (cases, meta); meta holds run_key, target, classes and blocking (None
-    with no class). Refuses a skill that is not on a named class's target
-    list, a chain with no shared trigger file, and repeated case ids."""
+    with no class). A class with no shared trigger file is skipped with a
+    message on stderr. Refuses a skill that is not on a named class's target
+    list, a merged set with no case, and repeated case ids."""
     classes_root = classes_root or (REPO_ROOT / "classes")
     targets = CLASS_TARGETS if targets is None else targets
     cases: list[dict] = []
@@ -1335,20 +1373,17 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
                 raise EvalSetError(f"{target or skill_dir} is not a target of class {name!r}")
             blocking = bool(blocking) or listed[target]
         chain = class_chain(classes, classes_root)
-        found = False
         for name in chain:
             path = classes_root / name / "evals" / "trigger" / "triggering.json"
             if not path.is_file():
+                print(f"[run_triggering] class {name}: no shared trigger evals "
+                      f"(evals/trigger/triggering.json), skipped", file=sys.stderr)
                 continue
-            found = True
             try:
                 loaded = json.loads(path.read_text())
             except (OSError, ValueError) as e:
                 raise EvalSetError(f"cannot read {path}: {e}") from e
             cases += [dict(c, source=f"class:{name}") for c in _check_cases(loaded, str(path))]
-        if not found:
-            raise EvalSetError(f"no shared trigger evals (evals/trigger/triggering.json) "
-                               f"in classes {chain}")
     ids = [c["id"] for c in cases if "id" in c]
     dup = sorted({i for i in ids if ids.count(i) > 1})
     if dup:
@@ -1385,6 +1420,11 @@ def main() -> int:
                              "else HARNESS_SUBJECT_MODELS (codex "
                              f"{HARNESS_SUBJECT_MODELS['codex']}, kiro "
                              f"{HARNESS_SUBJECT_MODELS['kiro']})")
+    parser.add_argument("--base-ref", default="none",
+                        help="Also run every case on the skill as it was at this git ref (arm "
+                             "base_skill, read from git objects as run_task_evals.py --base-ref "
+                             "does), printed under \"base\"; a skill absent there gets no base "
+                             "arm. Default none: no base arm")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     model = subject_model(args.harness, args.model, args.subject_model)
@@ -1402,6 +1442,18 @@ def main() -> int:
     except EvalSetError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    base_ref = None if args.base_ref.lower() in ("", "none") else args.base_ref
+    base_sha = None
+    if base_ref:
+        import run_task_evals  # its --base-ref helpers; imported here, as it imports this module
+        if meta["target"] is None:
+            print(f"error: --base-ref needs a skill inside {REPO_ROOT}", file=sys.stderr)
+            return 1
+        try:
+            base_sha = run_task_evals.resolve_base_ref(base_ref)
+        except run_task_evals.BaseRefError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
     if args.harness == "kiro" and not os.environ.get("KIRO_API_KEY"):
         print("error: --harness kiro needs KIRO_API_KEY (Kiro's headless sign-in)", file=sys.stderr)
         return 2
@@ -1424,23 +1476,33 @@ def main() -> int:
               f"model={model}",
               file=sys.stderr)
 
+    run_args = dict(eval_set=eval_set, num_workers=args.num_workers, timeout=args.timeout,
+                    runs_per_query=args.runs_per_query, trigger_threshold=args.trigger_threshold,
+                    model=model, creds=creds, harness=args.harness)
+    base_tmp = Path(tempfile.mkdtemp(prefix="triggering-base-ref-"))
     try:
-        output = run_eval(
-            eval_set=eval_set,
-            skill_name=name,
-            description=description,
-            repo_skill_dir=skill_dir,
-            num_workers=args.num_workers,
-            timeout=args.timeout,
-            runs_per_query=args.runs_per_query,
-            trigger_threshold=args.trigger_threshold,
-            model=model,
-            creds=creds,
-            harness=args.harness,
-        )
+        output = run_eval(skill_name=name, description=description, repo_skill_dir=skill_dir,
+                          **run_args)
+        if base_sha:
+            base_dir = run_task_evals.materialise_skill_at_ref(base_sha, meta["target"], base_tmp)
+            base = {"base_ref": base_ref, "base_ref_sha": base_sha, "arm": None}
+            if base_dir is None:
+                base["note"] = f"{meta['target']} does not exist at {base_ref}: no base arm"
+            else:
+                base_name, base_description = read_skill_meta(base_dir)
+                base_out = run_eval(skill_name=base_name, description=base_description,
+                                    repo_skill_dir=base_dir, **run_args)
+                base.update(arm="base_skill", results=base_out["results"],
+                            summary=base_out["summary"])
+            output["base"] = base
     except EvalCredentialError as e:
         print(f"error: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
         return 2
+    except (run_task_evals.BaseRefError if base_sha else ()) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    finally:
+        shutil.rmtree(base_tmp, ignore_errors=True)
     output.update(meta)
 
     if args.verbose:

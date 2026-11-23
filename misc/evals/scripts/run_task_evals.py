@@ -145,11 +145,21 @@ STAGED_TOP_DIRS = frozenset({".claude", ".kiro", ".agents"})
 # classes/<class>/evals/<suite>/evals.json and its fixtures in
 # <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases with a
 # "prompt" run here (a "mode": "manual" case is run by hand).
-CLASS_TARGETS: tuple[dict, ...] = tuple(
-    {"run_key": run_key_for(REPO_ROOT / path), "skill_dir": path, "classes": [cls],
-     "blocking": blocking}
-    for cls, listed in CLASS_TARGET_PATHS.items() for path, blocking in listed.items()
-)
+def targets_by_folder(class_targets: dict[str, dict[str, bool]]) -> tuple[dict, ...]:
+    """One target per skill folder: a folder on several classes' lists (a
+    member and its class's parents) runs each class's shared cases, and
+    blocks when any of those lists makes it blocking."""
+    folders: dict[str, dict[str, bool]] = {}
+    for cls, listed in class_targets.items():
+        for path, blocking in listed.items():
+            folders.setdefault(path, {})[cls] = blocking
+    return tuple(
+        {"run_key": run_key_for(REPO_ROOT / path), "skill_dir": path, "classes": list(by_class),
+         "blocking": any(by_class.values())}
+        for path, by_class in folders.items())
+
+
+CLASS_TARGETS: tuple[dict, ...] = targets_by_folder(CLASS_TARGET_PATHS)
 
 
 # ---------- stream consumption ------------------------------------------------
@@ -355,10 +365,19 @@ def extract_result_summary(events: list[dict]) -> dict:
     else a `total_tokens` key if present (none in stored result events),
     else 0, so it stays comparable with earlier runs. With `modelUsage` it
     can be below input_tokens + output_tokens.
+
+    `total_tokens_with_cache` reads the same `usage` and adds cache reads
+    and writes: input + cache read + cache write + output. Codex's
+    input_tokens already counts its cached input (parse_trajectory.py,
+    harness shapes), so a codex run's value is input + output.
     """
     for evt in reversed(events):
         if evt.get("type") == "result":
             usage = evt.get("usage") or {}
+            with_cache = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
+            if evt.get("harness") != "codex":
+                with_cache += (usage.get("cache_read_input_tokens", 0)
+                               + usage.get("cache_creation_input_tokens", 0))
             entries = model_usage_entries(evt.get("modelUsage"))
             if entries:
                 counts = dict.fromkeys(USAGE_TOKEN_KEYS, 0)
@@ -374,6 +393,7 @@ def extract_result_summary(events: list[dict]) -> dict:
                     (evt.get("usage") or {}).get("input_tokens", 0)
                     + (evt.get("usage") or {}).get("output_tokens", 0)
                 ) or evt.get("total_tokens", 0),
+                "total_tokens_with_cache": with_cache,
                 **counts,
                 "token_source": token_source,
                 "duration_ms": evt.get("duration_ms", 0),
@@ -382,6 +402,7 @@ def extract_result_summary(events: list[dict]) -> dict:
             }
     return {
         "total_tokens": 0,
+        "total_tokens_with_cache": 0,
         **dict.fromkeys(USAGE_TOKEN_KEYS, 0),
         "token_source": None,
         "duration_ms": 0,
@@ -736,6 +757,7 @@ def run_subject(
 
     timing = {
         "total_tokens": summary["total_tokens"],
+        "total_tokens_with_cache": summary["total_tokens_with_cache"],
         **{key: summary[key] for key in USAGE_TOKEN_KEYS},
         "token_source": summary["token_source"],
         "duration_ms": summary["duration_ms"],
@@ -1089,6 +1111,35 @@ def resolve_base_ref(ref: str) -> str:
     return r.stdout.decode().strip()
 
 
+def changed_paths(base: str) -> list[str]:
+    """The repo paths that differ between commit `base` and HEAD (a rename
+    lists both names), else BaseRefError."""
+    if base.startswith("-"):
+        raise BaseRefError(f"--changed-since {base!r} is not a ref")
+    r = _git("diff", "--name-only", "--no-renames", "-z", base, "HEAD", "--")
+    if r.returncode != 0:
+        raise BaseRefError(f"--changed-since {base!r}: git diff failed: "
+                           f"{r.stderr.decode('utf-8', 'replace').strip()}")
+    return [p for p in r.stdout.decode().split("\0") if p]
+
+
+# The gate's own files (its scripts, the Makefile, the grader spec): a change
+# to one can change any run key's result, so it gates every run key.
+GATE_PATHS = ("misc/evals/scripts", "misc/evals/Makefile",
+              "skills/skill-creator/agents/grader.md")
+
+
+def target_changed(target: dict, paths: list[str]) -> bool:
+    """True when a path is under the target's skill folder, its
+    misc/evals/<run key>/ folder, the evals/ folder of one of its classes
+    or one of GATE_PATHS."""
+    roots = ([target["skill_rel"]] + [f"classes/{c}/evals" for c in target["classes"]]
+             + list(GATE_PATHS))
+    with contextlib.suppress(ValueError):
+        roots.append((EVALS_ROOT / target["run_key"]).relative_to(REPO_ROOT).as_posix())
+    return any(p == r or p.startswith(r + "/") for p in paths for r in roots)
+
+
 def materialise_skill_at_ref(sha: str, rel_path: str, dest: Path) -> Path | None:
     """Write the folder `rel_path` as it is at commit `sha` under `dest`,
     read from git objects only (git archive; the worktree is not touched).
@@ -1244,7 +1295,8 @@ def run_record(run_dir: Path, *, arm: str, k: int, subj: dict, harness: str) -> 
         "token_usage": {key: token_count(timing.get(key)) if recorded else None
                         for key in USAGE_TOKEN_KEYS},
         "token_source": timing.get("token_source"),
-        "wall_seconds": timing.get("total_duration_seconds", 0.0),
+        # None when the run wrote no timing.json time, never 0.
+        "wall_seconds": timing.get("total_duration_seconds"),
     }
     (run_dir / "run-result.json").write_text(json.dumps(record, indent=2))
     return record
@@ -1278,7 +1330,7 @@ def summarize_arm(records: list[dict], k: int) -> dict:
         "token_usage_mean": {key: _mean_recorded([r["token_usage"][key] for r in records])
                              for key in USAGE_TOKEN_KEYS},
         "wall_seconds_per_run": [r["wall_seconds"] for r in records],
-        "wall_seconds_mean": _mean([r["wall_seconds"] for r in records]),
+        "wall_seconds_mean": _mean_recorded([r["wall_seconds"] for r in records]),
         "invalid_reasons": [r["invalid_reason"] for r in records if not r["valid"]],
     }
 
@@ -1315,7 +1367,7 @@ def summarize_skill(cases: list[dict], base_arm: str) -> dict:
             "runs": sum(a["runs"] for a in arm_cases),
             "invalid_runs": sum(a["runs"] - a["valid_runs"] for a in arm_cases),
             "tokens_per_run_mean": _mean_recorded(tokens),
-            "wall_seconds_per_run_mean": _mean(walls),
+            "wall_seconds_per_run_mean": _mean_recorded(walls),
         }
     return out
 
@@ -1724,8 +1776,16 @@ def main() -> int:
                              "a case to run (live_only cases count only with "
                              "--include-live-only) as JSON lines and exit; the others are named "
                              "on stderr. Runs nothing.")
+    parser.add_argument("--changed-since", default=None, metavar="REF",
+                        help="With --list-targets: only the run keys with a file changed between "
+                             "REF and HEAD under the skill folder, misc/evals/<run key>/ or a "
+                             "class's evals/ folder; a change to the gate's own scripts, the "
+                             "Makefile or the grader spec lists every run key.")
     parser.add_argument("--include-live-only", action="store_true",
                         help="Include prompts marked live_only=true")
+    parser.add_argument("--gate", action="store_true",
+                        help="The merge gate's run: refuse before any model call unless each "
+                             "case runs three times (--runs, else regression.pass_k).")
     parser.add_argument("--model", default=None,
                         help="The grader's model, and the claude subject's (a Bedrock id). "
                              "Default comes from the Makefile.")
@@ -1744,9 +1804,20 @@ def main() -> int:
         parser.error("--runs must be 1 or more")
 
     skills = discover_skills()
+    if args.changed_since is not None and not args.list_targets:
+        parser.error("--changed-since needs --list-targets")
     if args.list_targets:
+        paths = None
+        if args.changed_since is not None:
+            try:
+                paths = changed_paths(args.changed_since)
+            except BaseRefError as e:
+                print(f"error: {e}", file=sys.stderr)
+                return 2
         for key in sorted(set(skills) | {t["run_key"] for t in CLASS_TARGETS}):
             t = resolve_target(key)
+            if paths is not None and not target_changed(t, paths):
+                continue
             try:
                 runnable = bool(target_cases(t, args.include_live_only))
             except ValueError:
@@ -1763,6 +1834,14 @@ def main() -> int:
             print(f"unknown skill: {args.skill}", file=sys.stderr)
             return 2
         skills = [args.skill]
+    if args.gate:
+        for s in skills:
+            k = args.runs if args.runs is not None else load_skilleval_config(s).pass_k
+            if k != 3:
+                print(f"error: the gate scores three runs per case; {s} would run {k} "
+                      "(set regression.pass_k to 3, or leave RUNS_PER_PROMPT empty)",
+                      file=sys.stderr)
+                return 2
 
     model = args.model or _resolve_makefile_default("MODEL") or "global.anthropic.claude-opus-4-6-v1"
     subject = subject_model(args.harness, model, args.subject_model)

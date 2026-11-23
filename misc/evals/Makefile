@@ -67,13 +67,15 @@ KUBECONFIG_RO     ?= $(READONLY_SECRETS)/kubeconfig.readonly
 TASK_RUNS          = $(if $(strip $(RUNS_PER_PROMPT)),--runs $(RUNS_PER_PROMPT))
 TASK_LIVE          = $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only $(if $(wildcard $(KUBECONFIG_RO)),--kubeconfig $(KUBECONFIG_RO)))
 
-# Gate defaults (gate, gate-all; HARNESS also triggering-<skill>). HARNESS is
+# Gate defaults (gate, gate-all, gate-changed; HARNESS, SUBJECT_MODEL and
+# BASE_REF also task-<skill> and triggering-<skill>). HARNESS is
 # the subject: claude, kiro or codex. SUBJECT_MODEL is the subject's model;
 # empty uses the runners' per-harness default (MODEL on claude,
 # run_triggering.HARNESS_SUBJECT_MODELS on codex and kiro); the grader stays
 # claude -p on MODEL. BASE_REF is the git ref the old arm takes the skill
-# from; empty uses the runner's default (`v1.3.0`); a skill absent there runs
-# against without_skill.
+# from; empty uses the runner's default (`v1.3.0`); gate-changed sets it to
+# BASE, so a changed skill is compared with its previous version; a skill
+# absent there runs against without_skill.
 HARNESS           ?= claude
 SUBJECT_MODEL     ?=
 SUBJECT_ARG        = $(if $(strip $(SUBJECT_MODEL)),--subject-model $(SUBJECT_MODEL))
@@ -100,7 +102,7 @@ COMPOSITE_T  := $(addprefix composite-,$(SKILLS))
 .PHONY: help list-skills validate-all triggering-all task-all task-all-parallel \
         init-evals init-evals-finalize check-evals-coverage hygiene \
         process-all artifact-all knowledge-all composite-all \
-        gate gate-all gate-stages eval-manifest \
+        gate gate-all gate-changed gate-stages eval-manifest \
         $(VALIDATE_T) $(TRIGGERING_T) \
         $(BENCHMARK_T) $(REPORT_T) $(PACKAGE_T) $(REVIEW_T) $(TASK_T) $(PROCESS_T) $(ARTIFACT_T) $(KNOWLEDGE_T) $(COMPOSITE_T)
 
@@ -125,6 +127,9 @@ help:
 	@echo "  gate SKILL=<run key>   deterministic stages, then the task runner on with_skill"
 	@echo "                         against the skill at BASE_REF, scored per case on Pass@k"
 	@echo "  gate-all               the same for every run key with a runnable case"
+	@echo "  gate-changed BASE=<commit>  the same for each run key with a skill, eval or class"
+	@echo "                         eval file changed between BASE and HEAD (a gate"
+	@echo "                         script, Makefile or grader change gates every key)"
 	@echo "  gate-stages            the deterministic stages only (no model call)"
 	@echo ""
 	@echo "New-skill onboarding:"
@@ -164,7 +169,7 @@ $(TRIGGERING_T): triggering-%:
 	  --skill-path $(REPO_ROOT)/skills/$* \
 	  --num-workers $(NUM_WORKERS) \
 	  --runs-per-query $(RUNS_PER_QUERY) \
-	  --harness $(HARNESS) \
+	  --harness $(HARNESS) $(TASK_BASE) \
 	  --model $(MODEL) $(SUBJECT_ARG)
 
 triggering-all: $(TRIGGERING_T)
@@ -287,9 +292,10 @@ $(TASK_T): task-%:
 	  { echo "missing: $(call evals_json,$*)"; exit 1; }
 	python3 $(EVALS_ROOT)/scripts/run_task_evals.py \
 	  --skill $* \
+	  --harness $(HARNESS) \
 	  $(TASK_RUNS) \
 	  $(TASK_BASE) \
-	  --model $(MODEL) \
+	  --model $(MODEL) $(SUBJECT_ARG) \
 	  $(TASK_LIVE)
 
 task-all: $(TASK_T)
@@ -305,13 +311,15 @@ task-all-parallel:
 # fails the gate on its own; so does a pooled pass-rate drop past THRESHOLD.
 # Tokens and time are reported and do not block: only pass rate blocks.
 # regression.py exits 2 on a regression and 1 when the run gives nothing to
-# score (a runner error, a refused eval-role session, no runnable case), never
-# 0; through make any failure exits 2 (the log tells them apart).
+# score (a runner error, a refused eval-role session, no runnable case) or
+# ran other than three runs per case, never 0; through make any failure exits
+# 2 (the log tells them apart). The runner's --gate refuses a pass_k (or
+# RUNS_PER_PROMPT) other than 3 before any model call.
 # SKILL takes any run key `run_task_evals.py --list-targets` prints.
 define gate_one
 ( out=$$(mktemp) || exit 1; \
   python3 $(EVALS_ROOT)/scripts/run_task_evals.py --skill $(1) --harness $(HARNESS) \
-    $(TASK_BASE) $(TASK_RUNS) --model $(MODEL) $(SUBJECT_ARG) $(TASK_LIVE) > "$$out"; rc=$$?; \
+    $(TASK_BASE) $(TASK_RUNS) --model $(MODEL) $(SUBJECT_ARG) $(TASK_LIVE) --gate > "$$out"; rc=$$?; \
   python3 $(EVALS_ROOT)/scripts/regression.py --gate --skill $(1) --task-result "$$out" \
     --threshold $(THRESHOLD); grc=$$?; \
   rm -f "$$out"; if [ $$grc -ne 0 ]; then exit $$grc; fi; exit $$rc )
@@ -330,20 +338,42 @@ gate:
 	@echo "[gate] evals: $(SKILL) on $(HARNESS) against $(or $(BASE_REF),the runner default)"
 	$(call gate_one,$(SKILL))
 
+# gate_listed: gate each run key `--list-targets $(1)` prints; with none,
+# print $(2) and exit $(3).
+define gate_listed
+@set -o pipefail; \
+ keys=$$(python3 $(EVALS_ROOT)/scripts/run_task_evals.py --list-targets $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only) $(1) \
+   | python3 -c 'import json, sys; [print(json.loads(ln)["run_key"]) for ln in sys.stdin if ln.strip()]') \
+   || exit 1; \
+ if [ -z "$$keys" ]; then echo "$(2)"; exit $(3); fi; \
+ worst=0; failed=""; \
+ for k in $$keys; do \
+   echo "[gate] evals: $$k on $(HARNESS) against $(or $(BASE_REF),the runner default)"; \
+   $(call gate_one,$$k); rc=$$?; \
+   if [ $$rc -ne 0 ]; then failed="$$failed $$k"; if [ $$rc -gt $$worst ]; then worst=$$rc; fi; fi; \
+ done; \
+ if [ -n "$$failed" ]; then echo "[gate] failed:$$failed"; fi; \
+ exit $$worst
+endef
+
 gate-all: gate-stages
-	@set -o pipefail; \
-	 keys=$$(python3 $(EVALS_ROOT)/scripts/run_task_evals.py --list-targets $(if $(filter 1,$(INCLUDE_LIVE_ONLY)),--include-live-only) \
-	   | python3 -c 'import json, sys; [print(json.loads(ln)["run_key"]) for ln in sys.stdin if ln.strip()]') \
-	   || exit 1; \
-	 if [ -z "$$keys" ]; then echo "[gate] no run key has a runnable case"; exit 1; fi; \
-	 worst=0; failed=""; \
-	 for k in $$keys; do \
-	   echo "[gate] evals: $$k on $(HARNESS) against $(or $(BASE_REF),the runner default)"; \
-	   $(call gate_one,$$k); rc=$$?; \
-	   if [ $$rc -ne 0 ]; then failed="$$failed $$k"; if [ $$rc -gt $$worst ]; then worst=$$rc; fi; fi; \
-	 done; \
-	 if [ -n "$$failed" ]; then echo "[gate] failed:$$failed"; fi; \
-	 exit $$worst
+	$(call gate_listed,,[gate] no run key has a runnable case,1)
+
+# gate-changed BASE=<commit>: gate only the run keys with a file changed
+# between BASE and HEAD under the skill folder, misc/evals/<run key>/ or a
+# class's evals/ folder (run_task_evals.py --list-targets --changed-since).
+# A change to the gate's own files (misc/evals/scripts/, this Makefile, the
+# grader spec) gates every run key. None changed: nothing is gated and it
+# exits 0. evals.yml passes the pull
+# request's base sha. Each key's old arm is the skill at BASE.
+gate-changed: BASE_REF = $(BASE)
+gate-changed:
+	@if [ -z "$$BASE" ]; then \
+	  echo "usage: make gate-changed BASE=<commit> [HARNESS=claude|kiro|codex] [RUNS_PER_PROMPT=<n>]"; \
+	  exit 1; fi
+	@[[ "$$BASE" =~ ^[A-Za-z0-9_./-]+$$ ]] || { echo "BASE must match [A-Za-z0-9_./-]+"; exit 1; }
+	@$(MAKE) --no-print-directory gate-stages
+	$(call gate_listed,--changed-since "$$BASE",[gate] no run key changed since $$BASE: nothing gated,0)
 # ---------- C  process assertions (deterministic; replay against existing runs) -
 # Runs process_assertions.py against the latest events.jsonl files for a skill.
 # No model calls — purely deterministic. Reads assertions from evals.json
