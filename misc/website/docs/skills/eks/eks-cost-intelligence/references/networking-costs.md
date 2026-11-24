@@ -163,9 +163,9 @@ For each Service in non-system namespaces:
 | Estimated Monthly Cross-AZ Cost | Severity |
 |---------------------------------|----------|
 | > $500 | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Remediation
 
@@ -740,9 +740,9 @@ For each Service with endpoints in multiple AZs:
 | Estimated Monthly Cross-AZ Cost | Severity |
 |---------------------------------|----------|
 | > $500 | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Confidence levels
 
@@ -950,9 +950,9 @@ If VPC endpoints exist for ALL required services AND no internet egress needed:
 | Estimated Saveable NAT Cost | Severity |
 |-----------------------------|----------|
 | > $500/month | CRITICAL |
-| $200–$500/month | HIGH |
-| $50–$200/month | MEDIUM |
-| < $50/month | LOW |
+| > $200 to $500/month | HIGH |
+| > $50 to $200/month | MEDIUM |
+| $50 or less/month | LOW |
 
 > **Note:** This check's severity combines with Check 3 (VPC endpoints). If VPC endpoints are missing AND NAT costs are high, the combined finding severity may escalate.
 
@@ -979,7 +979,7 @@ Estimated saveable (50% is ECR/S3 traffic):
   and no internet egress is needed.
 
 Finding:
-  severity: MEDIUM (saveable amount < $50)
+  severity: LOW (saveable amount $50 or less)
   monthly_savings: ~$12/month from data processing
   additional_note: "VPC endpoints also reduce latency for ECR pulls"
 ```

@@ -236,9 +236,9 @@ For each workload in non-system namespaces:
 | Monthly Waste | Severity |
 |---------------|----------|
 | > $500 | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 ### Remediation
 
@@ -390,9 +390,9 @@ For each node NOT in a system-only role:
 | Monthly Waste (per node) | Severity |
 |--------------------------|----------|
 | > $500 | CRITICAL |
-| $200–$500 | HIGH |
-| $50–$200 | MEDIUM |
-| < $50 | LOW |
+| > $200 to $500 | HIGH |
+| > $50 to $200 | MEDIUM |
+| $50 or less | LOW |
 
 Multiple idle nodes compound: total idle waste = sum of all idle node costs.
 

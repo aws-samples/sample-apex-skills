@@ -95,7 +95,7 @@ Use Fargate per-vCPU-hour and per-GB-hour rates from the AWS Price List API when
 
 ### Severity classification
 
-Severity follows the standard monthly-waste thresholds (see `findings-format.md`): >$500 CRITICAL, $200–$500 HIGH, $50–$200 MEDIUM, <$50 LOW.
+Severity follows the standard monthly-waste thresholds (see `findings-format.md`): >$500 CRITICAL, > $200 to $500 HIGH, > $50 to $200 MEDIUM, $50 or less LOW.
 
 ### Remediation
 
@@ -144,8 +144,8 @@ Also surface Compute Savings Plans coverage for clusters with significant steady
 | Condition | Severity |
 |-----------|----------|
 | Spot-eligible Fargate workloads with monthly savings > $500 | CRITICAL |
-| Spot-eligible Fargate workloads with monthly savings $200–$500 | HIGH |
-| Spot-eligible Fargate workloads with monthly savings $50–$200 | MEDIUM |
+| Spot-eligible Fargate workloads with monthly savings > $200 to $500 | HIGH |
+| Spot-eligible Fargate workloads with monthly savings > $50 to $200 | MEDIUM |
 | Below $50/month or migration blocked (e.g., isolation requirement drove the Fargate choice) | LOW |
 
 ### Remediation
