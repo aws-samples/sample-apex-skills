@@ -1315,8 +1315,8 @@ def run_eval(
 # key by itself (a task case's grader score still counts in the key's pooled
 # delta). It holds the 22 planned skills and the 4 skills their owners hold.
 # dotnet-aws-ecs is not a target until its own rebuild. No devops-agent copy
-# is a target, listed or by membership: the copies are tested only inside a
-# real DevOps Agent environment (round 2, with SEC-3, P-334).
+# is a target, listed or by membership; the copies are to be tested inside a
+# DevOps Agent environment instead.
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -1344,8 +1344,8 @@ class EvalSetError(ValueError):
 
 def run_key_for(skill_dir: Path) -> str:
     """The key a run's output and history use: the folder name for
-    skills/<name>, <parent>-<name> for any other folder (each devops-agent
-    copy shares its twin's `name:`, so it needs a key of its own)."""
+    skills/<name>, <parent>-<name> for any other folder (a hand run with
+    --skill-path devops-agent/<name>/ shares its twin's `name:`)."""
     skill_dir = Path(skill_dir).resolve()
     if skill_dir.parent.name == "skills":
         return skill_dir.name

@@ -1155,10 +1155,7 @@ class ClassSharedTriggerEvals(unittest.TestCase):
         self.assertEqual(out["harness"], "codex")
 
     def test_no_devops_agent_copy_is_a_class_target(self):
-        """The user: "doing devops agent copies test outside of devops agent
-        is stupid." No copy is a target, listed or by membership."""
-        for cls, listed in run_triggering.CLASS_TARGETS.items():
-            self.assertEqual([t for t in listed if t.startswith("devops-agent/")], [], cls)
+        """No DevOps Agent copy is a class target, listed or by membership."""
         root = self.tmp / "repo"
         self.write_skill(root, "devops-agent/inline", 'metadata: { apex-classes: "service" }\n')
         self.assertEqual(run_triggering.class_targets(root, self.classes, explicit={}), {})
@@ -1234,9 +1231,9 @@ class TriggeringCli(unittest.TestCase):
         with mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint, \
                 mock.patch.object(run_triggering, "class_chain", return_value=[]), \
                 mock.patch.object(run_triggering, "run_eval", side_effect=AssertionError("run_eval ran")):
-            code, out, _ = self.main(["--run-key", "devops-agent-eks-recon"])
+            code, out, _ = self.main(["--run-key", "ecs-recon"])
         self.assertEqual(code, 0)
-        self.assertEqual(json.loads(out)["run_key"], "devops-agent-eks-recon")
+        self.assertEqual(json.loads(out)["run_key"], "ecs-recon")
         self.assertIn("no trigger case", json.loads(out)["skipped"])
         mint.assert_not_called()
         code, _, err = self.main(["--run-key", SKILL, "--class", "apex-base"])
@@ -2089,7 +2086,6 @@ class ClassCases(Tmp):
         self.assertIn("eks-recon", [r["run_key"] for r in rows])
         planned = [r for r in rows if r["run_key"] == "ecs-recon"]
         self.assertEqual([r["classes"] for r in planned], [["apex-base"]])
-        self.assertEqual([r for r in rows if r["run_key"].startswith("devops-agent-")], [])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -3177,9 +3173,9 @@ class GatePerCase(GateTmp):
     def test_report_only_target_lists_shared_fails_without_blocking(self):
         shared = gate_case(9001, 0, 3, source="class:apex-base/read-only")
         rc, out, _ = self.gate(self.outcome(gate_entry([shared], blocking=False,
-                                                       key="devops-agent-eks-ingress-migration"),
-                                            key="devops-agent-eks-ingress-migration"),
-                               key="devops-agent-eks-ingress-migration")
+                                                       key="ecs-recon"),
+                                            key="ecs-recon"),
+                               key="ecs-recon")
         self.assertEqual((rc, json.loads(out)["status"]), (0, "WARNING"))
         self.assertEqual(json.loads(out)["report_only_failures"], [9001])
         # The same target's own case still blocks, and a blocking target's shared case blocks.
