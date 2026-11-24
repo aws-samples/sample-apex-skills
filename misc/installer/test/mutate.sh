@@ -331,7 +331,7 @@ module.exports = [
   ['maintainer-uninstall-keeps-on-changed', 'a full --uninstall that keeps a changed skill link keeps the choice',
     'if (rec && !flags.claudeOnly && !flags.kiroOnly) delete rec.maintainer;', "if (rec && !rec.areas['claude-skills'] && !rec.areas['kiro-skills']) delete rec.maintainer;"],
   ['maintainer-help-body-gone', 'the --maintainer help row loses its uninstall text (review mutant D)',
-    "  log(`                       a full --uninstall removes them and clears the choice, while --uninstall`);\n", ''],
+    "  log(`                       a full --uninstall removes them and clears the choice`);\n", ''],
 ];
 EOF
 
