@@ -36,7 +36,7 @@
     "should_trigger": false
   },
   {
-    "query": "do the full Well-Architected review of cluster staging-eks and interview me on the governance questions too",
+    "query": "do the full Well-Architected review of cluster staging-eks and list the governance questions it could not assess",
     "should_trigger": true
   },
   {
@@ -109,6 +109,10 @@
   },
   {
     "query": "rate our EKS cluster's security posture and list what's misconfigured",
+    "should_trigger": false
+  },
+  {
+    "query": "Review and score our current EKS architecture against Well-Architected best practices. Here's our design: single cluster, 3 AZs, Karpenter with Spot, IRSA for all workloads, Istio service mesh.",
     "should_trigger": false
   }
 ]
