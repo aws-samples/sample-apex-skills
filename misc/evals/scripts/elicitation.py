@@ -58,7 +58,7 @@ class ElicitationConfig:
 # A fenced block, whatever blank lines it holds, and an inline code span or a
 # URL: a "?" in any of them is code or a query string, not a question.
 _FENCED = re.compile(r"^[ \t]*(```|~~~).*?^[ \t]*\1[^\n]*$", re.MULTILINE | re.DOTALL)
-_INLINE_OR_URL = re.compile(r"`[^`\n]*`|https?://\S+")
+_INLINE_OR_URL = re.compile(r"`[^`\n]*`|https?://\S*[^\s?.,)>]")
 
 
 def detect_pending_question(events: list[dict]) -> str | None:
@@ -69,9 +69,11 @@ def detect_pending_question(events: list[dict]) -> str | None:
     ends the session in -p mode. A skill that asks in plain text (eks-build,
     eks-design, eks-mcp-server) ends on its question instead, so with no
     AskUserQuestion the question is the final text's last paragraph, when it
-    holds a "?" outside code and URLs: a fenced block counts as one paragraph
-    (so a reply that ends on code is not a question), and a "?" in a fenced
-    block, an inline code span or a URL does not count.
+    holds a "?" outside code and URLs: a closed fenced block counts as one
+    paragraph (so a reply that ends on code is not a question), and a "?" in a
+    closed fenced block, an inline code span or a URL does not count (a URL
+    stops before a trailing "?", ".", ",", ")" or ">"). Paragraphs are split
+    on blank lines with LF line ends, so CRLF text reads as one paragraph.
     The plain-text form is a heuristic: it misses a question followed by
     another paragraph, such as an options paragraph or a sign-off ("Let me
     know and I'll generate the rest."), and counts a closing offer that ends

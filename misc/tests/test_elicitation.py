@@ -66,14 +66,11 @@ class DetectPendingQuestion(unittest.TestCase):
         events = [_assistant(_text("Why Karpenter? It scales fast.\n\nThe plan is done."))]
         self.assertIsNone(detect_pending_question(events))
 
-    def test_numbered_questions_are_detected(self):
-        text = (
-            "Before I generate anything I need a few answers.\n\n"
-            "1. Which AWS region should the clusters run in?\n2. How many environments?"
-        )
+    def test_question_ending_on_a_url_is_detected(self):
+        text = "Plan ready.\n\nShould I pin it to https://example.com/v2?"
         self.assertEqual(
             detect_pending_question([_assistant(_text(text))]),
-            "1. Which AWS region should the clusters run in?\n2. How many environments?",
+            "Should I pin it to https://example.com/v2?",
         )
 
     def test_question_mark_in_a_fenced_block_is_not_a_question(self):

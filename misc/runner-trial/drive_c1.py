@@ -88,7 +88,7 @@ T4_PASS = ("The headline rating field reads NOT READY (score 59 or lower, the "
 # that contain each string), text (run_grader on this one expectation),
 # artifact (validate_run on the one assertion named by key and value),
 # multiturn (a turn
-# ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?')
+# ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?' outside code and URLs)
 # that one of the case's canned answers matches and a later turn followed, and the suite's first knowledge
 # assertion holds on the last result), trigger (run_single_query on query index, should_trigger).
 CASES = [
@@ -277,7 +277,7 @@ def last_result(events_path: Path) -> tuple[dict, int]:
 
 def answered_question(events_path: Path, elicitation: dict | None) -> bool:
     """True when a turn
-    ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?')
+    ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?' outside code and URLs)
     that one of the case's canned answers matches (misc/evals/scripts/elicitation.py, detect_pending_question
     and match_answer, as the runner resumes on them) and a later turn
     followed. This check does not read the injected answer the runner records
