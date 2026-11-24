@@ -35,7 +35,10 @@ function shown(query: string) {
 }
 
 test('every use line is read', () => {
-  assert.equal(Object.keys(uses).length, manifest.length);
+  // Name the skills, so a failure says which use line is missing or extra.
+  const names = manifest.map((s: {name: string}) => s.name);
+  assert.deepEqual(names.filter((n: string) => !(n in uses)), [], 'skills in the manifest with no use line in skillCatalog.ts');
+  assert.deepEqual(Object.keys(uses).filter((n) => !names.includes(n)), [], 'use lines in skillCatalog.ts for no skill in the manifest');
 });
 
 // [query, first row (Enter), and optionally the most results allowed]

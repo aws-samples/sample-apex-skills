@@ -56,11 +56,14 @@ class ElicitationConfig:
 
 
 def detect_pending_question(events: list[dict]) -> str | None:
-    """Scan events for an AskUserQuestion tool call that ended the session.
+    """Scan the final assistant message for the question that ended the session.
 
-    Returns the concatenated question text if found, None otherwise.
-    The question is the last AskUserQuestion tool_use in the final assistant
-    message — this is what triggered the session end in -p mode.
+    Returns the question text if found, None otherwise. The question is the
+    last AskUserQuestion tool_use in the final assistant message: this is what
+    ends the session in -p mode. A skill that asks in plain text (eks-build,
+    eks-design, eks-mcp-server) ends on its question instead, so with no
+    AskUserQuestion the question is the final text's last paragraph, when it
+    holds a "?".
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
@@ -75,6 +78,10 @@ def detect_pending_question(events: list[dict]) -> str | None:
                     if isinstance(q, dict):
                         parts.append(q.get("question", ""))
                 return " ".join(parts).strip() or None
+        for content in reversed(msg.get("content") or []):
+            if content.get("type") == "text" and (content.get("text") or "").strip():
+                last = content["text"].strip().split("\n\n")[-1].strip()
+                return last if "?" in last else None
         break
     return None
 
@@ -172,10 +179,11 @@ def run_multiturn_subject(
     all_events: list[dict] = []
     timed_out = False
 
-    # First turn
+    # First turn. Only stdout is read (drain_stream_for_events), so stderr goes
+    # to DEVNULL: an unread pipe fills and stalls the subject until the timeout.
     cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
     )
     events, timed_out = drain_stream_for_events(process, timeout_per_turn)
     all_events.extend(events)
@@ -197,7 +205,7 @@ def run_multiturn_subject(
         turns_used += 1
         cmd = cmd_base + ["-p", answer, "--resume", session_id]
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
         )
         events, timed_out = drain_stream_for_events(process, timeout_per_turn)
         all_events.extend(events)

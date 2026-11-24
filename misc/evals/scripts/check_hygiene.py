@@ -5,7 +5,8 @@ Reuses the pre-flight logic already embedded in run_all_evals.py — runs
 quick_validate, checks triggering.json positive/negative counts, checks
 evals.json prompt/expectation counts, and confirms every `should_trigger=false`
 entry in triggering.json is attributed to a sibling in README.md's
-SIBLING_MAP block.
+SIBLING_MAP block. It also fails a set that still holds a `<REPLACE...>`
+placeholder from misc/evals/_template/.
 
 No model calls, no Makefile shell-outs, no live cluster. Safe for a
 per-PR CI gate.
@@ -264,6 +265,19 @@ def main() -> int:
                     warnings.append(
                         f"evals.json prompt id={pid}: knowledge_assertions[{i}] type={atype} requires 'patterns' list"
                     )
+
+        # 8. Template placeholders left from `make init-evals` (_template/):
+        #    every `<REPLACE...>` must be filled in before the set counts.
+        for name in ("triggering.json", "evals.json", "README.md", ".skilleval.yaml"):
+            try:
+                text = (rae.EVALS_ROOT / skill / name).read_text(encoding="utf-8")
+            except (FileNotFoundError, UnicodeDecodeError):
+                continue
+            count = text.count("<REPLACE")
+            if count:
+                warnings.append(
+                    f"{name} still has {count} template placeholder(s) `<REPLACE...>`: fill them in"
+                )
 
         if warnings:
             any_fail = True

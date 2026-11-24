@@ -1,0 +1,116 @@
+"""Offline tests for misc/evals/scripts/elicitation.py.
+
+Run from the repo root: python3 -m pytest misc/tests/test_elicitation.py
+(or python3 -m unittest misc.tests.test_elicitation). No model calls: the
+subject is a small Python script standing in for the harness CLI.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import tempfile
+import textwrap
+import time
+import unittest
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "evals" / "scripts"
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+import elicitation  # noqa: E402
+from elicitation import (  # noqa: E402
+    ElicitationConfig,
+    detect_pending_question,
+    run_multiturn_subject,
+)
+
+
+def _assistant(*content: dict) -> dict:
+    return {"type": "assistant", "message": {"content": list(content)}}
+
+
+def _text(text: str) -> dict:
+    return {"type": "text", "text": text}
+
+
+class DetectPendingQuestion(unittest.TestCase):
+    def test_ask_user_question_tool_call(self):
+        events = [
+            _assistant(
+                _text("Before I start:"),
+                {
+                    "type": "tool_use",
+                    "name": "AskUserQuestion",
+                    "input": {"questions": [{"question": "Which region?"}]},
+                },
+            )
+        ]
+        self.assertEqual(detect_pending_question(events), "Which region?")
+
+    def test_plain_text_question_ends_the_run(self):
+        # eks-build, eks-design and eks-mcp-server ask in plain text.
+        events = [
+            _assistant(_text("I can build this cluster.\n\nWhich AWS region should it run in?")),
+            {"type": "result", "session_id": "s"},
+        ]
+        self.assertEqual(
+            detect_pending_question(events), "Which AWS region should it run in?"
+        )
+
+    def test_plain_text_without_question_is_not_a_question(self):
+        events = [_assistant(_text("Here is the design.\n\nIt is complete."))]
+        self.assertIsNone(detect_pending_question(events))
+
+    def test_question_in_an_earlier_paragraph_only_is_not_pending(self):
+        events = [_assistant(_text("Why Karpenter? It scales fast.\n\nThe plan is done."))]
+        self.assertIsNone(detect_pending_question(events))
+
+    def test_only_the_final_assistant_message_counts(self):
+        events = [
+            _assistant(_text("Which region?")),
+            _assistant(_text("Done: the cluster is described above.")),
+        ]
+        self.assertIsNone(detect_pending_question(events))
+
+
+STDERR_FLOOD_SUBJECT = textwrap.dedent(
+    """
+    import json, sys
+    # More than a pipe buffer holds (64 KiB on Linux), written before any
+    # stdout line, as a chatty CLI can on stderr.
+    sys.stderr.write("x" * (1024 * 1024))
+    sys.stderr.flush()
+    print(json.dumps({"type": "result", "session_id": "s", "result": "ok"}), flush=True)
+    """
+)
+
+
+class MultiturnSubjectProcess(unittest.TestCase):
+    def test_stderr_flood_does_not_stall_the_turn(self):
+        # The runner reads only stdout. An unread stderr pipe fills and blocks
+        # the subject until the turn times out.
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "subject.py"
+            script.write_text(STDERR_FLOOD_SUBJECT)
+            start = time.time()
+            events, timed_out, _ = run_multiturn_subject(
+                initial_prompt="hello",
+                elicitation=ElicitationConfig.from_dict(None),
+                cmd_base=[sys.executable, str(script)],
+                cwd=tmp,
+                env_for_turn=lambda: dict(os.environ),
+                timeout_per_turn=5,
+            )
+            self.assertFalse(timed_out, "the subject stalled on a full stderr pipe")
+            self.assertLess(time.time() - start, 5)
+            self.assertEqual([e.get("type") for e in events], ["result"])
+
+    def test_detect_pending_question_keeps_its_signature(self):
+        # misc/runner-trial/drive_c1.py imports it by name with one argument.
+        self.assertTrue(callable(elicitation.detect_pending_question))
+        self.assertIsNone(elicitation.detect_pending_question([]))
+
+
+if __name__ == "__main__":
+    unittest.main()
