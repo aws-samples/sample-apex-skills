@@ -14,10 +14,9 @@ Design (PLAN §1.5.2):
   pair. `sandbox/.claude/skills/<skill_name>/` symlinks at the repo skill
   dir and nothing else. HOME holds no ~/.aws: the host's AWS keys are no
   longer handed to the subprocess in its environment or HOME; it gets the
-  eval-role credentials below. The subprocess still runs as your OS user, so
-  it can read your files and the runner's environment by path; run it as
-  another OS user or in a container for a hard fence
-  (misc/website/docs/read-only-operating-profile.md). No state on disk outside
+  eval-role credentials below. The subprocess runs inside wall_off_host;
+  what the wall hides and what stays open is in misc/evals/README.md,
+  "Eval-role setup (`~/.apex-eval`)". No state on disk outside
   these two mktemp dirs; both are removed in the `finally:` block.
 
   mint_eval_role_credentials() assumes role apex-eval-bedrock-invoke in the
@@ -85,10 +84,7 @@ from parse_trajectory import (
     kiro_usage,
 )
 
-try:  # PyYAML is present in this eval env (siblings import it unconditionally),
-    import yaml  # but keep the stdlib-only regex fallback below so this runner
-except ImportError:  # still works in a bare interpreter.
-    yaml = None
+import yaml  # also needed by the class-membership read (run_checks, below)
 
 
 # Claude Code ships these skills (the v2.1.121 set plus those 2.1.328 lists,
@@ -160,6 +156,145 @@ def stage_empty_sandbox():
     finally:
         shutil.rmtree(sandbox, ignore_errors=True)
         shutil.rmtree(clean_home, ignore_errors=True)
+
+
+# Container engine sockets: a subject in the docker group could start a
+# container that mounts any host path (~/.aws included), so each one that
+# exists reads as /dev/null inside the wall: default docker, containerd and
+# rootless-docker sockets only.
+ENGINE_SOCKETS = ("/run/docker.sock", "/run/containerd/containerd.sock",
+                  "/run/user/{uid}/docker.sock")
+
+
+def _home_or_above(d: Path) -> bool:
+    """True for HOME, ~/.local and every folder above either: the wall never
+    binds one of these back, since each holds other tools' sign-in files."""
+    home = Path.home().resolve()
+    return any(d == x or d in x.parents for x in (home, home / ".local"))
+
+
+def _package_root(exe: Path) -> Path | None:
+    """The npm package folder `exe` sits in: the folder after its first
+    node_modules (two for an @scope; the exe itself when it sits directly
+    there), or None outside node_modules."""
+    parts = exe.parts
+    if "node_modules" not in parts:
+        return None
+    i = parts.index("node_modules")
+    n = i + 3 if i + 1 < len(parts) and parts[i + 1].startswith("@") else i + 2
+    return Path(*parts[:n])
+
+
+def _cli_binds(prog: str) -> list[tuple[Path, Path]]:
+    """(source, mount point) pairs that keep the harness CLI `prog` runnable
+    inside the wall: the file PATH finds and the file it links to, and for a
+    script (a `#!` line) its interpreter file and the file that links to.
+    An npm script also gets its package folder (_package_root; an npm
+    package carries its own dependencies), never the npm prefix it shares
+    with node. Any other script gets the folder it shares with its
+    interpreter, unless that folder is HOME, ~/.local or
+    above (_home_or_above): then only the two files are bound."""
+    found = shutil.which(prog)
+    if found is None:
+        return []  # the subject fails to start: an invalid run
+    exe = Path(found).resolve()
+    binds = [(exe, exe), (exe, Path(found).absolute())]
+    try:
+        with open(exe, "rb") as fh:
+            first = fh.readline(512).decode("utf-8", "replace")
+    except OSError:
+        first = ""
+    if first.startswith("#!"):
+        words = [w for w in first[2:].split() if not w.startswith("-")]
+        name = words[1] if len(words) > 1 and Path(words[0]).name == "env" else (words or [""])[0]
+        interp = shutil.which(name) if name else None
+        if interp:
+            real = Path(interp).resolve()
+            binds += [(real, real), (real, Path(interp).absolute())]
+            shared = _package_root(exe) or Path(os.path.commonpath([exe, real]))
+            if len(shared.parts) > 2 and not _home_or_above(shared):
+                binds.append((shared, shared))
+    return binds
+
+
+def kiro_data_dir(env: dict[str, str]) -> Path:
+    """The kiro-cli data folder (its sign-in and chat history) a kiro
+    subject with `env` uses: $XDG_DATA_HOME/kiro-cli (harness_env sets
+    XDG_DATA_HOME), else ~/.local/share/kiro-cli. That kiro-cli keeps its
+    sign-in there is assumed; no kiro run has signed in under the wall yet."""
+    return Path(env.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "kiro-cli"
+
+
+def wall_off_host(cmd: list[str], sandbox: Path, home: Path,
+                  skill_dir: Path | None = None, ro_dirs: tuple[Path, ...] = (),
+                  rw_dirs: tuple[Path, ...] = ()) -> list[str]:
+    """`cmd` under bubblewrap, so a subject does not read the host's skill
+    copies (a C1 run read one from another worktree) or the host's keys by
+    path.
+    The runner's HOME, the repo, its temp dir (tempfile.gettempdir()), /tmp
+    and the user runtime dir (/run/user/<uid> and XDG_RUNTIME_DIR, which
+    hold the user session bus, so systemd-run --user cannot reach it) each
+    read as an empty tmpfs; the run's sandbox and clean HOME are bound back
+    read-write, and the staged skill folder (`skill_dir`, none for
+    without_skill), the run's own harness CLI (`cmd[0]`, _cli_binds: its
+    files, and its npm package folder, never HOME or ~/.local) and each of
+    `ro_dirs` (a caller-added PATH dir, such as the C1 driver's T7 aws shim
+    dir) read-only, a link as a link. A dir of `ro_dirs` that is an
+    outermost walled folder (HOME, /tmp, the runtime dir; the repo or temp
+    dir only when outside those) or a folder above one, or HOME, ~/.local
+    or above, is not bound; any other is bound as given, so a caller passes
+    only a private dir it created. Each of `rw_dirs` (a kiro subject's
+    kiro_data_dir, so it signs in as the operator) that exists is bound back
+    read-write, unless it is HOME, ~/.local, ~/.local/share, a walled
+    folder or one above it.
+    The container engine sockets read as /dev/null, and
+    --new-session stops the subject pushing input into the runner's terminal
+    itself. The rest of the host filesystem and the network are unchanged
+    (a session bus outside the runtime dir, such as an abstract socket,
+    stays reachable). --unshare-pid and a fresh /proc give the subject its
+    own process table, so it cannot list or signal host processes.
+    Raises RuntimeError when bwrap is not installed, before any subject
+    starts."""
+    if shutil.which("bwrap") is None:
+        raise RuntimeError("bwrap is not installed: the subject sandbox needs it to wall off "
+                           "the host's skill copies (dnf install bubblewrap)")
+    walls: list[Path] = []
+    hidden = {Path.home().resolve(), REPO_ROOT.resolve(), Path(tempfile.gettempdir()).resolve(),
+              Path("/tmp").resolve(), Path(f"/run/user/{os.getuid()}")}
+    if os.path.isabs(os.environ.get("XDG_RUNTIME_DIR", "")):
+        hidden.add(Path(os.environ["XDG_RUNTIME_DIR"]).resolve())
+    for p in sorted(hidden, key=lambda p: len(p.parts)):
+        if len(p.parts) > 1 and p.is_dir() and not any(p == w or w in p.parents for w in walls):
+            walls.append(p)
+    args = ["bwrap", "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc",
+            "--die-with-parent", "--new-session"]
+    for w in walls:
+        args += ["--tmpfs", str(w)]
+    for sock in ENGINE_SOCKETS:
+        sock_path = Path(sock.format(uid=os.getuid()))
+        if os.path.exists(sock_path):  # False when it cannot be read
+            args += ["--ro-bind", "/dev/null", str(sock_path.resolve())]
+    walled = lambda d: any(d == w or w in d.parents for w in walls)  # noqa: E731
+    binds = [b for b in _cli_binds(cmd[0]) if walled(b[1])]
+    if skill_dir:
+        binds.append((Path(skill_dir).resolve(),) * 2)
+    refused = lambda d: _home_or_above(d) or any(d == w or d in w.parents for w in walls)  # noqa: E731
+    for d in map(lambda d: Path(d).resolve(), ro_dirs):
+        if not refused(d):
+            binds.append((d, d))
+    share = Path.home().resolve() / ".local" / "share"
+    rw = [d for d in map(lambda d: Path(d).resolve(), rw_dirs)
+          if d.is_dir() and not refused(d) and d != share]
+    seen: set[Path] = set()
+    for src, dest in binds:
+        if dest not in seen and src.exists():
+            seen.add(dest)
+            # a link stays a link (an npm bin finds its package by the path it links to)
+            args += ["--symlink", str(src), str(dest)] if dest != src and dest.is_symlink() \
+                else ["--ro-bind", str(src), str(dest)]
+    for p in (*rw, sandbox, home):
+        args += ["--bind", str(Path(p).resolve()), str(Path(p).resolve())]
+    return args + ["--chdir", str(Path(sandbox).resolve()), "--", *cmd]
 
 
 def build_subprocess_env(
@@ -732,7 +867,7 @@ def run_claude(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     process = subprocess.Popen(
-        cmd,
+        wall_off_host(cmd, sandbox, home, skill_dir),
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         cwd=str(sandbox),
@@ -820,7 +955,8 @@ def run_kiro(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     cmd.append(query)
-    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+    process = subprocess.Popen(wall_off_host(cmd, sandbox, home, skill_dir, rw_dirs=(kiro_data_dir(env),)),
+                               stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
     return parse_kiro_stream(process, skill_name, skill_dir, timeout)
 
@@ -855,7 +991,12 @@ def harness_env(env: dict[str, str], home: Path, harness: str) -> dict[str, str]
     parent's ~/.local/share, so a kiro subject reads and writes the
     operator's kiro-cli data (its sign-in and chat history) and runs as the
     operator's Kiro identity; kiro also gets the parent's KIRO_API_KEY when
-    it is set, which every other subject and the grader never see."""
+    it is set, which every other subject and the grader never see. Inside
+    the wall a subject sees only its own CLI of HOME's tools, apart from a
+    caller-added PATH dir and, for kiro, the kiro-cli data folder
+    (kiro_data_dir), so no other subject reads Kiro's sign-in files when
+    XDG_DATA_HOME is inside a wall; the grader runs outside the wall and
+    can."""
     env = dict(env)
     if harness == "codex":
         for k in CODEX_DROPPED_VARS:
@@ -940,8 +1081,9 @@ def run_codex(query: str, skill_name: str, skill_dir: Path, model: str | None,
     if model:
         cmd.extend(["--model", model])
     cmd.append(query)
-    process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                               stderr=subprocess.DEVNULL, cwd=str(sandbox), env=env)
+    process = subprocess.Popen(wall_off_host(cmd, sandbox, home, skill_dir), stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=str(sandbox),
+                               env=env)
     return parse_codex_stream(process, skill_name, skill_dir, timeout)
 
 
@@ -1014,12 +1156,9 @@ _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
-    """Parse SKILL.md frontmatter for (name, description).
-
-    Uses yaml.safe_load when PyYAML is importable (matching the docs
-    pipeline's parsing contract); falls back to the original stdlib-only
-    regex scraper otherwise. Raises RuntimeError on missing frontmatter,
-    missing `name`, or (yaml path only) invalid YAML.
+    """Parse SKILL.md frontmatter for (name, description) with
+    yaml.safe_load (the docs pipeline's parsing contract). Raises
+    RuntimeError on missing frontmatter, missing `name` or invalid YAML.
     """
     text = (skill_dir / "SKILL.md").read_text()
     m = _FRONTMATTER_RE.match(text)
@@ -1028,59 +1167,16 @@ def read_skill_meta(skill_dir: Path) -> tuple[str, str]:
     fm = m.group(1)
     if len(fm.encode("utf-8")) > 256 * 1024:
         raise RuntimeError(f"SKILL.md frontmatter exceeds maximum allowed size: {skill_dir}")
-
-    if yaml is not None:
-        try:
-            data = yaml.safe_load(fm)
-        except yaml.YAMLError as e:
-            raise RuntimeError(
-                f"SKILL.md frontmatter is not valid YAML: {skill_dir}: {e}"
-            ) from e
-        if not isinstance(data, dict) or not data.get("name"):
-            raise RuntimeError(f"SKILL.md frontmatter missing `name`: {skill_dir}")
-        name = str(data["name"]).strip()
-        description = str(data.get("description") or "").strip()
-        return name, description
-
-    return _read_skill_meta_regex(fm, skill_dir)
-
-
-def _read_skill_meta_regex(fm: str, skill_dir: Path) -> tuple[str, str]:
-    """Stdlib-only fallback frontmatter scraper (pre-PyYAML behavior).
-    Only understands top-level `name:` and `description:` (plain or block
-    scalar) — kept for environments without PyYAML installed.
-    Known divergence from the YAML path: quoted values keep their
-    surrounding quotes (cosmetic; description is output-metadata only).
-    """
-    name = None
-    description_lines: list[str] = []
-    in_description = False
-    description_indent: int | None = None
-
-    for line in fm.splitlines():
-        if in_description:
-            if line.startswith(" " * (description_indent or 1)) or not line.strip():
-                description_lines.append(line)
-                continue
-            in_description = False
-
-        key_match = re.match(r"^(\w+):\s*(.*)$", line)
-        if not key_match:
-            continue
-        key, value = key_match.group(1), key_match.group(2)
-        if key == "name":
-            name = value.strip().strip("'\"")
-        elif key == "description":
-            if value.strip() in ("|", ">", "|-", ">-"):
-                in_description = True
-                description_indent = 2
-                description_lines = []
-            else:
-                description_lines = [value]
-
-    if not name:
+    try:
+        data = yaml.safe_load(fm)
+    except yaml.YAMLError as e:
+        raise RuntimeError(
+            f"SKILL.md frontmatter is not valid YAML: {skill_dir}: {e}"
+        ) from e
+    if not isinstance(data, dict) or not data.get("name"):
         raise RuntimeError(f"SKILL.md frontmatter missing `name`: {skill_dir}")
-    description = "\n".join(description_lines).strip()
+    name = str(data["name"]).strip()
+    description = str(data.get("description") or "").strip()
     return name, description
 
 
@@ -1211,14 +1307,16 @@ def run_eval(
 # A class's shared trigger cases live at classes/<class>/evals/trigger/
 # triggering.json. They run against each target of the
 # class, merged with the target's own cases, a class's parents' cases first.
-# A class's targets are this explicit list (no runner reads class membership
-# from a skill's frontmatter); run_task_evals.py builds its target list from
-# it too. Only the 3 repo-owned devops-agent copies block. The other 29 are
-# report-only: a failed shared case does not fail the key by itself (a task
-# case's grader score still counts in the key's pooled delta). They
-# are the 22 planned skills, the 4 skills their owners hold and the 3
-# devops-agent copies of owner-held skills. dotnet-aws-ecs is not a target
-# until its own rebuild.
+# A class's targets (CLASS_TARGETS, built by class_targets below) are every
+# skill or devops-agent copy whose SKILL.md frontmatter names the class, or
+# a child of it, in metadata.apex-classes (each a blocking target), plus the
+# explicit list here; run_task_evals.py builds its target list from it too.
+# In the explicit list only the 3 repo-owned devops-agent copies block. The
+# other 29 are report-only: a failed shared case does not fail the key by
+# itself (a task case's grader score still counts in the key's pooled
+# delta). They are the 22 planned skills, the 4 skills their owners hold and
+# the 3 devops-agent copies of owner-held skills. dotnet-aws-ecs is not a
+# target until its own rebuild.
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -1238,10 +1336,12 @@ _APEX_BASE_REPORT_ONLY = (
 _APEX_BASE_BLOCKING = (
     "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon", "devops-agent/eks-security",
 )
-CLASS_TARGETS: dict[str, dict[str, bool]] = {
+EXPLICIT_CLASS_TARGETS: dict[str, dict[str, bool]] = {
     "apex-base": {**{p: True for p in _APEX_BASE_BLOCKING},
                   **{p: False for p in _APEX_BASE_REPORT_ONLY}},
 }
+sys.path.insert(0, str(REPO_ROOT / "classes" / "steward" / "scripts"))
+import run_checks  # noqa: E402  (class membership, as the admission runner reads it)
 
 
 class EvalSetError(ValueError):
@@ -1272,12 +1372,8 @@ def class_parents(name: str, classes_root: Path) -> list[str]:
         text = path.read_text()
     except OSError as e:
         raise EvalSetError(f"no class {name!r}: cannot read {path}") from e
-    if yaml is not None:
-        data = yaml.safe_load(text) or {}
-        parents = data.get("parents") or []
-    else:
-        m = re.search(r"^parents:\s*\[(.*)\]\s*$", text, re.MULTILINE)
-        parents = [p.strip().strip("'\"") for p in m.group(1).split(",") if p.strip()] if m else []
+    data = yaml.safe_load(text) or {}
+    parents = data.get("parents") or []
     if not isinstance(parents, list) or not all(isinstance(p, str) for p in parents):
         raise EvalSetError(f"{path}: parents must be a list of class names")
     return parents
@@ -1304,6 +1400,49 @@ def class_chain(names: list[str], classes_root: Path) -> list[str]:
     return order
 
 
+def declared_classes(skill_md: Path) -> list[str]:
+    """metadata.apex-classes in a SKILL.md's frontmatter as a list ([] when
+    absent), read by the admission runner's own reader
+    (classes/steward/scripts/run_checks.py)."""
+    try:
+        return run_checks.declared_classes(skill_md)
+    except (run_checks.ClassError, run_checks.FrontmatterError) as e:
+        raise EvalSetError(f"{skill_md}: {e}") from e
+
+
+def class_targets(repo_root: Path = REPO_ROOT, classes_root: Path | None = None,
+                  explicit: dict[str, dict[str, bool]] = EXPLICIT_CLASS_TARGETS,
+                  refused: dict[str, str] | None = None) -> dict[str, dict[str, bool]]:
+    """Each class's targets: the explicit list, plus every skill and
+    devops-agent copy whose metadata.apex-classes names the class or one of
+    its children (a member of a class is a member of its parents), as a
+    blocking target. A SKILL.md whose classes cannot be read is left out
+    and its folder's error goes into `refused`, so it stops only its own
+    run (build_eval_set, run_task_evals.run_skill), not every import."""
+    classes_root = classes_root or (repo_root / "classes")
+    targets = {cls: dict(listed) for cls, listed in explicit.items()}
+    for pattern in run_checks.SKILL_GLOBS:
+        for skill_md in sorted(repo_root.glob(pattern)):
+            rel = skill_md.parent.relative_to(repo_root).as_posix()
+            try:
+                names = declared_classes(skill_md)
+            except EvalSetError as e:
+                if refused is None:
+                    raise
+                refused[rel] = str(e)
+                continue
+            if not names:
+                continue
+            for cls in class_chain(names, classes_root):
+                targets.setdefault(cls, {})[rel] = True
+    return targets
+
+
+# Folder (repo-relative) -> why its SKILL.md's classes could not be read.
+CLASS_TARGETS_REFUSED: dict[str, str] = {}
+CLASS_TARGETS: dict[str, dict[str, bool]] = class_targets(refused=CLASS_TARGETS_REFUSED)
+
+
 def _check_cases(cases, where: str) -> list[dict]:
     if not isinstance(cases, list):
         raise EvalSetError(f"{where}: must be a JSON list of cases")
@@ -1322,8 +1461,9 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
     """Merge the member's own cases (source "member") with each named
     class's shared cases (source "class:<name>"), parents first. Returns
     (cases, meta); meta holds run_key, target, classes and blocking (None
-    with no class). Refuses a skill that is not on a named class's target
-    list, a chain with no shared trigger file, and repeated case ids."""
+    with no class). A class with no shared trigger file is skipped with a
+    message on stderr. Refuses a skill that is not on a named class's target
+    list, a merged set with no case, and repeated case ids."""
     classes_root = classes_root or (REPO_ROOT / "classes")
     targets = CLASS_TARGETS if targets is None else targets
     cases: list[dict] = []
@@ -1335,6 +1475,8 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
             raise EvalSetError(f"cannot read {where}: {e}") from e
         cases += [dict(c, source="member") for c in _check_cases(loaded, where)]
     target = target_path(skill_dir)
+    if target in CLASS_TARGETS_REFUSED:
+        raise EvalSetError(CLASS_TARGETS_REFUSED[target])
     blocking = None
     chain: list[str] = []
     if classes:
@@ -1346,20 +1488,17 @@ def build_eval_set(member_set: Path | None, classes: list[str], skill_dir: Path,
                 raise EvalSetError(f"{target or skill_dir} is not a target of class {name!r}")
             blocking = bool(blocking) or listed[target]
         chain = class_chain(classes, classes_root)
-        found = False
         for name in chain:
             path = classes_root / name / "evals" / "trigger" / "triggering.json"
             if not path.is_file():
+                print(f"[run_triggering] class {name}: no shared trigger evals "
+                      f"(evals/trigger/triggering.json), skipped", file=sys.stderr)
                 continue
-            found = True
             try:
                 loaded = json.loads(path.read_text())
             except (OSError, ValueError) as e:
                 raise EvalSetError(f"cannot read {path}: {e}") from e
             cases += [dict(c, source=f"class:{name}") for c in _check_cases(loaded, str(path))]
-        if not found:
-            raise EvalSetError(f"no shared trigger evals (evals/trigger/triggering.json) "
-                               f"in classes {chain}")
     ids = [c["id"] for c in cases if "id" in c]
     dup = sorted({i for i in ids if ids.count(i) > 1})
     if dup:
@@ -1384,6 +1523,11 @@ def main() -> int:
                         metavar="CLASS",
                         help="Also run this class's shared trigger evals (and its parents'); "
                              "the skill must be on the class's target list. Repeatable")
+    parser.add_argument("--run-key", default=None,
+                        help="The gate's form, in place of --eval-set, --skill-path and --class: "
+                             "the run key's misc/evals/<key>/triggering.json, skill folder and "
+                             "classes (run_task_evals.resolve_target). A key with no trigger case "
+                             "prints {\"run_key\": <key>, \"skipped\": <why>} and exits 0")
     parser.add_argument("--harness", choices=HARNESSES, default="claude")
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument("--timeout", type=int, default=90, help="Per-query wallclock seconds")
@@ -1396,9 +1540,37 @@ def main() -> int:
                              "else HARNESS_SUBJECT_MODELS (codex "
                              f"{HARNESS_SUBJECT_MODELS['codex']}, kiro "
                              f"{HARNESS_SUBJECT_MODELS['kiro']})")
+    parser.add_argument("--base-ref", default=None,
+                        help="Also run every case on the skill as it was at this git ref (arm "
+                             "base_skill, read from git objects as run_task_evals.py --base-ref "
+                             "does), printed under \"base\"; a skill absent there gets no base "
+                             "arm. Default: run_task_evals.py's default ref with --run-key (the "
+                             "gate compares old against new), else none; none: no base arm")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     model = subject_model(args.harness, args.model, args.subject_model)
+
+    if args.run_key:
+        if args.eval_set or args.skill_path or args.classes:
+            print("error: --run-key takes no --eval-set, --skill-path or --class", file=sys.stderr)
+            return 1
+        import run_task_evals  # its target resolution; imported here, as it imports this module
+        t = run_task_evals.resolve_target(args.run_key)
+        own = run_task_evals.EVALS_ROOT / args.run_key / "triggering.json"
+        try:
+            shared = [c for c in class_chain(t["classes"], REPO_ROOT / "classes")
+                      if (REPO_ROOT / "classes" / c / "evals" / "trigger" / "triggering.json").is_file()]
+        except EvalSetError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        if not own.is_file() and not shared:
+            print(json.dumps({"run_key": args.run_key,
+                              "skipped": "no trigger case: no triggering.json and no class trigger file"}))
+            return 0
+        args.eval_set = str(own) if own.is_file() else None
+        args.skill_path, args.classes = str(t["skill_repo_dir"]), t["classes"]
+        if args.base_ref is None:
+            args.base_ref = run_task_evals.DEFAULT_BASE_REF
 
     if not args.skill_path:
         print("error: --skill-path is required", file=sys.stderr)
@@ -1413,6 +1585,18 @@ def main() -> int:
     except EvalSetError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    base_ref = None if (args.base_ref or "none").lower() in ("", "none") else args.base_ref
+    base_sha = None
+    if base_ref:
+        import run_task_evals  # its --base-ref helpers; imported here, as it imports this module
+        if meta["target"] is None:
+            print(f"error: --base-ref needs a skill inside {REPO_ROOT}", file=sys.stderr)
+            return 1
+        try:
+            base_sha = run_task_evals.resolve_base_ref(base_ref)
+        except run_task_evals.BaseRefError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
     name, description = read_skill_meta(skill_dir)
 
     version_error = check_cli_versions([args.harness])
@@ -1431,23 +1615,33 @@ def main() -> int:
               f"model={model}",
               file=sys.stderr)
 
+    run_args = dict(eval_set=eval_set, num_workers=args.num_workers, timeout=args.timeout,
+                    runs_per_query=args.runs_per_query, trigger_threshold=args.trigger_threshold,
+                    model=model, creds=creds, harness=args.harness)
+    base_tmp = Path(tempfile.mkdtemp(prefix="triggering-base-ref-"))
     try:
-        output = run_eval(
-            eval_set=eval_set,
-            skill_name=name,
-            description=description,
-            repo_skill_dir=skill_dir,
-            num_workers=args.num_workers,
-            timeout=args.timeout,
-            runs_per_query=args.runs_per_query,
-            trigger_threshold=args.trigger_threshold,
-            model=model,
-            creds=creds,
-            harness=args.harness,
-        )
+        output = run_eval(skill_name=name, description=description, repo_skill_dir=skill_dir,
+                          **run_args)
+        if base_sha:
+            base_dir = run_task_evals.materialise_skill_at_ref(base_sha, meta["target"], base_tmp)
+            base = {"base_ref": base_ref, "base_ref_sha": base_sha, "arm": None}
+            if base_dir is None:
+                base["note"] = f"{meta['target']} does not exist at {base_ref}: no base arm"
+            else:
+                base_name, base_description = read_skill_meta(base_dir)
+                base_out = run_eval(skill_name=base_name, description=base_description,
+                                    repo_skill_dir=base_dir, **run_args)
+                base.update(arm="base_skill", results=base_out["results"],
+                            summary=base_out["summary"])
+            output["base"] = base
     except EvalCredentialError as e:
         print(f"error: eval-role session refresh failed, stopping: {e}", file=sys.stderr)
         return 2
+    except (run_task_evals.BaseRefError if base_sha else ()) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    finally:
+        shutil.rmtree(base_tmp, ignore_errors=True)
     output.update(meta)
 
     if args.verbose:

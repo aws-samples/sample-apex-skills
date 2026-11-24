@@ -3,11 +3,12 @@
 
 Each entry's tokens_per_run is the with_skill arm's mean tokens per run
 (skill_summary.arms.with_skill.tokens_per_run_mean) in the latest kind
-"task" row of misc/evals/history/<skill>.jsonl, the only place the task
-runner records tokens (baseline.json carries none); null when that row has
-no per-skill summary (older rows), its mean is null (no run recorded a
-token count) or there is no task row. A history line that is not JSON is
-skipped with a warning.
+"task" row of misc/evals/history/<skill>.jsonl run on the claude harness
+(a row with no harness field is claude), the only committed place the task
+runner records tokens (baseline.json carries none); null when that row has no
+per-skill summary (older rows), its mean is null (no run recorded a token
+count) or there is no such row. A history line that is not a JSON object
+is skipped with a warning.
 
 --check builds the same content and compares it with the committed file:
 exit 0 when they match, 1 when they differ or the file is missing. It
@@ -37,8 +38,10 @@ def round1(val: float | None) -> float | None:
     return round(val, 1)
 
 
-def tokens_per_run(skill: str) -> int | None:
-    """Mean tokens per with_skill run from the skill's latest task history row."""
+def latest_task_row(skill: str) -> dict | None:
+    """The skill's latest kind "task" history row run on the claude harness.
+    A row with no harness field is claude: run_task_evals.py wrote rows
+    before it had other harnesses without one."""
     path = HISTORY_DIR / f"{skill}.jsonl"
     if not path.exists():
         return None
@@ -48,14 +51,20 @@ def tokens_per_run(skill: str) -> int | None:
         try:
             row = json.loads(line)
         except ValueError:
-            print(f"warning: {path}: skipping a line that is not JSON", file=sys.stderr)
+            row = None
+        if not isinstance(row, dict):
+            print(f"warning: {path}: skipping a line that is not a JSON object", file=sys.stderr)
             continue
-        if row.get("kind") != "task":
-            continue
-        arms = (row.get("skill_summary") or {}).get("arms") or {}
-        value = (arms.get("with_skill") or {}).get("tokens_per_run_mean")
-        return round(value) if isinstance(value, (int, float)) else None
+        if row.get("kind") == "task" and row.get("harness", "claude") == "claude":
+            return row
     return None
+
+
+def tokens_per_run(skill: str) -> int | None:
+    """Mean tokens per with_skill run from the skill's latest claude task row."""
+    arms = ((latest_task_row(skill) or {}).get("skill_summary") or {}).get("arms") or {}
+    value = (arms.get("with_skill") or {}).get("tokens_per_run_mean")
+    return round(value) if isinstance(value, (int, float)) else None
 
 
 def extract_entry(baseline_path: Path) -> dict:

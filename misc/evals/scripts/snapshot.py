@@ -16,8 +16,18 @@ EVALS_ROOT = Path(__file__).resolve().parent.parent  # misc/evals/
 REPO_ROOT = EVALS_ROOT.parent.parent
 
 
+def target_workspace(skill: str) -> Path:
+    """The run key's workspace: misc/evals/<key>/workspace for a key with a
+    folder of its own, else where run_task_evals.resolve_target runs a class
+    target (misc/evals/workspace/<key>/workspace)."""
+    if (EVALS_ROOT / skill).is_dir():
+        return EVALS_ROOT / skill / "workspace"
+    from run_task_evals import resolve_target  # here: keeps regression's import of this module light
+    return resolve_target(skill)["workspace"]
+
+
 def find_latest_metrics(skill: str) -> dict[str, Any]:
-    runs_dir = EVALS_ROOT / skill / "workspace" / "runs"
+    runs_dir = target_workspace(skill) / "runs"
     if not runs_dir.is_dir():
         sys.exit(f"Error: runs directory not found: {runs_dir}")
     run_dirs = sorted([d for d in runs_dir.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True)
@@ -45,7 +55,7 @@ def extract_triggering(metrics: dict[str, Any]) -> dict[str, Any]:
 
 
 def read_task_benchmark(skill: str, pass_k: int) -> Optional[dict[str, Any]]:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     bench_path = latest / "benchmark.json"
     if not bench_path.exists():
         return None
@@ -93,7 +103,7 @@ def compute_pass_k(latest: Path, k: int) -> Optional[float]:
 
 
 def aggregate_json_files(skill: str, pattern: str, extract_fn) -> Optional[dict[str, Any]]:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     files = list(latest.rglob(f"with_skill/run-*/{pattern}"))
     if not files:
         return None
@@ -136,7 +146,7 @@ def gather_per_eval_cases(skill: str) -> dict[str, dict[str, Any]]:
       ...
     }
     """
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     if not latest.exists():
         return {}
 
@@ -202,11 +212,13 @@ def get_git_head() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skill", required=True)
-    parser.add_argument("--pass-k", type=int, default=3)
+    parser.add_argument("--pass-k", type=int, default=None,
+                        help="runs per case for pass^k (default: the skill's regression.pass_k)")
     args = parser.parse_args()
 
     skill = args.skill
-    pass_k = args.pass_k
+    config = load_config(skill)
+    pass_k = args.pass_k if args.pass_k is not None else config.pass_k
 
     metrics = find_latest_metrics(skill)
     triggering = extract_triggering(metrics)
@@ -240,7 +252,6 @@ def main() -> None:
         "composite": None,
     }
 
-    config = load_config(skill)
     composite_result = compute_from_baseline(baseline, config)
     if composite_result:
         baseline["composite"] = {
@@ -250,7 +261,7 @@ def main() -> None:
             "effective_weights": composite_result["effective_weights"],
         }
 
-    baselines_dir = EVALS_ROOT / skill / "baselines"
+    baselines_dir = target_workspace(skill).parent / "baselines"
     baselines_dir.mkdir(parents=True, exist_ok=True)
     out_path = baselines_dir / "baseline.json"
     out_path.write_text(json.dumps(baseline, indent=2) + "\n")
