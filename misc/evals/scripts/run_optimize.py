@@ -181,8 +181,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     results = Path(args.results) if args.results else latest_results(args.skill)
     if results is None or not results.exists():
-        print(f"error: no triggering results; run `make triggering-{args.skill}` and save its "
-              "JSON, or pass --results", file=sys.stderr)
+        print(f"error: no triggering results; run `make -s triggering-{args.skill} > <file>` and pass "
+              "--results <file>, or run run_all_evals.py, whose saved run is the default input",
+              file=sys.stderr)
         return 1
     if not args.build_only and not args.model:
         print("error: --model is required unless --build-only", file=sys.stderr)
