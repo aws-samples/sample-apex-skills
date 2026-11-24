@@ -1269,9 +1269,8 @@ def resolve_target(run_key: str) -> dict:
     """Where a run key's skill, own cases, runs and history live.
 
     A key with a misc/evals/<key>/ folder keeps today's layout. A class
-    target with none (a planned member with no suite yet, or a devops-agent
-    copy, whose key is devops-agent-<name> so its runs and history never
-    overwrite its skills/ twin's) runs under misc/evals/workspace/<key>/."""
+    target with none (a planned member with no suite yet) runs under
+    misc/evals/workspace/<key>/."""
     target = class_target(run_key) or {}
     own = EVALS_ROOT / run_key
     own_dir = own if (own / "evals.json").exists() else None

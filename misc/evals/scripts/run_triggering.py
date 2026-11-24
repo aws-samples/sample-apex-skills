@@ -1308,15 +1308,15 @@ def run_eval(
 # triggering.json. They run against each target of the
 # class, merged with the target's own cases, a class's parents' cases first.
 # A class's targets (CLASS_TARGETS, built by class_targets below) are every
-# skill or devops-agent copy whose SKILL.md frontmatter names the class, or
-# a child of it, in metadata.apex-classes (each a blocking target), plus the
-# explicit list here; run_task_evals.py builds its target list from it too.
-# In the explicit list only the 3 repo-owned devops-agent copies block. The
-# other 29 are report-only: a failed shared case does not fail the key by
-# itself (a task case's grader score still counts in the key's pooled
-# delta). They are the 22 planned skills, the 4 skills their owners hold and
-# the 3 devops-agent copies of owner-held skills. dotnet-aws-ecs is not a
-# target until its own rebuild.
+# skill whose SKILL.md frontmatter names the class, or a child of it, in
+# metadata.apex-classes (each a blocking target), plus the explicit list
+# here; run_task_evals.py builds its target list from it too.
+# The explicit list is report-only: a failed shared case does not fail the
+# key by itself (a task case's grader score still counts in the key's pooled
+# delta). It holds the 22 planned skills and the 4 skills their owners hold.
+# dotnet-aws-ecs is not a target until its own rebuild. No devops-agent copy
+# is a target, listed or by membership: the copies are tested only inside a
+# real DevOps Agent environment (round 2, with SEC-3, P-334).
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -1330,15 +1330,9 @@ _APEX_BASE_REPORT_ONLY = (
     "skills/graviton-migration", "skills/update-docs",
     "skills/eks-upgrade-check", "skills/eks-operation-review",
     "skills/eks-well-architected-review", "skills/eks-ingress-migration",
-    "devops-agent/eks-ingress-migration", "devops-agent/eks-operation-review",
-    "devops-agent/eks-upgrade-check",
-)
-_APEX_BASE_BLOCKING = (
-    "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon", "devops-agent/eks-security",
 )
 EXPLICIT_CLASS_TARGETS: dict[str, dict[str, bool]] = {
-    "apex-base": {**{p: True for p in _APEX_BASE_BLOCKING},
-                  **{p: False for p in _APEX_BASE_REPORT_ONLY}},
+    "apex-base": {p: False for p in _APEX_BASE_REPORT_ONLY},
 }
 sys.path.insert(0, str(REPO_ROOT / "classes" / "steward" / "scripts"))
 import run_checks  # noqa: E402  (class membership, as the admission runner reads it)
@@ -1413,10 +1407,11 @@ def declared_classes(skill_md: Path) -> list[str]:
 def class_targets(repo_root: Path = REPO_ROOT, classes_root: Path | None = None,
                   explicit: dict[str, dict[str, bool]] = EXPLICIT_CLASS_TARGETS,
                   refused: dict[str, str] | None = None) -> dict[str, dict[str, bool]]:
-    """Each class's targets: the explicit list, plus every skill and
-    devops-agent copy whose metadata.apex-classes names the class or one of
-    its children (a member of a class is a member of its parents), as a
-    blocking target. A SKILL.md whose classes cannot be read is left out
+    """Each class's targets: the explicit list, plus every skill whose
+    metadata.apex-classes names the class or one of its children (a member
+    of a class is a member of its parents), as a blocking target. A
+    devops-agent copy is never one (SKILL_GLOBS also reads devops-agent/
+    for class admission). A SKILL.md whose classes cannot be read is left out
     and its folder's error goes into `refused`, so it stops only its own
     run (build_eval_set, run_task_evals.run_skill), not every import."""
     classes_root = classes_root or (repo_root / "classes")
@@ -1424,6 +1419,8 @@ def class_targets(repo_root: Path = REPO_ROOT, classes_root: Path | None = None,
     for pattern in run_checks.SKILL_GLOBS:
         for skill_md in sorted(repo_root.glob(pattern)):
             rel = skill_md.parent.relative_to(repo_root).as_posix()
+            if rel.startswith("devops-agent/"):
+                continue
             try:
                 names = declared_classes(skill_md)
             except EvalSetError as e:

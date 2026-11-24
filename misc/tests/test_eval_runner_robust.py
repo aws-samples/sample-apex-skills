@@ -1084,14 +1084,14 @@ class ClassSharedTriggerEvals(unittest.TestCase):
         (d / "class.yaml").write_text("name: service-eks\nparents: [service]\n")
         root = self.tmp / "repo"
         self.write_skill(root, "skills/member", 'metadata:\n  apex-classes: "service-eks"\n')
-        self.write_skill(root, "devops-agent/inline", 'metadata: { apex-classes: "service" }\n')
+        self.write_skill(root, "skills/inline", 'metadata: { apex-classes: "service" }\n')
         self.write_skill(root, "skills/none", "description: d\n")
         targets = run_triggering.class_targets(root, self.classes,
                                                explicit={"apex-base": {"skills/member": False,
                                                                        "skills/other": False}})
         self.assertEqual(targets, {
-            "apex-base": {"skills/member": True, "skills/other": False, "devops-agent/inline": True},
-            "service": {"skills/member": True, "devops-agent/inline": True},
+            "apex-base": {"skills/inline": True, "skills/member": True, "skills/other": False},
+            "service": {"skills/inline": True, "skills/member": True},
             "service-eks": {"skills/member": True}})
         self.write_skill(root, "skills/bad", "metadata:\n  apex-classes: [service]\n")
         with self.assertRaisesRegex(run_triggering.EvalSetError, "space-separated string"):
@@ -1154,12 +1154,19 @@ class ClassSharedTriggerEvals(unittest.TestCase):
         self.assertEqual(out["summary"]["tokens_per_run"], 10)
         self.assertEqual(out["harness"], "codex")
 
+    def test_no_devops_agent_copy_is_a_class_target(self):
+        """The user: "doing devops agent copies test outside of devops agent
+        is stupid." No copy is a target, listed or by membership."""
+        for cls, listed in run_triggering.CLASS_TARGETS.items():
+            self.assertEqual([t for t in listed if t.startswith("devops-agent/")], [], cls)
+        root = self.tmp / "repo"
+        self.write_skill(root, "devops-agent/inline", 'metadata: { apex-classes: "service" }\n')
+        self.assertEqual(run_triggering.class_targets(root, self.classes, explicit={}), {})
+
     def test_real_target_list_names_existing_skills(self):
         listed = run_triggering.CLASS_TARGETS["apex-base"]
-        self.assertEqual(len(listed), 32)
-        self.assertEqual(sorted(t for t, b in listed.items() if b), [
-            "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon",
-            "devops-agent/eks-security"])
+        self.assertEqual(len(listed), 26)
+        self.assertEqual([t for t, b in listed.items() if b], [])
         for t in listed:
             self.assertTrue((run_triggering.REPO_ROOT / t / "SKILL.md").is_file(), t)
         self.assertNotIn("skills/dotnet-aws-ecs", listed)
@@ -2060,24 +2067,16 @@ class ClassCases(Tmp):
         targets = run_task_evals.CLASS_TARGETS
         keys = [t["run_key"] for t in targets]
         self.assertEqual(len(keys), len(set(keys)))
-        self.assertEqual(sorted(t["run_key"] for t in targets if t["blocking"]),
-                         ["devops-agent-eks-cost-intelligence", "devops-agent-eks-recon",
-                          "devops-agent-eks-security"])
-        self.assertEqual(len(targets), 22 + 4 + 6)
+        self.assertEqual([t["run_key"] for t in targets if t["blocking"]], [])
+        self.assertEqual(len(targets), 22 + 4)
         self.assertNotIn("dotnet-aws-ecs", keys)
         for t in targets:
             self.assertTrue((REPO / t["skill_dir"] / "SKILL.md").is_file(), t)
 
-    def test_devops_copy_has_its_own_run_key(self):
-        copy = run_task_evals.resolve_target("devops-agent-eks-recon")
-        twin = run_task_evals.resolve_target("eks-recon")
-        self.assertEqual(copy["skill_rel"], "devops-agent/eks-recon")
-        self.assertIsNone(copy["own_eval_dir"])
-        self.assertEqual(copy["workspace"],
-                         run_task_evals.TARGETS_WORKSPACE / "devops-agent-eks-recon" / "workspace")
-        self.assertNotEqual(copy["workspace"], twin["workspace"])
-        self.assertNotEqual(run_task_evals.history_path("devops-agent-eks-recon"),
-                            run_task_evals.history_path("eks-recon"))
+    def test_no_devops_copy_is_a_task_target(self):
+        self.assertIsNone(run_task_evals.class_target("devops-agent-eks-recon"))
+        self.assertEqual([t for t in run_task_evals.CLASS_TARGETS
+                          if t["skill_dir"].startswith("devops-agent/")], [])
 
     def test_list_targets_prints_runnable_keys_and_runs_nothing(self):
         out = io.StringIO()
@@ -2088,8 +2087,9 @@ class ClassCases(Tmp):
         mint.assert_not_called()
         rows = [json.loads(l) for l in out.getvalue().splitlines()]
         self.assertIn("eks-recon", [r["run_key"] for r in rows])
-        copy = [r for r in rows if r["run_key"] == "devops-agent-eks-security"]
-        self.assertEqual([r["classes"] for r in copy], [["apex-base"]])
+        planned = [r for r in rows if r["run_key"] == "ecs-recon"]
+        self.assertEqual([r["classes"] for r in planned], [["apex-base"]])
+        self.assertEqual([r for r in rows if r["run_key"].startswith("devops-agent-")], [])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -2300,17 +2300,17 @@ class RunSkill(Tmp):
         suite.mkdir(parents=True)
         (suite / "evals.json").write_text(json.dumps({"evals": [
             {"id": 9004, "prompt": "p", "expectations": ["e"]}]}))
-        out = self.run_it("devops-agent-eks-recon", runs=1)
+        out = self.run_it("ecs-recon", runs=1)
         entry = out["history_entry"]
-        self.assertEqual(entry["run_key"], "devops-agent-eks-recon")
-        self.assertEqual(entry["skill_dir"], "devops-agent/eks-recon")
-        self.assertTrue(entry["blocking"])
+        self.assertEqual(entry["run_key"], "ecs-recon")
+        self.assertEqual(entry["skill_dir"], "skills/ecs-recon")
+        self.assertFalse(entry["blocking"])
         self.assertEqual(entry["cases"][0]["source"], "class:apex-base/read-only")
         self.assertEqual(self.calls[0]["skill_eval_dir"], suite)
-        self.assertEqual(self.calls[0]["repo_skill_dir"], REPO / "devops-agent" / "eks-recon")
-        self.assertTrue(out["runs_dir"].startswith(str(self.evals / "workspace" / "devops-agent-eks-recon")))
-        self.assertEqual(self.bench_skill_path, REPO / "devops-agent" / "eks-recon")
-        self.assertTrue((self.history / "devops-agent-eks-recon.jsonl").exists())
+        self.assertEqual(self.calls[0]["repo_skill_dir"], REPO / "skills" / "ecs-recon")
+        self.assertTrue(out["runs_dir"].startswith(str(self.evals / "workspace" / "ecs-recon")))
+        self.assertEqual(self.bench_skill_path, REPO / "skills" / "ecs-recon")
+        self.assertTrue((self.history / "ecs-recon.jsonl").exists())
 
     def test_member_runs_own_and_shared_cases(self):
         self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
@@ -2944,17 +2944,17 @@ class TargetsAndCases(Tmp):
 
     def test_list_targets_keeps_only_keys_with_a_runnable_case(self):
         keys, err = self.list_targets()
-        self.assertIn("devops-agent-eks-security", keys)
+        self.assertIn("ecs-recon", keys)
         self.assertNotIn("setup", keys)
         self.assertIn("setup: no runnable case", err)
-        # With no shared class cases, a copy with no suite of its own has no
+        # With no shared class cases, a target with no suite of its own has no
         # case, and a key whose own cases are all live-only lists only with
         # --include-live-only.
         with mock.patch.object(run_task_evals, "CLASSES_ROOT", self.tmp / "no-classes"):
             keys, err = self.list_targets()
             self.assertIn("eks-recon", keys)
-            self.assertNotIn("devops-agent-eks-security", keys)
-            self.assertIn("devops-agent-eks-security: no runnable case", err)
+            self.assertNotIn("ecs-recon", keys)
+            self.assertIn("ecs-recon: no runnable case", err)
             self.assertNotIn("eks-operation-review", keys)
             keys, _ = self.list_targets("--include-live-only")
             self.assertIn("eks-operation-review", keys)
