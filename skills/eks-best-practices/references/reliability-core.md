@@ -112,7 +112,7 @@ Pods with unsafe `sysctls` will be repeatedly scheduled but never launch, creati
 ### Multi-AZ Node Distribution
 
 ✅ DO:
-- Spread nodes across at least 3 AZs
+- Spread nodes across multiple AZs, at least two (EKS Best Practices Guide)
 - Use multiple instance types in Karpenter NodePools for availability
 - Configure AZ-balanced autoscaling in MNGs
 
