@@ -137,7 +137,7 @@ Finding types are organized by dimension. Each type maps to a specific cost inef
 | `orphaned_load_balancers` | LoadBalancer Services with no healthy backend endpoints | HIGH–CRITICAL |
 | `zero_scale_deployments` | Deployments scaled to zero replicas for extended periods | LOW–MEDIUM |
 | `empty_namespaces` | Namespaces with no running workloads but allocated quotas | LOW |
-| `orphaned_config_resources` | ConfigMaps/Secrets not referenced by any running workload | LOW |
+| `orphaned_config_resources` | ConfigMaps not referenced by any running workload (Secrets not read) | LOW |
 
 ---
 

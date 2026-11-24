@@ -1,7 +1,7 @@
 # Idle Resources
 
 > **Part of:** [eks-cost-intelligence](../SKILL.md)
-> **Purpose:** Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but allocated quotas, orphaned ConfigMaps/Secrets not referenced by running workloads, and per-hour cost of unused load balancers
+> **Purpose:** Checks for zero-replica Deployments idle for extended periods, LoadBalancer Services with no healthy endpoints, namespaces with no running workloads but allocated quotas, orphaned ConfigMaps not referenced by running workloads, and per-hour cost of unused load balancers
 
 ---
 
@@ -28,14 +28,14 @@ Unlike compute efficiency (which identifies *under-utilized* resources), this di
 | 1 | Zero-replica Deployments idle for extended periods | 0 replicas for > 7 days | By count × resource allocation |
 | 2 | LoadBalancer Services with no healthy endpoints | 0 healthy endpoints | **HIGH** (Req 10.5) — per LB hourly cost |
 | 3 | Namespaces with no running workloads but allocated quotas | 0 running pods + active quota | MEDIUM |
-| 4 | Orphaned ConfigMaps/Secrets not referenced by running workloads | Not mounted/envFrom by any running pod | LOW–MEDIUM by count |
+| 4 | Orphaned ConfigMaps not referenced by running workloads | Not mounted/envFrom by any running pod | LOW |
 
 ---
 
 ## Pre-requisites
 
 These checks require:
-- **kubectl access** to the cluster (for Deployments, Services, Endpoints, Namespaces, ConfigMaps, Secrets)
+- **kubectl access** to the cluster (for Deployments, Services, Endpoints, Namespaces, ConfigMaps)
 - **AWS CLI access** for `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetHealth` (optional — enriches LB cost data)
 - **No metrics-server required** — all checks use Kubernetes API state inspection only
 
@@ -87,7 +87,9 @@ kubectl delete deployment <name> -n <namespace>
 kubectl scale deployment <name> -n <namespace> --replicas=1
 
 # List all associated resources before cleanup
-kubectl get all,pvc,configmap,secret -n <namespace> -l app=<deployment-label>
+kubectl get all,pvc,configmap -n <namespace> -l app=<deployment-label>
+# Secrets are not read (apex.no-secrets); the pod template names the Secrets this Deployment uses (volume, projected and env refs only; not imagePullSecrets, CSI or other volume-plugin refs)
+( set -o pipefail; kubectl get deployment <name> -n <namespace> -o json | jq -r '.spec.template.spec | [(.volumes[]? | .secret.secretName, .projected.sources[]?.secret.name), ((.containers[], .initContainers[]?) | .envFrom[]?.secretRef.name, .env[]?.valueFrom.secretKeyRef.name)] | map(select(. != null)) | unique[]' )
 ```
 
 ```bash
@@ -230,75 +232,66 @@ For each non-system namespace from confirmed inventory:
 ### Remediation
 
 ```bash
+# Before deleting, check for any non-running resources (PVCs, ConfigMaps, etc.)
+kubectl get all,pvc,configmap,serviceaccount -n <namespace>
+# Deleting the namespace also deletes its Secrets. This assessment does not read them: confirm with the namespace owner that none are still needed before you delete.
+
 # Review and delete empty namespaces (CAUTION: deletes all resources in namespace)
 kubectl delete namespace <namespace>
 
 # Or remove just the quota if the namespace may be reused
 kubectl delete resourcequota <quota-name> -n <namespace>
 kubectl delete limitrange <limitrange-name> -n <namespace>
-
-# Before deleting, check for any non-running resources (PVCs, Secrets, etc.)
-kubectl get all,pvc,configmap,secret,serviceaccount -n <namespace>
 ```
 
 ---
 
-## Check 4: Orphaned ConfigMaps and Secrets Not Referenced by Running Workloads
+## Check 4: Orphaned ConfigMaps Not Referenced by Running Workloads
 
 ### What it detects
 
-ConfigMaps and Secrets that exist in non-system namespaces but are not referenced by any running pod — either as volume mounts, environment variable sources (envFrom/valueFrom), or projected volumes. These represent configuration debt and potential security exposure (orphaned secrets).
+ConfigMaps that exist in non-system namespaces but are not referenced by any running pod, either as volume mounts, environment variable sources (envFrom/valueFrom), or projected volumes. These represent configuration debt.
+
+Secrets are not read (apex.no-secrets), so this check does not list them: state in the report's Idle Resources section: Orphaned Secrets not checked: this assessment does not read Secrets.
 
 ### Data collection
 
-Use the Kubernetes API to list all ConfigMaps and Secrets in non-system namespaces. Cross-reference with all running Pods' spec.volumes[].configMap, spec.volumes[].secret, spec.volumes[].projected.sources[], spec.containers[].envFrom, and spec.containers[].env[].valueFrom to identify unreferenced resources. Exclude system-managed objects (kube-root-ca.crt, service-account-token secrets, Helm release secrets).
+Use the Kubernetes API to list all ConfigMaps in non-system namespaces. Cross-reference with all running Pods' spec.volumes[].configMap, spec.volumes[].projected.sources[], spec.containers[].envFrom, and spec.containers[].env[].valueFrom to identify unreferenced ConfigMaps. Exclude system-managed objects (kube-root-ca.crt).
 
-These channels produce candidates; confirm actual references and ownership before reporting an orphan or proposing cleanup. They do not cover every reference channel, such as init containers or imagePullSecrets. Apply unconditional exclusions before requiring a Pod reference inventory.
+These channels produce candidates; confirm actual references and ownership before reporting an orphan or proposing cleanup. They do not cover every reference channel, such as init containers. Apply unconditional exclusions before requiring a Pod reference inventory.
 
 ### Exclusions
 
 Always exclude from orphan detection:
 - ConfigMaps named `kube-root-ca.crt` (system-managed)
-- Secrets of type `kubernetes.io/service-account-token` (auto-created)
-- Secrets matching `^default-token-` pattern (legacy SA tokens)
-- ConfigMaps/Secrets in system namespaces (`kube-*`, `amazon-*`, `aws-*`)
-- Helm release secrets (type `helm.sh/release.v1`) — these track Helm state
-- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` that match a deployed release
+- ConfigMaps in system namespaces (`kube-*`, `amazon-*`, `aws-*`)
+- ConfigMaps with label `app.kubernetes.io/managed-by: Helm` and a `meta.helm.sh/release-name` annotation (release status not read, so resources Helm kept after uninstall are not flagged)
+- ConfigMaps labelled `owner: helm` (Helm release records when HELM_DRIVER=configmap)
 
 ### Analysis logic
 
 ```
 For each non-system namespace:
-  A confirmed empty ConfigMap or Secret list, or one containing only unconditionally excluded objects, needs no reference comparison.
+  A confirmed empty ConfigMap list, or one containing only unconditionally excluded objects, needs no reference comparison.
   For listed objects, require confirmed Pod references; otherwise mark the comparison UNKNOWN.
-  Classify ConfigMaps and Secrets independently, only when their own inventory succeeded.
-  A failed ConfigMap or Secret list does not discard findings supported by the other successful list.
   referenced_cms = set of ConfigMap names used by running pods (volumes, envFrom, valueFrom)
-  referenced_secrets = set of Secret names used by running pods (volumes, envFrom, valueFrom)
   
   all_cms = set of all ConfigMaps in namespace (excluding system CMs)
-  all_secrets = set of all Secrets in namespace (excluding SA tokens, Helm releases)
   
   orphaned_cms = all_cms - referenced_cms only if both inputs are confirmed
-  orphaned_secrets = all_secrets - referenced_secrets only if both inputs are confirmed
   
-  If len(orphaned_cms) + len(orphaned_secrets) > 0:
-    → Generate finding
-    # Secrets carry more risk (potential credential exposure)
-    # ConfigMaps are lower risk (just configuration debt)
+  If len(orphaned_cms) > 0:
+    → Generate one LOW finding for this namespace
+    # ConfigMaps are low risk (configuration debt)
 ```
 
 ### Severity classification
 
 | Condition | Severity |
 |-----------|----------|
-| > 10 orphaned Secrets in a namespace | MEDIUM |
-| Orphaned Secrets (any count) | LOW |
-| > 20 orphaned ConfigMaps in a namespace | MEDIUM |
 | Orphaned ConfigMaps (any count) | LOW |
-| Total orphaned objects across cluster > 50 | MEDIUM (cluster hygiene) |
 
-> Note: Orphaned ConfigMaps/Secrets have minimal direct cost impact but indicate configuration debt, potential security exposure (stale credentials in Secrets), and complicate cluster operations.
+> Note: Orphaned ConfigMaps have minimal direct cost impact but indicate configuration debt and complicate cluster operations.
 
 ### Remediation
 
@@ -308,10 +301,6 @@ kubectl get configmap <name> -n <namespace> -o yaml
 
 # Delete confirmed orphaned ConfigMaps
 kubectl delete configmap <name> -n <namespace>
-
-# Delete confirmed orphaned Secrets (review first!)
-kubectl get secret <name> -n <namespace> -o yaml | head -20  # Check type and annotations
-kubectl delete secret <name> -n <namespace>
 ```
 
 
@@ -345,7 +334,7 @@ actual_deduction = min(deduction, 15)  # Cap at maximum
 | Only optional enrichment unavailable; required reads succeeded | ASSESSED (with note) |
 | No Kubernetes API access | Cannot assess — skill halts at pre-flight |
 
-Kubernetes API connectivity alone does not prove permission for every resource. Apply the read-coverage rule in `report-generation.md`: a denied Service read does not mean "no LoadBalancer Services", and a denied Endpoints read does not mean "zero healthy endpoints". The same rule applies to ConfigMaps, Secrets and other required inputs.
+Kubernetes API connectivity alone does not prove permission for every resource. Apply the read-coverage rule in `report-generation.md`: a denied Service read does not mean "no LoadBalancer Services", and a denied Endpoints read does not mean "zero healthy endpoints". The same rule applies to ConfigMaps and other required inputs.
 
 ---
 
@@ -373,12 +362,12 @@ START
   │   ├─ If 0 running pods + quota exists → Generate finding
   │   └─ Check for bound PVCs in empty namespace (escalates severity)
   │
-  ├─ Check 4: Orphaned ConfigMaps/Secrets
+  ├─ Check 4: Orphaned ConfigMaps
   │   ├─ Build reference map from all running pods
-  │   ├─ List all ConfigMaps/Secrets (excluding system objects)
+  │   ├─ List all ConfigMaps (excluding system objects)
   │   ├─ Diff: all - referenced = orphaned
-  │   ├─ Exclude Helm releases, SA tokens, system CMs
-  │   └─ Generate finding if orphan count exceeds threshold
+  │   ├─ Exclude system and Helm-managed CMs
+  │   └─ Generate a LOW finding for each namespace with orphaned ConfigMaps
   │
   └─ Aggregate findings → Calculate dimension deduction (max 15 pts)
 ```
@@ -425,21 +414,21 @@ finding:
   data_sources: ["kubernetes_api"]
 ```
 
-### Example Finding: Orphaned Secrets
+### Example Finding: Orphaned ConfigMaps
 
 ```yaml
 finding:
-  id: "idle-orphaned-secrets-production"
+  id: "idle-orphaned-configmaps-production"
   dimension: "idle"
   severity: "LOW"
-  affected_resource: "production namespace (8 orphaned Secrets)"
-  current_state: "8 Secrets not referenced by any running pod"
+  affected_resource: "production namespace (8 orphaned ConfigMaps)"
+  current_state: "8 ConfigMaps not referenced by any running pod"
   monthly_cost: 0
   monthly_waste: 0
   monthly_savings: 0
   effort: "Low"
-  fix_summary: "Review and delete orphaned Secrets to reduce configuration debt"
-  remediation: "Review each Secret and delete if no longer needed"
+  fix_summary: "Review and delete orphaned ConfigMaps to reduce configuration debt"
+  remediation: "Review each ConfigMap and delete if no longer needed"
   confidence: "medium"
   data_sources: ["kubernetes_api"]
 ```
