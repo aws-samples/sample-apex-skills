@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       skill:
-        description: 'Run key to gate (empty: every run key with a runnable case)'
+        description: 'Run key to gate (empty: every run key, which no longer fits the job timeout; pass one key)'
         required: false
         default: ''
 
@@ -272,7 +272,7 @@ jobs:
         env:
           HARNESS: ${{ matrix.harness }}
         run: |
-          pip install 'pyyaml>=6,<7'
+          pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'
           # Pinned to the CLI versions the adapters and parsers were written
           # against. The grader is claude -p on every harness.
           npm install -g @anthropic-ai/claude-code@2.1.328

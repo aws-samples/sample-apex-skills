@@ -2,8 +2,8 @@
 """Task-axis runner for misc/evals/ (PLAN §2).
 
 For each case in <skill>/evals.json and in the shared evals of the run key's
-classes (CLASS_TARGETS; no class has a shared task case on a target yet;
-skipping "live_only": true entries unless --include-live-only), for each
+classes (CLASS_TARGETS), skipping "live_only": true entries unless
+--include-live-only, for each
 arm in {with_skill, base arm}, for k in 1..--runs (default
 regression.pass_k). The base arm is base_skill, the skill as it was at
 --base-ref (default DEFAULT_BASE_REF), or without_skill when the skill is
@@ -140,8 +140,7 @@ STAGED_TOP_DIRS = frozenset({".claude", ".kiro", ".agents"})
 
 # Shared class cases run against each target of their class. The targets
 # and which of them block are run_triggering.CLASS_TARGETS, the one list
-# both runners read (its comment gives the reasons); today no class has a
-# shared task case on a target. A shared case lives in
+# both runners read (its comment gives the reasons). A shared case lives in
 # classes/<class>/evals/<suite>/evals.json and its fixtures in
 # <suite>/files/shared/ and <suite>/files/eval-<id>/; only cases with a
 # "prompt" run here (a "mode": "manual" case is run by hand).
@@ -964,6 +963,8 @@ def run_grader(
         grading = json.loads(grading_path.read_text())
     except json.JSONDecodeError as e:
         return {"error": f"grading.json invalid JSON: {e}"}
+    if not isinstance(grading, dict):
+        return {"error": "grading.json is not an object"}
 
     expectations_raw = grading.get("expectations")
     if not isinstance(expectations_raw, list):
@@ -972,8 +973,11 @@ def run_grader(
         if not isinstance(exp, dict) or "text" not in exp or "passed" not in exp:
             return {"error": f"grading.json expectation missing required fields: {exp}"}
 
-    # Ensure summary is present — aggregate_benchmark reads it.
-    if "summary" not in grading or "pass_rate" not in (grading.get("summary") or {}):
+    # Ensure summary is an object with a numeric pass_rate: aggregate_benchmark
+    # reads it, and a null pass_rate crashes its stats.
+    changed = False
+    summary = grading.get("summary")
+    if not (isinstance(summary, dict) and isinstance(summary.get("pass_rate"), (int, float))):
         passed = sum(1 for e in expectations_raw if e.get("passed"))
         total = len(expectations_raw)
         grading["summary"] = {
@@ -982,6 +986,21 @@ def run_grader(
             "total": total,
             "pass_rate": (passed / total) if total else 0.0,
         }
+        changed = True
+    # aggregate_benchmark (vendored) calls .get on each of these objects and
+    # extends its notes from the three lists, so a grader that writes null
+    # (as one does when it has no notes) would crash the benchmark after the
+    # run. Each non-object reads as {} and each non-list note as [].
+    for key in ("timing", "execution_metrics", "user_notes_summary"):
+        if key in grading and not isinstance(grading[key], dict):
+            grading[key] = {}
+            changed = True
+    notes = grading.get("user_notes_summary", {})
+    for key in ("uncertainties", "needs_review", "workarounds"):
+        if key in notes and not isinstance(notes[key], list):
+            notes[key] = []
+            changed = True
+    if changed:
         grading_path.write_text(json.dumps(grading, indent=2))
 
     return grading

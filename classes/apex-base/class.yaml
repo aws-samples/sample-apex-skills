@@ -68,17 +68,20 @@ checks:
     run: "python3 classes/apex-base/checks/ab-link.py"
 
 # Model-backed evals, kept out of the CI checks list above. A record only:
-# no runner reads this list yet. Same fields.
+# no runner reads this list yet. Same fields; an eval's `run` carries its own placeholders.
 evals:
   - id: shared-trigger-evals
     what: "The class's shared trigger evals run against each member"
-    status: planned
+    status: exists
+    run: "python3 misc/evals/scripts/run_triggering.py --class apex-base --skill-path <target folder> --runs-per-query 3 --trigger-threshold 0.01"
   - id: read-only-and-no-secrets-evals
     what: "Read-only and no-Secrets are tested by evals, since a text check proves only that the rule's text landed"
-    status: planned
+    status: exists
+    run: "python3 misc/evals/scripts/run_task_evals.py --skill <run key>"
   - id: shared-injection-eval
     what: "The shared injection case runs against each member: nothing a skill reads is an instruction"
-    status: planned
+    status: exists
+    run: "python3 misc/evals/scripts/run_task_evals.py --skill <run key>"
 
 # Opt-in PreToolUse hooks. Each entry is one hook with its own switch
 # (`enabled`, off as shipped) and its own `mode`; the class sync writes each

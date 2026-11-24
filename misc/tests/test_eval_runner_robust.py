@@ -1600,7 +1600,8 @@ class ClassCases(Tmp):
         mint.assert_not_called()
         rows = [json.loads(l) for l in out.getvalue().splitlines()]
         self.assertIn("eks-recon", [r["run_key"] for r in rows])
-        self.assertNotIn("devops-agent-eks-security", [r["run_key"] for r in rows])
+        copy = [r for r in rows if r["run_key"] == "devops-agent-eks-security"]
+        self.assertEqual([r["classes"] for r in copy], [["apex-base"]])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -2019,6 +2020,50 @@ class SubjectEnv(Tmp):
                                  "/host/home/.local/share")
 
 
+class GraderNullObjects(Tmp):
+
+    def grade(self, run_dir, grading):
+        run_dir.mkdir(parents=True)
+        fake_exe(self.bin, "claude", [RESULT], 0, extra="open(%r, 'w').write(%r)\n" % (
+            str(run_dir / "grading.json"), json.dumps(grading)))
+        with contextlib.redirect_stderr(io.StringIO()):
+            return run_task_evals.run_grader(expectations=["e"], transcript_path=self.tmp / "t.md",
+                                             outputs_dir=self.tmp / "o", run_dir=run_dir,
+                                             model="m", timeout=30)
+
+    def test_null_grader_objects_reach_the_benchmark_as_empty(self):
+        bench = self.tmp / "bench"
+        base = {"expectations": [{"text": "e", "passed": True, "evidence": "x"}],
+                "summary": {"passed": 1, "failed": 0, "total": 1, "pass_rate": 1.0}}
+        out = self.grade(bench / "eval-1" / "with_skill" / "run-1",
+                         dict(base, timing=None, execution_metrics=None, user_notes_summary=None))
+        self.assertNotIn("error", out)
+        for k in ("timing", "execution_metrics", "user_notes_summary"):
+            self.assertEqual(out[k], {}, k)
+        out = self.grade(bench / "eval-1" / "with_skill" / "run-2",
+                         dict(base, user_notes_summary={"uncertainties": None, "needs_review": None,
+                                                        "workarounds": None}))
+        self.assertEqual(out["user_notes_summary"],
+                         {"uncertainties": [], "needs_review": [], "workarounds": []})
+        saved = json.loads((bench / "eval-1" / "with_skill" / "run-2" / "grading.json").read_text())
+        self.assertEqual(saved["user_notes_summary"], out["user_notes_summary"])
+        rebuilt = {"passed": 1, "failed": 0, "total": 1, "pass_rate": 1.0}
+        for n, summary in ((3, "absent"), (4, {"pass_rate": None}), (5, "pass_rate")):
+            run = bench / "eval-1" / "with_skill" / f"run-{n}"
+            grading = dict(base)
+            if summary == "absent":
+                del grading["summary"]
+            else:
+                grading["summary"] = summary
+            self.grade(run, grading)
+            self.assertEqual(json.loads((run / "grading.json").read_text())["summary"], rebuilt, n)
+        self.assertEqual(self.grade(self.tmp / "top-null" / "run-1", None),
+                         {"error": "grading.json is not an object"})
+        with contextlib.redirect_stderr(io.StringIO()):
+            run_task_evals.run_benchmark("apex", bench, skill_path=REPO / "skills" / "apex")
+        self.assertTrue((bench / "benchmark.json").is_file())
+
+
 class SubjectModelPerHarness(unittest.TestCase):
 
     def test_defaults(self):
@@ -2110,14 +2155,21 @@ class TargetsAndCases(Tmp):
 
     def test_list_targets_keeps_only_keys_with_a_runnable_case(self):
         keys, err = self.list_targets()
-        self.assertIn("eks-recon", keys)
-        self.assertNotIn("devops-agent-eks-security", keys)
-        self.assertIn("devops-agent-eks-security: no runnable case", err)
-        self.assertNotIn("eks-operation-review", keys)
+        self.assertIn("devops-agent-eks-security", keys)
         self.assertNotIn("setup", keys)
-        keys, _ = self.list_targets("--include-live-only")
-        self.assertIn("eks-operation-review", keys)
-        self.assertNotIn("setup", keys)
+        self.assertIn("setup: no runnable case", err)
+        # With no shared class cases, a copy with no suite of its own has no
+        # case, and a key whose own cases are all live-only lists only with
+        # --include-live-only.
+        with mock.patch.object(run_task_evals, "CLASSES_ROOT", self.tmp / "no-classes"):
+            keys, err = self.list_targets()
+            self.assertIn("eks-recon", keys)
+            self.assertNotIn("devops-agent-eks-security", keys)
+            self.assertIn("devops-agent-eks-security: no runnable case", err)
+            self.assertNotIn("eks-operation-review", keys)
+            keys, _ = self.list_targets("--include-live-only")
+            self.assertIn("eks-operation-review", keys)
+            self.assertNotIn("setup", keys)
 
     def test_subject_model_flag_overrides_the_harness_default(self):
         captured = {}
