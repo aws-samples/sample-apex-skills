@@ -223,6 +223,8 @@ spec:
     - sg-0123456789abcdef0  # Allow access to RDS
 ```
 
+This `vpcresources.k8s.aws/v1beta1` policy applies to Pods on non-Auto-Mode nodes, such as a managed node group; Pods on EKS Auto Mode nodes (clusters running Kubernetes 1.36 or later) need the `eks.amazonaws.com/v1` `SecurityGroupPolicy` instead, whose spec isn't compatible with this one ([Assign security groups to individual Pods in EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)).
+
 **Important SG for Pods requirements:**
 - You **must** create SG rules allowing port 53 outbound to the cluster SG (DNS)
 - You **must** update the cluster SG to accept port 53 inbound from the pod SG
@@ -233,7 +235,7 @@ spec:
 
 | Use Case | Network Policy | SG for Pods |
 |----------|---------------|-------------|
-| **Pod-to-pod traffic** (east-west) | Primary tool | Not designed for this |
+| **Pod-to-pod traffic** (east-west) | Primary tool | Enforced, but not the primary tool; same-node traffic is enforced on EKS Auto Mode 1.36+ (its own `eks.amazonaws.com/v1` `SecurityGroupPolicy`; the `v1beta1` example above applies only to Pods on non-Auto-Mode nodes) and in VPC CNI `strict` mode (which routes it through the VPC), not in `standard` mode |
 | **Pod-to-AWS-service** (RDS, ElastiCache) | Cannot target AWS resources | Primary tool |
 | **Reuse existing SG rules** | No | Yes — reuse EC2 SGs |
 | **Isolate pod from node traffic** | No | Yes (`strict` mode) |
@@ -266,7 +268,7 @@ References: [Container associations](https://docs.aws.amazon.com/network-firewal
 
 | Mode | Behavior | Use When |
 |------|----------|----------|
-| **`standard`** | Node SG and pod SG both apply | Using both NP and SG for Pods |
+| **`standard`** | Node SG and pod SG both apply (not to traffic between Pods on the same node) | Using both NP and SG for Pods |
 | **`strict`** | Only pod SG applies, fully isolated from node | Complete pod traffic isolation |
 
 You **must** use `standard` mode when combining Network Policy and Security Groups for Pods.

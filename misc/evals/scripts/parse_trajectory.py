@@ -279,7 +279,7 @@ def parse_events(events: list[dict]) -> Trajectory:
 #   given, with cached_input_tokens as cache_read_input_tokens and
 #   cache_write_input_tokens as cache_creation_input_tokens.
 # kiro:   `kiro-cli chat --no-interactive --output-format stream-json`
-#   (kiro-cli 3.4.0). Its help says: "The run's ACP events as JSON Lines on
+#   (record names in the kiro-cli 3.4.0 and 3.5.0 binaries). Its help says: "The run's ACP events as JSON Lines on
 #   stdout, one self-describing event per line"; https://kiro.dev/docs/cli/
 #   headless/ (read 2026-11-19) documents only the error record
 #   {"type":"runError","data":{sessionId, stage, message, ...}}. The ACP

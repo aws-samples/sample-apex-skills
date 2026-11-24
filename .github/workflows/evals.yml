@@ -275,7 +275,7 @@ jobs:
           pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'
           # Pinned to the CLI versions the adapters and parsers were written
           # against. The grader is claude -p on every harness.
-          npm install -g @anthropic-ai/claude-code@2.1.121
+          npm install -g @anthropic-ai/claude-code@2.1.328
           if [ "$HARNESS" = codex ]; then npm install -g @openai/codex@0.163.0; fi
       - name: Write the eval-role config
         env:

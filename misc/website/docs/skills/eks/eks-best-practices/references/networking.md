@@ -427,7 +427,7 @@ Security Groups for Pods assigns AWS security groups directly to individual pods
 | Mode | Behavior | Use When |
 |------|----------|----------|
 | **`strict`** (default) | Only branch ENI SG applies; SNAT disabled; all traffic leaves node via VPC | Complete pod-to-AWS isolation needed |
-| **`standard`** | Both node SG and branch ENI SG apply | Using with Network Policy, NodeLocal DNSCache, or need `externalTrafficPolicy: Local` |
+| **`standard`** | Both node SG and branch ENI SG apply; pod SG rules are not applied to traffic between pods, or between pods and services such as kubelet or NodeLocal DNSCache, on the same node | Using with Network Policy, NodeLocal DNSCache, or need `externalTrafficPolicy: Local` |
 
 **Strict mode impact:** All pod traffic — even pod-to-pod on the same node — traverses the VPC network. This increases VPC traffic and breaks NodeLocal DNSCache.
 
@@ -463,7 +463,7 @@ aws eks describe-cluster --name CLUSTER_NAME \
 
 **Requirements not supported:**
 - Windows nodes and non-Nitro instances
-- **EKS Auto Mode** below Kubernetes 1.36: branch-ENI `SecurityGroupPolicy` is not supported; use NodeClass `podSecurityGroupSelectorTerms` (one SG set per NodeClass). On 1.36+, Auto Mode supports its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)).
+- **EKS Auto Mode:** the VPC CNI `SecurityGroupPolicy` (`vpcresources.k8s.aws/v1beta1`) does not apply to Auto Mode nodes at any version. On 1.36+, Auto Mode has its own `SecurityGroupPolicy` (`eks.amazonaws.com/v1`, [auto-sgp](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)); both can exist in one cluster, v1beta1 policies still apply to Pods on non-Auto-Mode nodes (such as a managed node group), so keep them in a mixed cluster, and a Pod that can land on either kind of node needs a policy in each API group. Below 1.36, the only option for Pods on Auto Mode nodes is NodeClass `podSecurityGroupSelectorTerms` (set with `podSubnetSelectorTerms`; one SG set for every Pod on that NodeClass's nodes, so use separate NodeClasses and NodePools to give workloads different SGs; applied to in-VPC traffic by default). (as of 2026-11-21)
 - NodeLocal DNSCache in strict mode
 - SG for Pods with custom networking uses the SG from SecurityGroupPolicy, **not** from ENIConfig
 
@@ -558,3 +558,4 @@ node_sg_additional_rules:
 - [Amazon EKS User Guide — Control plane egress](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-egress.html)
 - [AWS EKS Best Practices Guide — IPv6](https://docs.aws.amazon.com/eks/latest/best-practices/ipv6.html)
 - [AWS EKS Best Practices Guide — Security Groups Per Pod](https://docs.aws.amazon.com/eks/latest/best-practices/sgpp.html)
+- [Amazon EKS User Guide: Assign security groups to individual Pods in EKS Auto Mode](https://docs.aws.amazon.com/eks/latest/userguide/auto-sgp.html)

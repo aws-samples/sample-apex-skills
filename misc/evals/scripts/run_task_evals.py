@@ -773,7 +773,8 @@ def run_subject(
 # non-interactive run whose stdout is JSON Lines. Every adapter runs under
 # the triggering runner's env: build_subprocess_env with the eval-role
 # session (eval_aws_env), a clean HOME and no host AWS_* variables, then
-# harness_env (codex: no CODEX_DROPPED_VARS, CODEX_HOME in the clean HOME).
+# harness_env (codex: no CODEX_DROPPED_VARS, CODEX_HOME in the clean HOME;
+# kiro: the parent's XDG data dir, and KIRO_API_KEY when set).
 
 
 def _claude_cmd_base(model: str) -> list[str]:
@@ -794,7 +795,7 @@ def adapter_claude(*, prompt: str, model: str, sandbox: Path, env: dict[str, str
 
 
 def adapter_kiro(*, prompt: str, model: str, sandbox: Path, env: dict[str, str]) -> list[str]:
-    """`kiro-cli chat` (kiro-cli 3.4.0 `chat --help`): --output-format
+    """`kiro-cli chat` (kiro-cli 3.5.0 `chat --help`): --output-format
     stream-json gives "The run's ACP events as JSON Lines on stdout" and
     "implies --no-interactive"; --trust-all-tools lets it run tools without
     asking, the counterpart of claude's bypassPermissions; --agent-engine
