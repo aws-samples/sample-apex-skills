@@ -1,10 +1,10 @@
 # `misc/evals/MULTITURN-HARNESS.md`: multi-turn eval harness
 
-Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ e368d68f` is branch `fix/p308-elicitation-eval-hygiene`, not yet on main, based on 2133c43d.
+Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ b3115e5a` is the head of PR 570 (branch `fix/p308-elicitation-eval-hygiene`), not yet on main, based on 2133c43d.
 
 ## 1. Purpose and scope
 
-Issue 98, axis 2 ("Multi-turn / integration harness") asks for a "Multi-turn harness design doc". This is that doc. It describes the harness that exists and marks what is planned.
+Issue 98's acceptance criteria ask for a "Multi-turn harness design doc written"; its axis 2 is the "Multi-turn / integration harness". This is that doc. It describes the harness that exists and marks what is planned.
 
 Some skills (eks-build, eks-design) ask clarifying questions before they produce output. In `claude -p` a question ends the run, so a single-shot eval grades an incomplete run. The multi-turn harness answers those questions from canned answers declared in `evals.json` and resumes the session, so the run is reproducible (`misc/evals/scripts/elicitation.py:4-7 @ 2133c43d`).
 
@@ -68,30 +68,30 @@ If the last turn has no question, or no canned turn matches it, the loop stops (
 - On claude the events pass through `normalize_events` unchanged (`misc/evals/scripts/parse_trajectory.py:544-545 @ 2133c43d`) and are written to `events.jsonl` (`run_task_evals.py:724 @ 2133c43d`); `format_transcript` writes `transcript.md` (`run_task_evals.py:719`, `:212 @ 2133c43d`).
 - stderr: on the multi-turn path the runner's `stderr` stays empty (`run_task_evals.py:651 @ 2133c43d`); `elicitation.py` pipes each turn's stderr and never reads it (`elicitation.py:178`, `:200 @ 2133c43d`).
 
-## 3. What the first-half branch adds @ e368d68f
+## 3. What PR 570 adds @ b3115e5a
 
-On branch `fix/p308-elicitation-eval-hygiene`, not yet on main.
+On branch `fix/p308-elicitation-eval-hygiene` (PR 570), not yet on main.
 
 ### 3.1 Plain-text question heuristic
 
-eks-build, eks-design and eks-mcp-server ask in plain text, not with `AskUserQuestion` (`elicitation.py:63-66 @ e368d68f`). With no `AskUserQuestion` in the final assistant message, `detect_pending_question` takes that message's last non-empty text block, splits it on blank lines, and returns the last paragraph if it holds a `?`, else None (`elicitation.py:84-87 @ e368d68f`). `AskUserQuestion` still wins when present (`elicitation.py:75-83 @ e368d68f`).
+eks-build, eks-design and eks-mcp-server ask in plain text, not with `AskUserQuestion` (`elicitation.py:63-66 @ b3115e5a`). With no `AskUserQuestion` in the final assistant message, `detect_pending_question` takes that message's last non-empty text block, splits it on blank lines, and returns the last paragraph if it holds a `?`, else None (`elicitation.py:84-87 @ b3115e5a`). `AskUserQuestion` still wins when present (`elicitation.py:75-83 @ b3115e5a`).
 
-Stated limits (`elicitation.py:67-69 @ e368d68f`):
+Stated limits (`elicitation.py:67-69 @ b3115e5a`):
 
 - False negative: a question followed by an options paragraph is missed.
 - False positive: a closing offer that ends in `?` counts as a question, such as "Want me to confirm?" (the "confirm" false catch). It is then sent to `match_answer`, so a canned turn whose regex matches the offer answers it.
 
 ### 3.2 `elicitation_answer` record
 
-Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:216-219 @ e368d68f`; docstring `:179-181`). A grader reading `events.jsonl` can see what each turn answers. Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:181 @ e368d68f`).
+Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:217-221 @ b3115e5a`; docstring `:179-182`). No grader reads it yet: transcript.md does not show it. Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:181-182 @ b3115e5a`).
 
-The branch also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:187-191`, `:213 @ e368d68f`).
+The branch also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:188-192`, `:214 @ b3115e5a`).
 
 ## 4. Open and planned (not built)
 
 None of this is built.
 
-- Kiro and codex multi-turn. Planned for the P-308 second half. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
-- `transcript.md` rendering of `elicitation_answer`. Planned for the P-308 second half. `format_transcript` (`run_task_evals.py:212 @ 2133c43d`) does not read the field, so the answer is in `events.jsonl` only, not in the transcript the grader reads.
-- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Owned by team B's P-307 follow-up, not this harness.
-- Issue 98's other axis 2 items, quoted: "Workflow-level evals (does `/apex:eks-design` produce good end-to-end output?)", "Ambient triggering across turns" and "Skill interop when multiple loaded". No plan row holds them yet.
+- Kiro and codex multi-turn. Planned, after PR 563 merges. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
+- `transcript.md` rendering of `elicitation_answer`. Planned, after PR 563 merges. `format_transcript` (`run_task_evals.py:212 @ 2133c43d`) does not read the field, so the answer is in `events.jsonl` only, not in the transcript the grader reads.
+- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Left for a follow-up to PR 563, not this harness.
+- Issue 98's other axis 2 items, quoted: "Workflow-level evals (does `/apex:eks-design` produce good end-to-end output?)", "Ambient triggering across turns" and "Skill interop when multiple loaded". They wait on a scoping decision about whether they get work of their own; nothing is built for them here.
