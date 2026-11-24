@@ -8,10 +8,9 @@
 A stdin filter tool, not a hook: nothing registers or runs it yet. The rule it
 backs, script.token-tags (one sentence saying what the tags mean), is added to
 classes/script/rules.md by a separate change, since that file is not this one's.
-Taken from the
-four google/skills cloud-trace-querying scripts (secrets.token_hex(8) per run,
-and a tag line before the output and one after it; those scripts also have a
-flag to leave the tags off, which this tool does not take). The tags mark the
+It follows a common pattern: a new secrets.token_hex(8) per run, and a tag line
+before the output and one after it. This tool has no flag to leave the tags off.
+The tags mark the
 output; they do not filter it. TOKEN is 16 random hex
 characters, new on every run, so text inside the output cannot close the tag
 early: it would have to guess TOKEN.
