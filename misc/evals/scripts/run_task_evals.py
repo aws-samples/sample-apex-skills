@@ -962,6 +962,8 @@ def run_grader(
         grading = json.loads(grading_path.read_text())
     except json.JSONDecodeError as e:
         return {"error": f"grading.json invalid JSON: {e}"}
+    if not isinstance(grading, dict):
+        return {"error": "grading.json is not an object"}
 
     expectations_raw = grading.get("expectations")
     if not isinstance(expectations_raw, list):

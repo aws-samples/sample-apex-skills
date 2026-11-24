@@ -2035,6 +2035,8 @@ class GraderNullObjects(Tmp):
                 grading["summary"] = summary
             self.grade(run, grading)
             self.assertEqual(json.loads((run / "grading.json").read_text())["summary"], rebuilt, n)
+        self.assertEqual(self.grade(self.tmp / "top-null" / "run-1", None),
+                         {"error": "grading.json is not an object"})
         with contextlib.redirect_stderr(io.StringIO()):
             run_task_evals.run_benchmark("apex", bench, skill_path=REPO / "skills" / "apex")
         self.assertTrue((bench / "benchmark.json").is_file())
