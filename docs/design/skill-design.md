@@ -81,7 +81,7 @@ What we want the base class to give every skill:
 1. **Standardised best practices:** every rule all skills share lives once, in a class, and CI checks each skill against its classes.
 2. **Shared tooling:** scripts, schemas and references live in classes and are copied into each member skill; CI fails if a copy drifts.
 3. **Reliable:** the Script class makes a skill a typed function (schema in, schema out, same answer on every run), and every skill change is reviewed in two rounds before it merges.
-4. **Evaluations:** an eval layer that tests how each skill is built and how it is shipped, plus live runs and a check that repeated runs give the same answer.
+4. **Evaluations:** an eval layer that runs each skill's eval cases after fast deterministic checks, compares each change with the skill's previous version, and runs each case several times on more than one agent, plus live runs and a check that repeated runs give the same answer.
 5. **Trusted:** nothing a skill reads is an instruction, and nothing it outputs is trusted until it validates.
 
 ### The class tree
