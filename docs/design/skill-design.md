@@ -81,7 +81,7 @@ What we want the base class to give every skill:
 1. **Standardised best practices:** every rule all skills share lives once, in a class, and CI checks each skill against its classes.
 2. **Shared tooling:** scripts, schemas and references live in classes and are copied into each member skill; CI fails if a copy drifts.
 3. **Reliable:** the Script class makes a skill a typed function (schema in, schema out, same answer on every run), and every skill change is reviewed in two rounds before it merges.
-4. **Evaluations:** an eval layer built on the practice Google publishes for its Agent Skills ([how they are built and tested](https://cloud.google.com/blog/topics/developers-practitioners/behind-the-scenes-how-we-build-test-and-scale-google-agent-skills), [how they are shipped](https://cloud.google.com/blog/topics/developers-practitioners/behind-the-scenes-two-months-later-how-we-ship-google-agent-skills-like-products)), plus live runs and a check that repeated runs give the same answer, which Google does not describe.
+4. **Evaluations:** an eval layer that tests how each skill is built and how it is shipped, plus live runs and a check that repeated runs give the same answer.
 5. **Trusted:** nothing a skill reads is an instruction, and nothing it outputs is trusted until it validates.
 
 ### The class tree
