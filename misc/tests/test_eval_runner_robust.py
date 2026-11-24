@@ -1489,7 +1489,7 @@ class WallOffHost(Tmp):
         self.assertNotIn(str(self.tmp / "absent.sock"), args)
 
     def test_the_subject_gets_its_own_process_table(self):
-        """R-20261124-B-5 (a): with the host's pid namespace a subject could
+        """With the host's pid namespace a subject could
         list host processes and signal any process of the operator's user;
         under --unshare-pid and a fresh /proc it sees neither."""
         victim = subprocess.Popen(["sleep", "120"])
@@ -1515,7 +1515,7 @@ class WallOffHost(Tmp):
         self.assertNotIn(str(self.host_home / ".local"), args)
 
     def test_the_user_runtime_dir_and_tmp_are_walled(self):
-        """R2-M1, R2-S1: the user session bus lives in the runtime dir
+        """The user session bus lives in the runtime dir
         (/run/user/<uid>, or XDG_RUNTIME_DIR), and with TMPDIR set elsewhere
         /tmp (tmux's socket) stayed visible."""
         if not Path("/dev/shm").is_dir():
@@ -1565,7 +1565,7 @@ class WallOffHost(Tmp):
         return mock.patch.dict(os.environ, {"PATH": f"{bin_dir}{os.pathsep}{node_dir}{os.pathsep}{os.environ['PATH']}"})
 
     def test_an_npm_cli_never_binds_home_or_local(self):
-        """R2-M2: node in ~/.local/bin bound all of ~/.local, and the package in
+        """Node in ~/.local/bin bound all of ~/.local, and the package in
         ~/.npm-global with node under ~/.nvm bound all of HOME; now only the
         package folder and the two files are bound."""
         h = self.host_home
@@ -1613,7 +1613,7 @@ class WallOffHost(Tmp):
         return json.loads((sandbox / "seen.json").read_text())
 
     def test_a_kiro_subject_reads_and_writes_only_its_kiro_cli_folder(self):
-        """R-20261124-B-1 (a): a kiro subject signs in from the operator's
+        """A kiro subject signs in from the operator's
         kiro-cli data folder (PR 565), so the wall binds that one folder back
         read-write; the rest of ~/.local/share stays hidden. Both call sites:
         the triggering adapter and the task runner."""
