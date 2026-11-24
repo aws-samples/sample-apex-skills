@@ -704,7 +704,7 @@ CLAUDE_RESULT = j({"type": "result", "subtype": "success", "is_error": False,
                    "usage": {"input_tokens": 10, "output_tokens": 5,
                              "cache_read_input_tokens": 100, "cache_creation_input_tokens": 0}})
 
-# kiro-cli chat --output-format stream-json (record names from kiro-cli 3.4.0)
+# kiro-cli chat --output-format stream-json (record names in the kiro-cli 3.4.0 and 3.5.0 binaries)
 KIRO_START = j({"type": "runStarted", "data": {"sessionId": "s1", "acpProtocolVersion": 1}})
 KIRO_TEXT = j({"type": "sessionUpdate", "data": {"sessionId": "s1", "update": {
     "sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "ok"}}}})
@@ -1114,17 +1114,23 @@ class TriggeringCli(unittest.TestCase):
         self.assertEqual(seen["harness"], "codex")
         self.assertEqual(json.loads(out)["run_key"], SKILL)
 
-    def test_kiro_without_its_key_is_refused_before_any_call(self):
+    def test_kiro_without_a_key_runs_on_the_existing_sign_in(self):
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
         eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
         env = {k: v for k, v in os.environ.items() if k != "KIRO_API_KEY"}
+        seen = {}
+
+        def fake_run_eval(**kw):
+            seen.update(kw)
+            return {"results": [], "summary": {"total": 0, "passed": 0, "failed": 0}}
+
         with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint:
+                mock.patch.object(run_triggering, "mint_eval_role_credentials", return_value=None), \
+                mock.patch.object(run_triggering, "run_eval", side_effect=fake_run_eval):
             code, _, err = self.main(["--eval-set", eval_set, "--skill-path", skill,
                                       "--harness", "kiro"])
-        self.assertEqual(code, 2)
-        self.assertIn("KIRO_API_KEY", err)
-        mint.assert_not_called()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(seen["harness"], "kiro")
 
     def test_unknown_harness_is_a_usage_error(self):
         with self.assertRaises(SystemExit):
@@ -1997,6 +2003,22 @@ class SubjectEnv(Tmp):
             self.assertIsNone(seen[k], k)
 
 
+    def test_kiro_env_gets_the_parent_data_dir(self):
+        env = run_triggering.build_subprocess_env(self.tmp, aws_env=dict(ROLE))
+        self.assertEqual(env["HOME"], str(self.tmp))
+        env.pop("XDG_DATA_HOME", None)
+        with mock.patch.dict(os.environ, {"HOME": "/host/home"}):
+            os.environ.pop("XDG_DATA_HOME", None)
+            # a set value in the subject env passes through
+            self.assertEqual(run_triggering.harness_env(
+                dict(env, XDG_DATA_HOME="/host/data"), self.tmp, "kiro")["XDG_DATA_HOME"],
+                "/host/data")
+            # unset or empty: the parent's ~/.local/share, not the clean HOME's
+            for e in (env, dict(env, XDG_DATA_HOME="")):
+                self.assertEqual(run_triggering.harness_env(e, self.tmp, "kiro")["XDG_DATA_HOME"],
+                                 "/host/home/.local/share")
+
+
 class SubjectModelPerHarness(unittest.TestCase):
 
     def test_defaults(self):
@@ -2613,7 +2635,7 @@ class EvalGateWorkflow(unittest.TestCase):
 
     def test_pinned_clis(self):
         install = next(s for s in self.job["steps"] if s.get("name") == "Install the eval tools")
-        self.assertIn("@anthropic-ai/claude-code@2.1.121", install["run"])
+        self.assertIn("@anthropic-ai/claude-code@2.1.328", install["run"])
         self.assertIn("@openai/codex@0.163.0", install["run"])
 
     def test_a_dispatched_run_is_not_cancelled(self):
@@ -2646,18 +2668,18 @@ class CliVersionCheck(unittest.TestCase):
             self.assertEqual(call.args[0][1:], ["--version"])
 
     def test_matching_versions_pass(self):
-        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("claude", "2.1.328 (Claude Code)")
         self.cli("codex", "codex-cli 0.163.0")
-        self.cli("kiro-cli", "kiro-cli 3.4.0")
+        self.cli("kiro-cli", "kiro-cli 3.5.0")
         self.assertIsNone(REAL_CHECK_CLI_VERSIONS(["claude", "codex", "kiro"]))
 
     def test_a_missing_cli_stops(self):
         err = REAL_CHECK_CLI_VERSIONS(["kiro"])
         self.assertIn("kiro-cli --version", err)
-        self.assertIn("3.4.0", err)
+        self.assertIn("3.5.0", err)
 
     def test_a_different_version_stops_triggering_before_any_run(self):
-        self.cli("claude", "2.1.328 (Claude Code)")
+        self.cli("claude", "2.1.121 (Claude Code)")
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
         eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
         argv = ["run_triggering.py", "--eval-set", eval_set, "--skill-path", skill]
@@ -2667,14 +2689,14 @@ class CliVersionCheck(unittest.TestCase):
                 mock.patch.object(run_triggering, "run_eval") as run_eval, \
                 contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(run_triggering.main(), 2)
-        self.assertIn("claude 2.1.328 is installed", err.getvalue())
-        self.assertIn("claude 2.1.121", err.getvalue())
+        self.assertIn("claude 2.1.121 is installed", err.getvalue())
+        self.assertIn("claude 2.1.328", err.getvalue())
         mint.assert_not_called()
         run_eval.assert_not_called()
         self.assert_only_version_reads()
 
     def test_a_different_version_stops_task_evals_before_any_run(self):
-        self.cli("claude", "2.1.121 (Claude Code)")
+        self.cli("claude", "2.1.328 (Claude Code)")
         self.cli("codex", "codex-cli 0.170.0")
         argv = ["run_task_evals.py", "--skill", "eks-recon", "--harness", "codex",
                 "--model", "grader-id", "--base-ref", "none"]
