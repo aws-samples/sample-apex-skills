@@ -1,0 +1,93 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": "default",
+                "uid": "848fde5777cdf33cb3f0c339fe28cf23",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "kubernetes.io/metadata.name": "default"
+                }
+            },
+            "spec": {
+                "finalizers": [
+                    "kubernetes"
+                ]
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": "kube-node-lease",
+                "uid": "7498ab78a37c44b48c7e196101793459",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "kubernetes.io/metadata.name": "kube-node-lease"
+                }
+            },
+            "spec": {
+                "finalizers": [
+                    "kubernetes"
+                ]
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": "kube-public",
+                "uid": "42c8d77df203f6db4fc6c6e79e7067fd",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "kubernetes.io/metadata.name": "kube-public"
+                }
+            },
+            "spec": {
+                "finalizers": [
+                    "kubernetes"
+                ]
+            },
+            "status": {
+                "phase": "Active"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": "kube-system",
+                "uid": "e84fd865f2377e2392e0ae8422970cd0",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "kubernetes.io/metadata.name": "kube-system"
+                }
+            },
+            "spec": {
+                "finalizers": [
+                    "kubernetes"
+                ]
+            },
+            "status": {
+                "phase": "Active"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -1,0 +1,207 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-0",
+                "uid": "7ff6b115b91daa8b50193e0eba3394c4",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000200"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-1",
+                "uid": "43f7aed0a01d055933778c80374c7bfa",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000201"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-2",
+                "uid": "86d7e44690934dbeb4ebb7f75ee5a018",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000202"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-3",
+                "uid": "7fcfcbf548bf4aa8ac24777df48c57b0",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000203"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-4",
+                "uid": "c06063ad98ecbe154e7fb26af63497ed",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000204"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": "data-5",
+                "uid": "da47e3016a0410b717334e307e014a4f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "20Gi"
+                    }
+                },
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem",
+                "volumeName": "pvc-00000000-0000-0000-0000-000000000205"
+            },
+            "status": {
+                "phase": "Bound",
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                }
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

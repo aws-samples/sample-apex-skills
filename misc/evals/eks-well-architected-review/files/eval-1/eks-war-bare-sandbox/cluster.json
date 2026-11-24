@@ -1,0 +1,59 @@
+{
+    "cluster": {
+        "name": "bare-sandbox",
+        "arn": "arn:aws:eks:eu-west-1:111122223333:cluster/bare-sandbox",
+        "createdAt": "2025-06-01T00:00:00+00:00",
+        "version": "1.31",
+        "endpoint": "https://EXAMPLE0000000000000000000000000.gr7.eu-west-1.eks.amazonaws.com",
+        "roleArn": "arn:aws:iam::111122223333:role/bare-sandbox-cluster-role",
+        "resourcesVpcConfig": {
+            "subnetIds": [
+                "subnet-0example0000101",
+                "subnet-0example0000102"
+            ],
+            "securityGroupIds": [],
+            "clusterSecurityGroupId": "sg-0example0000101",
+            "vpcId": "vpc-0a1b2c3d",
+            "endpointPublicAccess": true,
+            "endpointPrivateAccess": false,
+            "publicAccessCidrs": [
+                "0.0.0.0/0"
+            ]
+        },
+        "kubernetesNetworkConfig": {
+            "serviceIpv4Cidr": "172.20.0.0/16",
+            "ipFamily": "ipv4"
+        },
+        "logging": {
+            "clusterLogging": [
+                {
+                    "types": [
+                        "api",
+                        "audit",
+                        "authenticator",
+                        "controllerManager",
+                        "scheduler"
+                    ],
+                    "enabled": false
+                }
+            ]
+        },
+        "identity": {
+            "oidc": {
+                "issuer": "https://oidc.eks.eu-west-1.amazonaws.com/id/EXAMPLE00000000000000000000000000"
+            }
+        },
+        "status": "ACTIVE",
+        "certificateAuthority": {
+            "data": "TElTVC1FWEFNUExFLUNBLURBVEEtTk9ULUEtUkVBTC1DRVJUSUZJQ0FURQ=="
+        },
+        "platformVersion": "eks.1",
+        "tags": {},
+        "accessConfig": {
+            "authenticationMode": "API_AND_CONFIG_MAP"
+        },
+        "upgradePolicy": {
+            "supportType": "EXTENDED"
+        }
+    }
+}

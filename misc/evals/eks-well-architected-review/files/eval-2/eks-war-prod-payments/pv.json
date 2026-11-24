@@ -1,0 +1,231 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000200",
+                "uid": "cdc6c9e289119822707baf627f71daed",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-0",
+                    "namespace": "payments"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000200"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000201",
+                "uid": "d992bcacc6db3eca7000792b976ea2b3",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-1",
+                    "namespace": "ledger"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000201"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000202",
+                "uid": "dc91227b8693926b5ce7f68990ff909f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-2",
+                    "namespace": "web"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000202"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000203",
+                "uid": "990dbacf68ee5511caee7ef64f6a170e",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-3",
+                    "namespace": "payments"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000203"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000204",
+                "uid": "9701dd321f6b5a5439ad3e08988da26b",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-4",
+                    "namespace": "ledger"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000204"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "PersistentVolume",
+            "metadata": {
+                "name": "pvc-00000000-0000-0000-0000-000000000205",
+                "uid": "dd3a075c50800e0898ac8e91a729bb41",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "pv.kubernetes.io/provisioned-by": "ebs.csi.aws.com"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "capacity": {
+                    "storage": "20Gi"
+                },
+                "claimRef": {
+                    "kind": "PersistentVolumeClaim",
+                    "name": "data-5",
+                    "namespace": "web"
+                },
+                "csi": {
+                    "driver": "ebs.csi.aws.com",
+                    "fsType": "ext4",
+                    "volumeHandle": "vol-000000000000000205"
+                },
+                "persistentVolumeReclaimPolicy": "Delete",
+                "storageClassName": "gp3",
+                "volumeMode": "Filesystem"
+            },
+            "status": {
+                "phase": "Bound"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

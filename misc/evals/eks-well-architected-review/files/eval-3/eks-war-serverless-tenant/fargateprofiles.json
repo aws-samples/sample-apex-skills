@@ -1,0 +1,45 @@
+{
+    "profiles": [
+        {
+            "fargateProfileName": "default",
+            "clusterName": "serverless-tenant",
+            "status": "ACTIVE",
+            "fargateProfileArn": "arn:aws:eks:ap-southeast-1:111122223333:fargateprofile/serverless-tenant/default/00000000-0000-0000-0000-000000000300",
+            "podExecutionRoleArn": "arn:aws:iam::111122223333:role/serverless-tenant-fargate-pod-execution",
+            "subnets": [
+                "subnet-0example0000301",
+                "subnet-0example0000302",
+                "subnet-0example0000303"
+            ],
+            "selectors": [
+                {
+                    "namespace": "default"
+                },
+                {
+                    "namespace": "kube-system"
+                }
+            ],
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "tags": {}
+        },
+        {
+            "fargateProfileName": "apps",
+            "clusterName": "serverless-tenant",
+            "status": "ACTIVE",
+            "fargateProfileArn": "arn:aws:eks:ap-southeast-1:111122223333:fargateprofile/serverless-tenant/apps/00000000-0000-0000-0000-000000000301",
+            "podExecutionRoleArn": "arn:aws:iam::111122223333:role/serverless-tenant-fargate-pod-execution",
+            "subnets": [
+                "subnet-0example0000301",
+                "subnet-0example0000302",
+                "subnet-0example0000303"
+            ],
+            "selectors": [
+                {
+                    "namespace": "apps"
+                }
+            ],
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "tags": {}
+        }
+    ]
+}

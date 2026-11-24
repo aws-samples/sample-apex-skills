@@ -1,0 +1,1948 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc01",
+                "uid": "1370e4c312bc090d8baedfeb73b556ef",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc01"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 4,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc01"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc01"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc01:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 4,
+                "readyReplicas": 4,
+                "availableReplicas": 4,
+                "updatedReplicas": 4,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc02",
+                "uid": "1991811d6ec954099b5a2d9e0dff69e4",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc02"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 4,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc02"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc02"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc02:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 4,
+                "readyReplicas": 4,
+                "availableReplicas": 4,
+                "updatedReplicas": 4,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc03",
+                "uid": "93206f7303c7d87381b50e2cd74d21e7",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc03"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 4,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc03"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc03"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc03:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 4,
+                "readyReplicas": 4,
+                "availableReplicas": 4,
+                "updatedReplicas": 4,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc04",
+                "uid": "1c8009e7ea74b86db18545dc3fb60db5",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc04"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 4,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc04"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc04"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc04:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 4,
+                "readyReplicas": 4,
+                "availableReplicas": 4,
+                "updatedReplicas": 4,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc05",
+                "uid": "03357b058d947aa4f60b9e5deb2d8563",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc05"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 4,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc05"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc05"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc05:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 4,
+                "readyReplicas": 4,
+                "availableReplicas": 4,
+                "updatedReplicas": 4,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc06",
+                "uid": "ac095e7c9e6d56ddd70da08c89bb027c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc06"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc06"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc06"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc06:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc07",
+                "uid": "9ecb1c5f88463b6e561145eab3aa94c9",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc07"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc07"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc07"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc07:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc08",
+                "uid": "b005bc48a24d6921cecbf9b5ace565bc",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc08"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc08"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc08"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc08:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc09",
+                "uid": "5883ed27cb80b341a120d610d8109b6f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc09"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc09"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc09"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc09:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc10",
+                "uid": "3973099229a23cb6432a30aab2b2ad2c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc10"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc10"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc10"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc10:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc11",
+                "uid": "fea8a2b160a0ef735374f549dc912c40",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc11"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc11"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc11"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc11:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc12",
+                "uid": "d01e30d919eba4b83ea16129d6612444",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc12"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc12"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc12"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc12:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc13",
+                "uid": "f9cf35898ad1dcd4d3920410d8b16c50",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc13"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc13"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc13"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc13:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc14",
+                "uid": "906ee46c384b511f31984b71335f168a",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc14"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc14"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc14"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc14:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc15",
+                "uid": "9e0fa4c6175c049354505b57539e7aa7",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc15"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc15"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc15"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc15:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc16",
+                "uid": "3b9a2004b5714246a81bb6ca352e1a9b",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc16"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc16"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc16"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc16:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc17",
+                "uid": "3033351aa3d17e19fcca7725d5af1dd3",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc17"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc17"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc17"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc17:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc18",
+                "uid": "fbd30308de1ca0ed4644178cea42e364",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc18"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc18"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc18"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc18:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc19",
+                "uid": "14a51b4b5411d3624be3e468fce621ef",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc19"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc19"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc19"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc19:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "256Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "512Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ledger-svc20",
+                "uid": "45bab99b6a501ccc59013b7220914b87",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger",
+                "labels": {
+                    "app": "ledger-svc20"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc20"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ledger-svc20"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/ledger/ledger-svc20:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {}
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "web-svc21",
+                "uid": "30abb179dce203a8e025ff1a8aef2979",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web",
+                "labels": {
+                    "app": "web-svc21"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc21"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "web-svc21"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/web/web-svc21:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {}
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "payments-svc22",
+                "uid": "505a577b40e87acc79374dfb76a3d224",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments",
+                "labels": {
+                    "app": "payments-svc22"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc22"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "payments-svc22"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/payments/payments-svc22:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {}
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "coredns",
+                "uid": "8c50b7254912e20dae1f929d11adac82",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "k8s-app": "kube-dns"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "k8s-app": "kube-dns"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "coredns",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/eks/coredns:v1.11.3-eksbuild.1",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "70Mi"
+                                    },
+                                    "limits": {
+                                        "memory": "170Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "coredns",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 2,
+                "readyReplicas": 2,
+                "availableReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "ebs-csi-controller",
+                "uid": "2980a3c2beebd180abee039427af00d5",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "app": "ebs-csi-controller"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ebs-csi-controller"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ebs-csi-controller"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ebs-csi-controller",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/eks/aws-ebs-csi-driver:v1.35.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "10m",
+                                        "memory": "40Mi"
+                                    },
+                                    "limits": {
+                                        "memory": "256Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "ebs-csi-controller-sa",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 2,
+                "readyReplicas": 2,
+                "availableReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

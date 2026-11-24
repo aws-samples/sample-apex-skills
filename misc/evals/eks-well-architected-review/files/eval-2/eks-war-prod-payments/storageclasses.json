@@ -1,0 +1,30 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "storage.k8s.io/v1",
+            "kind": "StorageClass",
+            "metadata": {
+                "name": "gp3",
+                "uid": "36db63968291144bac219c1a8685e314",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "annotations": {
+                    "storageclass.kubernetes.io/is-default-class": "true"
+                }
+            },
+            "provisioner": "ebs.csi.aws.com",
+            "parameters": {
+                "type": "gp3",
+                "encrypted": "true"
+            },
+            "reclaimPolicy": "Delete",
+            "volumeBindingMode": "WaitForFirstConsumer",
+            "allowVolumeExpansion": true
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

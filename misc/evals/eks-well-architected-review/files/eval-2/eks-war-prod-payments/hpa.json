@@ -1,0 +1,405 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "payments-svc01",
+                "uid": "1370e4c312bc090d8baedfeb73b556ef",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "payments-svc01"
+                },
+                "minReplicas": 4,
+                "maxReplicas": 12,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 4,
+                "desiredReplicas": 4
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "ledger-svc02",
+                "uid": "1991811d6ec954099b5a2d9e0dff69e4",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "ledger-svc02"
+                },
+                "minReplicas": 4,
+                "maxReplicas": 12,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 4,
+                "desiredReplicas": 4
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "web-svc03",
+                "uid": "93206f7303c7d87381b50e2cd74d21e7",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "web-svc03"
+                },
+                "minReplicas": 4,
+                "maxReplicas": 12,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 4,
+                "desiredReplicas": 4
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "payments-svc04",
+                "uid": "1c8009e7ea74b86db18545dc3fb60db5",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "payments-svc04"
+                },
+                "minReplicas": 4,
+                "maxReplicas": 12,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 4,
+                "desiredReplicas": 4
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "ledger-svc05",
+                "uid": "03357b058d947aa4f60b9e5deb2d8563",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "ledger-svc05"
+                },
+                "minReplicas": 4,
+                "maxReplicas": 12,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 4,
+                "desiredReplicas": 4
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "web-svc06",
+                "uid": "ac095e7c9e6d56ddd70da08c89bb027c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "web-svc06"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "payments-svc07",
+                "uid": "9ecb1c5f88463b6e561145eab3aa94c9",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "payments-svc07"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "ledger-svc08",
+                "uid": "b005bc48a24d6921cecbf9b5ace565bc",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "ledger-svc08"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "web-svc09",
+                "uid": "5883ed27cb80b341a120d610d8109b6f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "web-svc09"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "payments-svc10",
+                "uid": "3973099229a23cb6432a30aab2b2ad2c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "payments-svc10"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        },
+        {
+            "apiVersion": "autoscaling/v2",
+            "kind": "HorizontalPodAutoscaler",
+            "metadata": {
+                "name": "ledger-svc11",
+                "uid": "fea8a2b160a0ef735374f549dc912c40",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "scaleTargetRef": {
+                    "apiVersion": "apps/v1",
+                    "kind": "Deployment",
+                    "name": "ledger-svc11"
+                },
+                "minReplicas": 3,
+                "maxReplicas": 9,
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {
+                                "type": "Utilization",
+                                "averageUtilization": 70
+                            }
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "currentReplicas": 3,
+                "desiredReplicas": 3
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -1,0 +1,65 @@
+{
+    "cluster": {
+        "name": "serverless-tenant",
+        "arn": "arn:aws:eks:ap-southeast-1:111122223333:cluster/serverless-tenant",
+        "createdAt": "2025-06-01T00:00:00+00:00",
+        "version": "1.29",
+        "endpoint": "https://EXAMPLE0000000000000000000000000.gr7.ap-southeast-1.eks.amazonaws.com",
+        "roleArn": "arn:aws:iam::111122223333:role/serverless-tenant-cluster-role",
+        "resourcesVpcConfig": {
+            "subnetIds": [
+                "subnet-0example0000301",
+                "subnet-0example0000302",
+                "subnet-0example0000303"
+            ],
+            "securityGroupIds": [],
+            "clusterSecurityGroupId": "sg-0example0000301",
+            "vpcId": "vpc-0example0000003",
+            "endpointPublicAccess": true,
+            "endpointPrivateAccess": true,
+            "publicAccessCidrs": [
+                "0.0.0.0/0"
+            ]
+        },
+        "kubernetesNetworkConfig": {
+            "serviceIpv4Cidr": "172.20.0.0/16",
+            "ipFamily": "ipv4"
+        },
+        "logging": {
+            "clusterLogging": [
+                {
+                    "types": [
+                        "audit"
+                    ],
+                    "enabled": true
+                },
+                {
+                    "types": [
+                        "api",
+                        "authenticator",
+                        "controllerManager",
+                        "scheduler"
+                    ],
+                    "enabled": false
+                }
+            ]
+        },
+        "identity": {
+            "oidc": {
+                "issuer": "https://oidc.eks.ap-southeast-1.amazonaws.com/id/EXAMPLE00000000000000000000000000"
+            }
+        },
+        "status": "ACTIVE",
+        "certificateAuthority": {
+            "data": "TElTVC1FWEFNUExFLUNBLURBVEEtTk9ULUEtUkVBTC1DRVJUSUZJQ0FURQ=="
+        },
+        "platformVersion": "eks.1",
+        "tags": {},
+        "accessConfig": {
+            "authenticationMode": "API_AND_CONFIG_MAP"
+        },
+        "upgradePolicy": {
+            "supportType": "EXTENDED"
+        }
+    }
+}

@@ -1,0 +1,285 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "uid": "88c115120f68cf26c9af9e07ae43c0a1",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/compute-type": "fargate",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "topology.kubernetes.io/region": "ap-southeast-1",
+                    "topology.kubernetes.io/zone": "ap-southeast-1a",
+                    "failure-domain.beta.kubernetes.io/region": "ap-southeast-1",
+                    "failure-domain.beta.kubernetes.io/zone": "ap-southeast-1a"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///ap-southeast-1a/00000000000000000000000000000000/fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "taints": [
+                    {
+                        "key": "eks.amazonaws.com/compute-type",
+                        "value": "fargate",
+                        "effect": "NoSchedule"
+                    }
+                ]
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.10"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "2",
+                    "memory": "3971960Ki",
+                    "pods": "1"
+                },
+                "capacity": {
+                    "cpu": "2",
+                    "memory": "4074360Ki",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "5.10.0",
+                    "kubeletVersion": "v1.29.0-eks-example",
+                    "kubeProxyVersion": "v1.29.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "uid": "93f5eb1ea74d341a7df0ace9f47f9756",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/compute-type": "fargate",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "topology.kubernetes.io/region": "ap-southeast-1",
+                    "topology.kubernetes.io/zone": "ap-southeast-1b",
+                    "failure-domain.beta.kubernetes.io/region": "ap-southeast-1",
+                    "failure-domain.beta.kubernetes.io/zone": "ap-southeast-1b"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///ap-southeast-1b/00000000000000000000000000000001/fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "taints": [
+                    {
+                        "key": "eks.amazonaws.com/compute-type",
+                        "value": "fargate",
+                        "effect": "NoSchedule"
+                    }
+                ]
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.11"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "2",
+                    "memory": "3971960Ki",
+                    "pods": "1"
+                },
+                "capacity": {
+                    "cpu": "2",
+                    "memory": "4074360Ki",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "5.10.0",
+                    "kubeletVersion": "v1.29.0-eks-example",
+                    "kubeProxyVersion": "v1.29.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "uid": "2e09abe574161278aab7e5b4394bc494",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/compute-type": "fargate",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "topology.kubernetes.io/region": "ap-southeast-1",
+                    "topology.kubernetes.io/zone": "ap-southeast-1c",
+                    "failure-domain.beta.kubernetes.io/region": "ap-southeast-1",
+                    "failure-domain.beta.kubernetes.io/zone": "ap-southeast-1c"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///ap-southeast-1c/00000000000000000000000000000002/fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "taints": [
+                    {
+                        "key": "eks.amazonaws.com/compute-type",
+                        "value": "fargate",
+                        "effect": "NoSchedule"
+                    }
+                ]
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.12"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "2",
+                    "memory": "3971960Ki",
+                    "pods": "1"
+                },
+                "capacity": {
+                    "cpu": "2",
+                    "memory": "4074360Ki",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "5.10.0",
+                    "kubeletVersion": "v1.29.0-eks-example",
+                    "kubeProxyVersion": "v1.29.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "uid": "5089e5b93c68c2607b6350d01ae067fc",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/os": "linux",
+                    "eks.amazonaws.com/compute-type": "fargate",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                    "kubernetes.io/os": "linux",
+                    "topology.kubernetes.io/region": "ap-southeast-1",
+                    "topology.kubernetes.io/zone": "ap-southeast-1a",
+                    "failure-domain.beta.kubernetes.io/region": "ap-southeast-1",
+                    "failure-domain.beta.kubernetes.io/zone": "ap-southeast-1a"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///ap-southeast-1a/00000000000000000000000000000003/fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "taints": [
+                    {
+                        "key": "eks.amazonaws.com/compute-type",
+                        "value": "fargate",
+                        "effect": "NoSchedule"
+                    }
+                ]
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.13"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "2",
+                    "memory": "3971960Ki",
+                    "pods": "1"
+                },
+                "capacity": {
+                    "cpu": "2",
+                    "memory": "4074360Ki",
+                    "pods": "1"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "5.10.0",
+                    "kubeletVersion": "v1.29.0-eks-example",
+                    "kubeProxyVersion": "v1.29.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2"
+                }
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}
