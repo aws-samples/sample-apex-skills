@@ -66,6 +66,38 @@ class DetectPendingQuestion(unittest.TestCase):
         events = [_assistant(_text("Why Karpenter? It scales fast.\n\nThe plan is done."))]
         self.assertIsNone(detect_pending_question(events))
 
+    def test_numbered_questions_are_detected(self):
+        text = (
+            "Before I generate anything I need a few answers.\n\n"
+            "1. Which AWS region should the clusters run in?\n2. How many environments?"
+        )
+        self.assertEqual(
+            detect_pending_question([_assistant(_text(text))]),
+            "1. Which AWS region should the clusters run in?\n2. How many environments?",
+        )
+
+    def test_question_mark_in_a_fenced_block_is_not_a_question(self):
+        text = (
+            "Here is the node group module:\n\n```hcl\n"
+            '  instance_types = ["m5.xlarge"]\n\n'
+            '  desired_size = var.environment == "prod" ? 3 : 1\n```'
+        )
+        self.assertIsNone(detect_pending_question([_assistant(_text(text))]))
+
+    def test_question_mark_in_a_url_is_not_a_question(self):
+        text = (
+            "Done. Apply with terraform apply.\n\nReference: "
+            "https://docs.aws.amazon.com/eks/latest/userguide/network-reqs.html?icmpid=docs"
+        )
+        self.assertIsNone(detect_pending_question([_assistant(_text(text))]))
+
+    def test_question_mark_in_inline_code_is_not_a_question(self):
+        text = (
+            "Pattern used for the check:\n\n"
+            "`(?<![a-z_])permissions_boundary_arn` matches the node module input."
+        )
+        self.assertIsNone(detect_pending_question([_assistant(_text(text))]))
+
     def test_only_the_final_assistant_message_counts(self):
         events = [
             _assistant(_text("Which region?")),

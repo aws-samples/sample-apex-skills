@@ -55,6 +55,12 @@ class ElicitationConfig:
         )
 
 
+# A fenced block, whatever blank lines it holds, and an inline code span or a
+# URL: a "?" in any of them is code or a query string, not a question.
+_FENCED = re.compile(r"^[ \t]*(```|~~~).*?^[ \t]*\1[^\n]*$", re.MULTILINE | re.DOTALL)
+_INLINE_OR_URL = re.compile(r"`[^`\n]*`|https?://\S+")
+
+
 def detect_pending_question(events: list[dict]) -> str | None:
     """Scan the final assistant message for the question that ended the session.
 
@@ -63,10 +69,13 @@ def detect_pending_question(events: list[dict]) -> str | None:
     ends the session in -p mode. A skill that asks in plain text (eks-build,
     eks-design, eks-mcp-server) ends on its question instead, so with no
     AskUserQuestion the question is the final text's last paragraph, when it
-    holds a "?".
-    The plain-text form is a heuristic: it misses a question followed by an
-    options paragraph and counts a closing offer that ends in "?" (such as
-    "Want me to confirm?", the "confirm" false catch).
+    holds a "?" outside code and URLs: a fenced block counts as one paragraph
+    (so a reply that ends on code is not a question), and a "?" in a fenced
+    block, an inline code span or a URL does not count.
+    The plain-text form is a heuristic: it misses a question followed by
+    another paragraph, such as an options paragraph or a sign-off ("Let me
+    know and I'll generate the rest."), and counts a closing offer that ends
+    in "?" (such as "Want me to confirm?", the "confirm" false catch).
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
@@ -83,8 +92,9 @@ def detect_pending_question(events: list[dict]) -> str | None:
                 return " ".join(parts).strip() or None
         for content in reversed(msg.get("content") or []):
             if content.get("type") == "text" and (content.get("text") or "").strip():
-                last = content["text"].strip().split("\n\n")[-1].strip()
-                return last if "?" in last else None
+                text = _FENCED.sub("[code]", content["text"])
+                last = text.strip().split("\n\n")[-1].strip()
+                return last if "?" in _INLINE_OR_URL.sub("", last) else None
         break
     return None
 
