@@ -23,7 +23,8 @@ agent composes both, the script just inserts.
 Refuses to run, before it writes any file, if:
   - SIBLING_MAP markers missing from the sibling's README
   - A bullet for <new> already exists in the SIBLING_MAP block
-  - a negative prompt is already a query in triggering.json
+  - a negative prompt is already a query in triggering.json (repeats within
+    one call are not checked)
   - triggering.json is malformed
   - the sibling dir does not exist
 

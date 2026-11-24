@@ -69,7 +69,7 @@ class DetectPendingQuestion(unittest.TestCase):
     def test_only_the_final_assistant_message_counts(self):
         events = [
             _assistant(_text("Which region?")),
-            _assistant(_text("Done: the cluster is described above.")),
+            _assistant({"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}),
         ]
         self.assertIsNone(detect_pending_question(events))
 
@@ -82,6 +82,24 @@ STDERR_FLOOD_SUBJECT = textwrap.dedent(
     sys.stderr.write("x" * (1024 * 1024))
     sys.stderr.flush()
     print(json.dumps({"type": "result", "session_id": "s", "result": "ok"}), flush=True)
+    """
+)
+
+
+ASK_THEN_ANSWER_SUBJECT = textwrap.dedent(
+    """
+    import json, sys
+    # Turn 1 (-p <prompt> --session-id <id>) asks in plain text; a resumed turn
+    # (-p <answer> --resume <id>) echoes the answer it was given.
+    args = sys.argv[1:]
+    text = args[args.index("-p") + 1]
+    if "--resume" in args:
+        reply = "Building in " + text + "."
+    else:
+        reply = "I can build this.\\n\\nWhich AWS region should it run in?"
+    msg = {"content": [{"type": "text", "text": reply}]}
+    print(json.dumps({"type": "assistant", "message": msg}), flush=True)
+    print(json.dumps({"type": "result", "session_id": "s"}), flush=True)
     """
 )
 
@@ -105,6 +123,34 @@ class MultiturnSubjectProcess(unittest.TestCase):
             self.assertFalse(timed_out, "the subject stalled on a full stderr pipe")
             self.assertLess(time.time() - start, 5)
             self.assertEqual([e.get("type") for e in events], ["result"])
+
+    def test_injected_answer_is_recorded_in_the_events(self):
+        # The runner records the canned answer on the resumed turn's first event; no grader reads it yet.
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "subject.py"
+            script.write_text(ASK_THEN_ANSWER_SUBJECT)
+            events, timed_out, _ = run_multiturn_subject(
+                initial_prompt="build me a cluster",
+                elicitation=ElicitationConfig.from_dict({
+                    "strategy": "canned-multiturn",
+                    "turns": [{"question_match": "region", "answer": "us-west-2"}],
+                    "max_turns": 3,
+                }),
+                cmd_base=[sys.executable, str(script)],
+                cwd=tmp,
+                env_for_turn=lambda: dict(os.environ),
+                timeout_per_turn=5,
+            )
+            self.assertFalse(timed_out)
+            self.assertEqual(
+                [e.get("type") for e in events],
+                ["assistant", "result", "assistant", "result"],
+            )
+            self.assertEqual(
+                [e.get("elicitation_answer") for e in events],
+                [None, None, "us-west-2", None],
+            )
+            self.assertIn("us-west-2", events[2]["message"]["content"][0]["text"])
 
     def test_detect_pending_question_keeps_its_signature(self):
         # misc/runner-trial/drive_c1.py imports it by name with one argument.

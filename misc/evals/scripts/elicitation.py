@@ -64,6 +64,9 @@ def detect_pending_question(events: list[dict]) -> str | None:
     eks-design, eks-mcp-server) ends on its question instead, so with no
     AskUserQuestion the question is the final text's last paragraph, when it
     holds a "?".
+    The plain-text form is a heuristic: it misses a question followed by an
+    options paragraph and counts a closing offer that ends in "?" (such as
+    "Want me to confirm?", the "confirm" false catch).
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
@@ -173,7 +176,10 @@ def run_multiturn_subject(
     `env_for_turn` is called before each turn, so each turn starts on an
     eval-role session that outlasts it.
 
-    Returns (all_events, timed_out, session_id).
+    Returns (all_events, timed_out, session_id). Each canned answer sent is
+    recorded as "elicitation_answer": "<answer>" on the first event of the
+    turn it resumed (on a real claude run that is the system/init event); a
+    resumed turn that emits no event loses that record.
     """
     session_id = str(uuid.uuid4())
     all_events: list[dict] = []
@@ -208,6 +214,11 @@ def run_multiturn_subject(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
         )
         events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+        if events:
+            # Record the injected answer in events.jsonl, on the resumed turn's
+            # first event. No grader reads it yet: transcript.md does not show
+            # it, and drive_c1's T5 check does not use it.
+            events[0]["elicitation_answer"] = answer
         all_events.extend(events)
 
         if timed_out:
