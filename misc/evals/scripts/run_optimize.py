@@ -37,9 +37,9 @@ Usage:
 
 `--model` is used by both model calls. The improver runs `claude -p` with
 the caller's environment, so run it only under the eval account's
-Bedrock-only role, and not on this host until R-20261116-B-39.
+Bedrock-only role, never with a host's admin credentials.
 run_triggering.py mints the eval-role session itself. The live proof of
-this flow cannot run until R-20261116-B-39.
+this flow is not run yet: a model run waits on an open approval.
 
 Output (stdout, JSON): the proposed description, the baseline summary and
 the validation run's summary; the validation run's full output is written
@@ -163,7 +163,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=None,
                         help="Model for the improver and the validation run (required unless --build-only). "
                              "The improver runs `claude -p` with the caller's environment: run it only under "
-                             "the eval account's Bedrock-only role, and not on this host until R-20261116-B-39")
+                             "the eval account's Bedrock-only role, never with a host's admin credentials; "
+                             "a model run waits on an open approval")
     args = parser.parse_args(argv)
 
     skill_dir = REPO_ROOT / "skills" / args.skill
