@@ -6,8 +6,8 @@ each should-not prompt with the sibling that owns it per the skill's
 SIBLING_MAP (misc/evals/<skill>/README.md), and hands the result to the
 vendored skills/skill-creator/scripts/improve_description.py through its
 `--eval-results` flag. That script asks `claude -p` for a tighter description.
-This script then validates the proposal in a sandbox before surfacing it: it
-stages a temp copy of the skill with the proposed description and runs
+This script then runs a validation of the proposal in a sandbox before
+surfacing it (see Output for what it does and does not judge): it stages a temp copy of the skill with the proposed description and runs
 run_triggering.py on it with `--skill-path`, against the skill's own
 triggering.json.
 
@@ -38,14 +38,21 @@ Usage:
 `--model` is used by both model calls. The improver runs `claude -p` with
 the caller's environment, so run it only under the eval account's
 Bedrock-only role, never with a host's admin credentials.
-run_triggering.py mints the eval-role session itself. The live proof of
-this flow is not run yet: a model run waits on an open approval.
+run_triggering.py mints the eval-role session itself.
 
-Output (stdout, JSON): the proposed description, the baseline summary and
-the validation run's summary; the validation run's full output is written
-beside the eval results file.
+Output: the proposal is written beside the eval results file
+(<out>.proposal.json) before the validation run, so it is kept when that
+run fails. On success stdout is JSON with the proposed description, the
+baseline summary and the validation run's summary; the validation run's
+full output is written beside the eval results file (<out>.validation.json).
+The script reports both summaries and does not judge between them, and
+they are not counted alike: the baseline counts the valid rate-based rows
+of the saved run (after the drop above); the validation counts every row
+of the current triggering.json, invalid runs as fails, at run_triggering.py's
+defaults (harness claude, 3 runs per query), whatever the saved run used.
 
-Exit codes: 0 ok, 1 bad input, else the failing step's exit code.
+Exit codes: 0 ok, 1 bad input (no valid rows left included), else the
+failing step's exit code.
 """
 
 from __future__ import annotations
@@ -139,7 +146,7 @@ def validate(skill: str, skill_dir: Path, description: str, model: str) -> subpr
     tmp = Path(tempfile.mkdtemp(prefix="optimize-"))
     try:
         staged = tmp / "skills" / skill
-        shutil.copytree(skill_dir, staged, symlinks=True)
+        shutil.copytree(skill_dir, staged)
         md = staged / "SKILL.md"
         md.write_text(with_description(md.read_text(), description))
         return subprocess.run(
@@ -163,8 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=None,
                         help="Model for the improver and the validation run (required unless --build-only). "
                              "The improver runs `claude -p` with the caller's environment: run it only under "
-                             "the eval account's Bedrock-only role, never with a host's admin credentials; "
-                             "a model run waits on an open approval")
+                             "the eval account's Bedrock-only role, never with a host's admin credentials")
     args = parser.parse_args(argv)
 
     skill_dir = REPO_ROOT / "skills" / args.skill
@@ -192,6 +198,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"warning: {len(stale)} queries are not in the current triggering.json", file=sys.stderr)
 
     rows, dropped = valid_rows(raw)
+    if not rows:
+        print(f"error: no rows with a valid run in {results} ({dropped} dropped)", file=sys.stderr)
+        return 1
     eval_results = build_eval_results(rows, raw["description"], sibling_owners(args.skill))
     out = (Path(args.out) if args.out else (
         EVALS_ROOT / args.skill / "workspace" / "optimize" / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json")).resolve()
@@ -210,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     if improved.returncode:
         return improved.returncode
     proposal = json.loads(improved.stdout)["description"]
+    out.with_name(out.stem + ".proposal.json").write_text(json.dumps({"description": proposal}, indent=2))
     checked = validate(args.skill, skill_dir, proposal, args.model)
     if checked.returncode:
         return checked.returncode

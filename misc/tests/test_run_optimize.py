@@ -122,6 +122,67 @@ class TestRunOptimize(unittest.TestCase):
         self.assertEqual(run_optimize.with_description(md, 'a "b"'),
                          '---\nname: x\ndescription: "a \\"b\\""\nmetadata: {}\n---\n\n# Body\n')
 
+    def test_row_with_no_valid_run_never_reaches_the_improver(self):
+        raw = fake_results(SKILL)
+        raw["results"][0].update(query="ZERO RUN ROW", runs=0, triggers=0, fail_reason="no valid run")
+        seen = {}
+
+        def fake_run(cmd, **kw):
+            if "scripts.improve_description" in cmd:
+                data = json.loads(Path(cmd[cmd.index("--eval-results") + 1]).read_text())
+                seen["queries"] = [r["query"] for r in data["results"]]
+                return mock.Mock(returncode=0, stdout=json.dumps({"description": "new"}))
+            return mock.Mock(returncode=0, stdout=json.dumps({"summary": {}}))
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(run_optimize.subprocess, "run", side_effect=fake_run), \
+                mock.patch("sys.stdout"):
+            rc, _ = run_main(tmp, raw, "--model", "m")
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(seen["queries"]), len(raw["results"]) - 1)
+        self.assertFalse(any("ZERO RUN ROW" in q for q in seen["queries"]))
+
+    def test_validate_removes_its_staged_copy(self):
+        seen = {}
+
+        def fake_run(cmd, **kw):
+            seen["staged"] = Path(cmd[cmd.index("--skill-path") + 1])
+            seen["existed"] = (seen["staged"] / "SKILL.md").exists()
+            return mock.Mock(returncode=0, stdout="{}")
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(tempfile, "tempdir", tmp), \
+                mock.patch.object(run_optimize.subprocess, "run", side_effect=fake_run):
+            run_optimize.validate(SKILL, run_optimize.REPO_ROOT / "skills" / SKILL, "new", "m")
+            self.assertTrue(seen["existed"])
+            self.assertTrue(str(seen["staged"]).startswith(tmp))
+            self.assertEqual(list(Path(tmp).glob("optimize-*")), [])
+
+    def test_proposal_is_kept_when_validation_fails(self):
+        def fake_run(cmd, **kw):
+            if "scripts.improve_description" in cmd:
+                return mock.Mock(returncode=0, stdout=json.dumps({"description": "KEPT PROPOSAL"}))
+            return mock.Mock(returncode=2, stdout="")
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(run_optimize.subprocess, "run", side_effect=fake_run):
+            rc, out = run_main(tmp, fake_results(SKILL), "--model", "m")
+            proposal = out.with_name(out.stem + ".proposal.json")
+            self.assertEqual(rc, 2)
+            self.assertTrue(proposal.exists())
+            self.assertEqual(json.loads(proposal.read_text())["description"], "KEPT PROPOSAL")
+
+    def test_no_valid_rows_left_is_refused_before_the_improver(self):
+        raw = fake_results(SKILL)
+        for r in raw["results"]:
+            r.update(runs=0, triggers=0, fail_reason="no valid run")
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(run_optimize.subprocess, "run") as run:
+            rc, out = run_main(tmp, raw, "--model", "m")
+            self.assertEqual(rc, 1)
+            run.assert_not_called()
+            self.assertFalse(out.exists())
+
     def test_missing_model_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             rc, _ = run_main(tmp, fake_results(SKILL))
