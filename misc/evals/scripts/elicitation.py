@@ -77,7 +77,10 @@ def detect_pending_question(events: list[dict]) -> str | None:
     The plain-text form is a heuristic: it misses a question followed by
     another paragraph, such as an options paragraph or a sign-off ("Let me
     know and I'll generate the rest."), and counts a closing offer that ends
-    in "?" (such as "Want me to confirm?", the "confirm" false catch).
+    in "?" (such as "Want me to confirm?", the "confirm" false catch). It
+    also misses a question on a fence's closing line ("``` and which
+    region?"), and a fence of 4 or more backticks is closed early by an
+    inner ``` line, so a "?" in the rest of that block counts.
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
