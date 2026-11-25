@@ -47,11 +47,12 @@ jobs:
           bash .github/scripts/ci-gate.sh changed
           'misc/evals/**'
           'skills/**'
+          'misc/tests/test_check_hygiene.py'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'
       - name: No-op (no watched path changed)
         if: steps.changes.outputs.relevant == 'false'
-        run: echo "No change to skills/ or misc/evals/; eval hygiene check not needed."
+        run: echo "No change to skills/, misc/evals/ or the hygiene tests; eval hygiene check not needed."
       # Anything but an explicit 'false' runs the real check.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.changes.outputs.relevant != 'false'
@@ -60,6 +61,9 @@ jobs:
       - name: Run eval hygiene pre-flight
         if: steps.changes.outputs.relevant != 'false'
         run: pip install 'pyyaml>=6,<7' && python3 misc/evals/scripts/check_hygiene.py
+      - name: Run hygiene check tests
+        if: steps.changes.outputs.relevant != 'false'
+        run: python3 -B misc/tests/test_check_hygiene.py -v
 
   gitops-regressions:
     name: eks-recon GitOps regression

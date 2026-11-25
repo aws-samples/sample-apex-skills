@@ -150,6 +150,8 @@ Expert-authored must-contain/must-not-contain assertions with required `source` 
 
 Assertion types: `must-contain`, `must-not-contain`, `must-contain-one-of`, `regex-match`.
 
+Groups: an entry with a `group` key (a non-empty name) holds an `assertions` list of these assertions, each validated like a flat entry (a child cannot be a group), plus an optional group `weight` from 0 to 1 (default 1). A child may set its own `weight` (default 1) and `when_parent_matches`, a regex (case-sensitive, searched in that sibling's `pattern` text): the child runs only when the `pattern` of an earlier sibling that passed matches it (a sibling unlocks a child only through its own `pattern` key, so must-contain-one-of, which has `patterns`, does not), and is skipped otherwise. A group scores the weighted share of its evaluated children that passed (0 when none was evaluated). The per-run `pass_rate` in knowledge-assertions.json weights each group by its `weight`, and the ungrouped entries by 1 minus the sum of group weights (not below 0), then divides by the sum of those weights, so a group at the default weight 1 leaves ungrouped entries no weight; set group weights below 1 to keep them counting. The composite and regression scores ignore these weights: they use passed over total summed over runs, where a skipped child counts in total. `check_hygiene.py` validates entries with the runner's own `validate_assertion` (`scripts/knowledge_assertions.py`).
+
 ### Layer 4 — Quality Judgment
 
 LLM-as-judge (via `grader.md` subagent) evaluates subjective quality: structure, completeness, tone, actionability. This is the only non-deterministic layer — it never judges correctness (layers 1–3 handle that).
