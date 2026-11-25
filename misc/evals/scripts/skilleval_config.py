@@ -157,6 +157,9 @@ def load_config(skill: str, cli_overrides: Optional[dict[str, Any]] = None) -> S
             weights[layer_name] = DEFAULT_WEIGHTS[layer_name]
 
     regression_raw = merged.get("regression", {})
+    pass_k = regression_raw.get("pass_k", 3)
+    if isinstance(pass_k, bool) or not isinstance(pass_k, int) or pass_k < 1:
+        raise RuntimeError(f"regression.pass_k must be an integer of at least 1, got {pass_k!r}: {skill}")
 
     return SkillEvalConfig(
         skill_name=merged.get("skill_name", skill),
@@ -165,7 +168,7 @@ def load_config(skill: str, cli_overrides: Optional[dict[str, Any]] = None) -> S
         layers=layers,
         weights=weights,
         regression_threshold=float(regression_raw.get("threshold", 5.0)),
-        pass_k=int(regression_raw.get("pass_k", 3)),
+        pass_k=pass_k,
         timeout=int(merged.get("timeout", 600)),
         model=merged.get("model"),
         eval_set_hash=merged.get("eval_set_hash"),

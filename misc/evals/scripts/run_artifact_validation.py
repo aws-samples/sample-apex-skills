@@ -18,16 +18,19 @@ import sys
 from pathlib import Path
 
 from artifact_validation import validate_run, ArtifactValidationResults
+from run_task_evals import resolve_target, target_cases
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 
 
 def find_run_dirs(skill: str, workspace: Path | None = None) -> list[Path]:
-    """Find all run directories under the skill's workspace/latest/."""
+    """Find all run directories under the target's workspace/latest/
+    (run_task_evals.resolve_target: misc/evals/<key>/ or, for a class
+    target with no folder of its own, misc/evals/workspace/<key>/)."""
     if workspace:
         base = workspace
     else:
-        latest = EVALS_ROOT / skill / "workspace" / "latest"
+        latest = resolve_target(skill)["workspace"] / "latest"
         if latest.is_symlink() or latest.exists():
             base = latest.resolve()
         else:
@@ -44,16 +47,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--skill", required=True, help="Skill name")
     parser.add_argument("--workspace", default=None,
-                        help="Override workspace path (default: <skill>/workspace/latest/)")
+                        help="Override workspace path (default: the target's workspace/latest/)")
     args = parser.parse_args()
 
-    evals_json_path = EVALS_ROOT / args.skill / "evals.json"
-    if not evals_json_path.exists():
-        print(f"missing: {evals_json_path}", file=sys.stderr)
+    target = resolve_target(args.skill)
+    if target["own_eval_dir"] is None and not target["classes"]:
+        print(f"missing: {EVALS_ROOT / args.skill / 'evals.json'}", file=sys.stderr)
         return 2
 
-    evals_data = json.loads(evals_json_path.read_text())
-    prompts = evals_data.get("evals") or []
+    # The target's own cases and its classes' shared ones, as the task runner runs them.
+    try:
+        prompts = target_cases(target, include_live_only=True)
+    except ValueError as exc:
+        print(f"[artifact] {args.skill}: {exc}", file=sys.stderr)
+        return 2
 
     assertions_by_id: dict[int, dict] = {}
     for p in prompts:
@@ -91,7 +98,7 @@ def main() -> int:
         if eval_id not in assertions_by_id:
             continue
 
-        rel = run_dir.relative_to(EVALS_ROOT / args.skill / "workspace")
+        rel = run_dir.relative_to(target["workspace"]) if run_dir.is_relative_to(target["workspace"]) else run_dir
 
         results = validate_run(
             outputs_dir=outputs_dir,

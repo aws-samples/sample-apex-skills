@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import types
 import unittest
@@ -37,22 +38,25 @@ SCRIPTS_DIR = os.path.join(MISC_DIR, "evals", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 import artifact_validation  # noqa: E402
+import generate_eval_manifest as gem  # noqa: E402
 import process_assertions  # noqa: E402
 import parse_trajectory  # noqa: E402
 import regression  # noqa: E402
 import run_artifact_validation  # noqa: E402
 from elicitation import drain_stream_for_events  # noqa: E402
-from parse_trajectory import parse_events  # noqa: E402
+from parse_trajectory import normalize_events, parse_events  # noqa: E402
 from run_knowledge_assertions import extract_assistant_text  # noqa: E402
 from run_task_evals import (  # noqa: E402
     compute_metrics,
     drain_stream,
+    extract_result_summary,
     format_transcript,
     snapshot_sandbox_outputs,
     stage_fixture_files,
 )
 import run_task_evals  # noqa: E402
 import run_triggering  # noqa: E402
+import skilleval_config  # noqa: E402
 import snapshot  # noqa: E402
 import elicitation  # noqa: E402
 from run_triggering import _handle_line  # noqa: E402
@@ -62,6 +66,11 @@ from run_triggering import _handle_line  # noqa: E402
 REAL_CHECK_CLI_VERSIONS = run_triggering.check_cli_versions
 _CLI_CHECK_OFF = [mock.patch.object(m, "check_cli_versions", return_value=None)
                   for m in (run_triggering, run_task_evals)]
+# The fake harnesses below live under the temp dir, which the host wall
+# hides, so the wall is off for every test but WallOffHost's and NoBwrap's.
+REAL_WALL_OFF_HOST = run_triggering.wall_off_host
+_CLI_CHECK_OFF += [mock.patch.object(m, "wall_off_host", lambda cmd, *a, **kw: cmd)
+                   for m in (run_triggering, run_task_evals)]
 
 
 def setUpModule():
@@ -317,6 +326,7 @@ class NothingToCheckIsNotAPass(unittest.TestCase):
                     "--workspace", str(root / "sk" / "workspace" / "latest")]
             err = io.StringIO()
             with mock.patch.object(run_artifact_validation, "EVALS_ROOT", root), \
+                    mock.patch.object(run_task_evals, "EVALS_ROOT", root), \
                     mock.patch.object(run_artifact_validation, "validate_run",
                                       return_value=results), \
                     mock.patch.object(sys, "argv", argv), \
@@ -1050,10 +1060,80 @@ class ClassSharedTriggerEvals(unittest.TestCase):
         with self.assertRaisesRegex(run_triggering.EvalSetError, r"repeat.*9001"):
             self.build(["apex-base"])
 
-    def test_chain_with_no_shared_file_is_refused(self):
+    def test_class_with_no_shared_file_is_skipped_with_a_message(self):
         (self.classes / "apex-base" / "evals" / "trigger" / "triggering.json").unlink()
-        with self.assertRaisesRegex(run_triggering.EvalSetError, "no shared trigger evals"):
-            self.build(["apex-base"])
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            cases, meta = self.build(["apex-base"])
+        self.assertEqual([c["source"] for c in cases], ["member", "member"])
+        self.assertEqual(meta["classes"], ["apex-base"])
+        self.assertIn("class apex-base: no shared trigger evals", err.getvalue())
+        self.assertIn("skipped", err.getvalue())
+        with contextlib.redirect_stderr(io.StringIO()), \
+                self.assertRaisesRegex(run_triggering.EvalSetError, "no cases"):
+            self.build(["apex-base"], member=False)
+
+    def write_skill(self, root, rel, frontmatter):
+        d = root / rel
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(f"---\nname: {d.name}\n{frontmatter}---\n\nbody\n")
+
+    def test_frontmatter_members_are_blocking_targets_of_their_classes_and_parents(self):
+        d = self.classes / "service-eks"
+        d.mkdir()
+        (d / "class.yaml").write_text("name: service-eks\nparents: [service]\n")
+        root = self.tmp / "repo"
+        self.write_skill(root, "skills/member", 'metadata:\n  apex-classes: "service-eks"\n')
+        self.write_skill(root, "skills/inline", 'metadata: { apex-classes: "service" }\n')
+        self.write_skill(root, "skills/none", "description: d\n")
+        targets = run_triggering.class_targets(root, self.classes,
+                                               explicit={"apex-base": {"skills/member": False,
+                                                                       "skills/other": False}})
+        self.assertEqual(targets, {
+            "apex-base": {"skills/inline": True, "skills/member": True, "skills/other": False},
+            "service": {"skills/inline": True, "skills/member": True},
+            "service-eks": {"skills/member": True}})
+        self.write_skill(root, "skills/bad", "metadata:\n  apex-classes: [service]\n")
+        with self.assertRaisesRegex(run_triggering.EvalSetError, "space-separated string"):
+            run_triggering.class_targets(root, self.classes, explicit={})
+
+    def test_a_refused_skill_md_is_recorded_and_the_others_still_load(self):
+        """One refused SKILL.md stopped `import run_task_evals` for every key."""
+        root = self.tmp / "repo"
+        self.write_skill(root, "skills/member", 'metadata:\n  apex-classes: "service"\n')
+        self.write_skill(root, "skills/bad", "metadata:\n  apex-classes: [service]\n")
+        refused = {}
+        targets = run_triggering.class_targets(root, self.classes, explicit={}, refused=refused)
+        self.assertEqual(targets, {"apex-base": {"skills/member": True},
+                                   "service": {"skills/member": True}})
+        self.assertEqual(list(refused), ["skills/bad"])
+        self.assertIn("space-separated string", refused["skills/bad"])
+        with mock.patch.dict(run_triggering.CLASS_TARGETS_REFUSED,
+                             {"devops-agent/eks-recon": "refused: anchor"}), \
+                self.assertRaisesRegex(run_triggering.EvalSetError, "refused: anchor"):
+            self.build([], member=True)
+
+    def test_a_frontmatter_member_gets_its_class_task_cases(self):
+        """The task runner's one target per folder: a member of service-eks
+        also on apex-base's explicit list runs service-eks's shared cases
+        with a prompt (8 and 9; case 1 is manual) and blocks."""
+        d = self.classes / "service-eks"
+        (d / "evals" / "live-cluster").mkdir(parents=True)
+        (d / "class.yaml").write_text("name: service-eks\nparents: [service]\n")
+        (d / "evals" / "live-cluster" / "evals.json").write_text(json.dumps({"evals": [
+            {"id": 1, "mode": "manual"}, {"id": 8, "prompt": "p8"}, {"id": 9, "prompt": "p9"}]}))
+        root = self.tmp / "repo"
+        self.write_skill(root, "skills/eks-recon", 'metadata:\n  apex-classes: "service-eks"\n')
+        targets = run_task_evals.targets_by_folder(run_triggering.class_targets(
+            root, self.classes, explicit={"apex-base": {"skills/eks-recon": False}}))
+        self.assertEqual(targets, ({"run_key": "eks-recon", "skill_dir": "skills/eks-recon",
+                                    "classes": ["apex-base", "service", "service-eks"],
+                                    "blocking": True},))
+        with mock.patch.object(run_task_evals, "CLASS_TARGETS", targets), \
+                mock.patch.object(run_task_evals, "CLASSES_ROOT", self.classes):
+            t = run_task_evals.resolve_target("eks-recon")
+            self.assertTrue(t["blocking"])
+            self.assertEqual([c["id"] for c in run_task_evals.load_shared_cases(t["classes"])], [8, 9])
 
     def test_same_query_twice_scores_as_two_rows(self):
         from concurrent.futures import ThreadPoolExecutor
@@ -1074,12 +1154,16 @@ class ClassSharedTriggerEvals(unittest.TestCase):
         self.assertEqual(out["summary"]["tokens_per_run"], 10)
         self.assertEqual(out["harness"], "codex")
 
+    def test_no_devops_agent_copy_is_a_class_target(self):
+        """No DevOps Agent copy is a class target, listed or by membership."""
+        root = self.tmp / "repo"
+        self.write_skill(root, "devops-agent/inline", 'metadata: { apex-classes: "service" }\n')
+        self.assertEqual(run_triggering.class_targets(root, self.classes, explicit={}), {})
+
     def test_real_target_list_names_existing_skills(self):
         listed = run_triggering.CLASS_TARGETS["apex-base"]
-        self.assertEqual(len(listed), 32)
-        self.assertEqual(sorted(t for t, b in listed.items() if b), [
-            "devops-agent/eks-cost-intelligence", "devops-agent/eks-recon",
-            "devops-agent/eks-security"])
+        self.assertEqual(len(listed), 26)
+        self.assertEqual([t for t, b in listed.items() if b], [])
         for t in listed:
             self.assertTrue((run_triggering.REPO_ROOT / t / "SKILL.md").is_file(), t)
         self.assertNotIn("skills/dotnet-aws-ecs", listed)
@@ -1113,6 +1197,112 @@ class TriggeringCli(unittest.TestCase):
         self.assertEqual(seen["runs_per_query"], 3)
         self.assertEqual(seen["harness"], "codex")
         self.assertEqual(json.loads(out)["run_key"], SKILL)
+        self.assertNotIn("base", json.loads(out))  # default --base-ref none: no base arm
+
+    def test_run_key_reads_the_keys_own_set_skill_and_classes(self):
+        """The gate's form resolves the key as the task runner does."""
+        seen = {}
+
+        def fake_run_eval(**kw):
+            seen.update(kw)
+            return {"results": [], "summary": {"total": 0, "passed": 0, "failed": 0}}
+
+        refs = []
+        with mock.patch.object(run_triggering, "mint_eval_role_credentials", return_value=None), \
+                mock.patch.object(run_triggering, "run_eval", side_effect=fake_run_eval), \
+                mock.patch.object(run_task_evals, "resolve_base_ref",
+                                  side_effect=lambda ref: refs.append(ref) or "f" * 40), \
+                mock.patch.object(run_task_evals, "materialise_skill_at_ref", return_value=None):
+            code, out, _ = self.main(["--run-key", SKILL])
+        self.assertEqual(code, 0)
+        # the gate's form compares old against new: the task runner's default ref
+        self.assertEqual(refs, [run_task_evals.DEFAULT_BASE_REF])
+        self.assertEqual(json.loads(out)["base"]["base_ref"], run_task_evals.DEFAULT_BASE_REF)
+        self.assertEqual(Path(seen["repo_skill_dir"]), run_triggering.REPO_ROOT / "skills" / SKILL)
+        own = json.loads((run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json").read_text())
+        shared = json.loads((run_triggering.REPO_ROOT / "classes" / "apex-base" / "evals" / "trigger"
+                             / "triggering.json").read_text())
+        self.assertEqual([c["query"] for c in seen["eval_set"]], [c["query"] for c in own + shared])
+        self.assertEqual(json.loads(out)["run_key"], SKILL)
+
+    def test_a_run_key_with_no_trigger_case_is_skipped(self):
+        # Every apex-base target gets that class's trigger file, so no real key
+        # lacks a trigger case: the class chain is emptied here.
+        with mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint, \
+                mock.patch.object(run_triggering, "class_chain", return_value=[]), \
+                mock.patch.object(run_triggering, "run_eval", side_effect=AssertionError("run_eval ran")):
+            code, out, _ = self.main(["--run-key", "ecs-recon"])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["run_key"], "ecs-recon")
+        self.assertIn("no trigger case", json.loads(out)["skipped"])
+        mint.assert_not_called()
+        code, _, err = self.main(["--run-key", SKILL, "--class", "apex-base"])
+        self.assertEqual(code, 1)
+        self.assertIn("--run-key takes no", err)
+
+    def base_ref_run(self, materialised):
+        """main with --base-ref v9: run_task_evals's resolve and materialise
+        faked (`materialised` True writes a SKILL.md named old-name), so no
+        git ref is read."""
+        skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
+        eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
+        calls = []
+
+        def fake_run_eval(**kw):
+            calls.append(kw)
+            return {"results": [{"arm_dir": str(kw["repo_skill_dir"])}],
+                    "summary": {"total": 1, "passed": len(calls) - 1, "failed": 2 - len(calls)}}
+
+        def fake_materialise(sha, rel, dest):
+            self.assertEqual((sha, rel), ("f" * 40, f"skills/{SKILL}"))
+            if not materialised:
+                return None
+            d = dest / rel
+            d.mkdir(parents=True)
+            (d / "SKILL.md").write_text("---\nname: old-name\ndescription: old\n---\n")
+            return d
+
+        with mock.patch.object(run_triggering, "mint_eval_role_credentials", return_value=None), \
+                mock.patch.object(run_triggering, "run_eval", side_effect=fake_run_eval), \
+                mock.patch.object(run_task_evals, "resolve_base_ref", return_value="f" * 40), \
+                mock.patch.object(run_task_evals, "materialise_skill_at_ref",
+                                  side_effect=fake_materialise):
+            code, out, err = self.main(["--eval-set", eval_set, "--skill-path", skill,
+                                        "--base-ref", "v9"])
+        return code, json.loads(out) if code == 0 else None, calls, err
+
+    def test_base_ref_runs_the_skill_at_the_ref_as_a_second_arm(self):
+        code, out, calls, _ = self.base_ref_run(materialised=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0]["skill_name"], SKILL)
+        self.assertEqual(calls[1]["skill_name"], "old-name")
+        self.assertEqual(calls[0]["eval_set"], calls[1]["eval_set"])
+        self.assertNotEqual(calls[0]["repo_skill_dir"], calls[1]["repo_skill_dir"])
+        self.assertFalse(Path(calls[1]["repo_skill_dir"]).exists(), "the ref copy is removed")
+        self.assertEqual({k: out["base"][k] for k in ("base_ref", "base_ref_sha", "arm")},
+                         {"base_ref": "v9", "base_ref_sha": "f" * 40, "arm": "base_skill"})
+        self.assertEqual(out["base"]["summary"]["passed"], 1)
+        self.assertEqual(out["summary"]["passed"], 0)
+
+    def test_base_ref_with_the_skill_absent_there_runs_no_base_arm(self):
+        code, out, calls, _ = self.base_ref_run(materialised=False)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 1)
+        self.assertIsNone(out["base"]["arm"])
+        self.assertIn("does not exist at v9", out["base"]["note"])
+
+    def test_base_ref_naming_no_commit_stops_before_any_call(self):
+        skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
+        eval_set = str(run_triggering.REPO_ROOT / "misc" / "evals" / SKILL / "triggering.json")
+        with mock.patch.object(run_triggering, "mint_eval_role_credentials") as mint, \
+                mock.patch.object(run_task_evals, "resolve_base_ref",
+                                  side_effect=run_task_evals.BaseRefError("names no commit")):
+            code, _, err = self.main(["--eval-set", eval_set, "--skill-path", skill,
+                                      "--base-ref", "nope"])
+        self.assertEqual(code, 2)
+        self.assertIn("names no commit", err)
+        mint.assert_not_called()
 
     def test_kiro_without_a_key_runs_on_the_existing_sign_in(self):
         skill = str(run_triggering.REPO_ROOT / "skills" / SKILL)
@@ -1181,6 +1371,308 @@ class Tmp(unittest.TestCase):
         if harness != "claude":
             args["harness"] = harness
         return run_task_evals.run_subject(**args)
+
+
+def _bwrap_works():
+    try:
+        return subprocess.run(["bwrap", "--dev-bind", "/", "/", "--", "/bin/true"],
+                              capture_output=True, timeout=30).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+@unittest.skipUnless(_bwrap_works(), "bwrap is not installed or cannot run here")
+class WallOffHost(Tmp):
+    """A subject reads its staged skill and no host skill copy (a
+    C1 old_skill run read one from another worktree; the without arm could
+    too). The fake subject records what it can read into the sandbox,
+    which run_subject copies to outputs/."""
+
+    def setUp(self):
+        super().setUp()
+        for m in (run_triggering, run_task_evals):
+            p = mock.patch.object(m, "wall_off_host", REAL_WALL_OFF_HOST)
+            p.start()
+            self.addCleanup(p.stop)
+        self.host_home = self.tmp / "host-home"
+        local_bin = self.host_home / ".local" / "bin"
+        local_bin.mkdir(parents=True)
+        p = mock.patch.dict(os.environ, {"HOME": str(self.host_home),
+                                         "PATH": f"{local_bin}{os.pathsep}{os.environ['PATH']}"})
+        p.start()
+        self.addCleanup(p.stop)
+        # two host skill copies, then two HOME tool files no subject needs
+        # (Kiro's sign-in DB, a credential helper next to the harness CLI)
+        self.copies = [self.tmp / "worktree" / ".agents" / "skills" / "s" / "SKILL.md",
+                       self.host_home / "work" / "skills" / "s" / "SKILL.md",
+                       self.host_home / ".local" / "share" / "kiro-cli" / "data.sqlite3",
+                       local_bin / "creds-helper"]
+        for c in self.copies:
+            c.parent.mkdir(parents=True, exist_ok=True)
+            c.write_text("host copy")
+        self.repo_file = run_triggering.REPO_ROOT / "skills" / "eks-recon" / "SKILL.md"
+        self.skill = self.tmp / "staged" / "s"
+        self.skill.mkdir(parents=True)
+        (self.skill / "SKILL.md").write_text("---\nname: s\n---\n")
+        paths = [str(c) for c in self.copies] + [str(self.repo_file)]
+        fake_exe(local_bin, "claude", [INIT, RESULT], 0, extra=(
+            "json.dump({'host': [os.path.exists(p) for p in %r],"
+            " 'staged': os.path.isfile('.claude/skills/s/SKILL.md'),"
+            " 'home': os.access(os.environ['HOME'], os.W_OK)}, open('seen.json', 'w'))\n") % paths)
+
+    def seen(self, **kw):
+        out = self.subject(skill_name="s", **kw)
+        self.assertTrue(out["ok"], out)
+        return json.loads((self.tmp / "run" / "outputs" / "seen.json").read_text())
+
+    def test_with_skill_reads_its_staged_skill_and_no_host_copy(self):
+        self.assertTrue(self.repo_file.is_file())  # visible outside the wall
+        seen = self.seen(with_skill=True, repo_skill_dir=self.skill)
+        self.assertEqual(seen, {"host": [False] * 5, "staged": True, "home": True})
+
+    def test_without_skill_reads_no_skill_at_all(self):
+        seen = self.seen(with_skill=False)
+        self.assertEqual(seen, {"host": [False] * 5, "staged": False, "home": True})
+
+    def test_a_path_dir_the_caller_adds_stays_reachable(self):
+        """The C1 driver's T7 aws shim sits in a temp dir on the PATH it
+        hands run_subject; the wall hid it, so the subject's aws was the
+        host's. Other files in a walled dir on the runner's own PATH
+        (creds-helper in host ~/.local/bin) stay hidden."""
+        shim_dir = self.tmp / "live" / "bin"
+        shim_dir.mkdir(parents=True)
+        shim = fake_exe(shim_dir, "aws", [], 0)
+        helper = self.host_home / ".local" / "bin" / "creds-helper"
+        fake_exe(self.host_home / ".local" / "bin", "claude", [INIT, RESULT], 0, extra=(
+            "import shutil\na = shutil.which('aws')\njson.dump({'aws': a, 'aws_writable': os.access(a, os.W_OK),"
+            " 'helper': os.path.exists(%r)}, open('seen.json', 'w'))\n") % str(helper))
+        seen = self.seen(with_skill=False,
+                         extra_env={"PATH": f"{shim_dir}{os.pathsep}{os.environ['PATH']}"})
+        self.assertEqual(seen, {"aws": str(shim), "aws_writable": False, "helper": False})
+
+    def test_a_path_dir_the_caller_adds_stays_reachable_multiturn(self):
+        """The canned multi-turn call site binds the caller's PATH dir too."""
+        shim_dir = self.tmp / "live" / "bin"
+        shim_dir.mkdir(parents=True)
+        shim = fake_exe(shim_dir, "aws", [], 0)
+        fake_exe(self.host_home / ".local" / "bin", "claude", [INIT, RESULT], 0, extra=(
+            "import shutil\njson.dump({'aws': shutil.which('aws')}, open('seen.json', 'w'))\n"))
+        multi = elicitation.ElicitationConfig.from_dict({
+            "strategy": "canned-multiturn", "max_turns": 2,
+            "turns": [{"question_match": "region", "answer": "us-west-2"}]})
+        seen = self.seen(with_skill=False, elicitation=multi,
+                         extra_env={"PATH": f"{shim_dir}{os.pathsep}{os.environ['PATH']}"})
+        self.assertEqual(seen, {"aws": str(shim)})
+
+    def test_a_caller_dir_that_is_home_or_a_wall_is_not_bound(self):
+        """ro_dirs: HOME, ~/.local, a walled folder (/tmp) or a folder above
+        one is skipped; a private dir under the temp dir is bound."""
+        shim_dir = self.tmp / "live" / "bin"
+        shim_dir.mkdir(parents=True)
+        skipped = (self.host_home, self.host_home / ".local", Path("/tmp"), Path("/"))
+        args = run_triggering.wall_off_host(["claude"], self.tmp / "sb", self.tmp / "hm",
+                                            ro_dirs=(*skipped, shim_dir))
+        bound = [args[i + 1] for i, a in enumerate(args) if a == "--ro-bind"]
+        self.assertIn(str(shim_dir.resolve()), bound)
+        self.assertFalse([d for d in skipped if str(d.resolve()) in bound], bound)
+
+    def test_the_wall_keeps_the_terminal_and_the_engine_sockets_out(self):
+        """--new-session: no TIOCSTI into the runner's terminal; each container
+        engine socket that exists reads as /dev/null."""
+        sock = self.tmp / "engine.sock"
+        sock.write_text("")
+        with mock.patch.object(run_triggering, "ENGINE_SOCKETS", (str(sock), str(self.tmp / "absent.sock"))):
+            args = run_triggering.wall_off_host(["claude"], self.tmp, self.tmp)
+        self.assertIn("--new-session", args[:args.index("--")])
+        i = args.index(str(sock.resolve()))
+        self.assertEqual(args[i - 2:i], ["--ro-bind", "/dev/null"])
+        self.assertNotIn(str(self.tmp / "absent.sock"), args)
+
+    def test_the_subject_gets_its_own_process_table(self):
+        """With the host's pid namespace a subject could
+        list host processes and signal any process of the operator's user;
+        under --unshare-pid and a fresh /proc it sees neither."""
+        victim = subprocess.Popen(["sleep", "120"])
+        self.addCleanup(victim.wait)
+        self.addCleanup(victim.kill)
+        fake_exe(self.host_home / ".local" / "bin", "claude", [INIT, RESULT], 0, extra=(
+            "try:\n    os.kill(%d, 0)\n    sig = 'delivered'\n"
+            "except ProcessLookupError:\n    sig = 'no such process'\n"
+            "json.dump({'listed': os.path.exists('/proc/%d'), 'signal': sig},"
+            " open('seen.json', 'w'))\n") % (victim.pid, victim.pid))
+        self.assertTrue(os.path.exists(f"/proc/{victim.pid}"))  # visible outside the wall
+        seen = self.seen(with_skill=False)
+        self.assertEqual(seen, {"listed": False, "signal": "no such process"})
+        self.assertIsNone(victim.poll())
+
+    def test_only_the_runs_own_cli_is_bound_from_home(self):
+        local_bin = self.host_home / ".local" / "bin"
+        for name in ("claude", "kiro-cli"):
+            fake_exe(local_bin, name, [], 0)
+        args = run_triggering.wall_off_host(["kiro-cli", "chat"], self.tmp / "sb", self.tmp / "hm")
+        binds = [args[i + 2] for i, a in enumerate(args) if a == "--ro-bind" and args[i + 1] != "/dev/null"]
+        self.assertEqual(binds, [str(local_bin / "kiro-cli")])
+        self.assertNotIn(str(self.host_home / ".local"), args)
+
+    def test_the_user_runtime_dir_and_tmp_are_walled(self):
+        """The user session bus lives in the runtime dir
+        (/run/user/<uid>, or XDG_RUNTIME_DIR), and with TMPDIR set elsewhere
+        /tmp (tmux's socket) stayed visible."""
+        if not Path("/dev/shm").is_dir():
+            self.skipTest("needs /dev/shm for a runtime dir outside the other walls")
+        runtime = Path(tempfile.mkdtemp(prefix="evals-tests-xdg-", dir="/dev/shm"))
+        self.addCleanup(shutil.rmtree, runtime, True)
+        tmpdir = self.tmp / "own-tmp"
+        tmpdir.mkdir()
+        tmux = Path(tempfile.mkdtemp(prefix="evals-tests-tmux-", dir="/tmp"))
+        self.addCleanup(shutil.rmtree, tmux, True)
+        (runtime / "bus").write_text("")
+        (tmux / "default").write_text("")
+        fake_exe(self.host_home / ".local" / "bin", "claude", [INIT, RESULT], 0, extra=(
+            "json.dump([os.path.exists(%r), os.path.exists(%r)], open('seen.json', 'w'))\n")
+            % (str(runtime / "bus"), str(tmux / "default")))
+        with mock.patch.dict(os.environ, {"XDG_RUNTIME_DIR": str(runtime), "TMPDIR": str(tmpdir)}), \
+                mock.patch.object(tempfile, "tempdir", None):
+            self.assertEqual(tempfile.gettempdir(), str(tmpdir))
+            out = self.subject(skill_name="s", with_skill=False)
+            self.assertTrue(out["ok"], out)
+            args = run_triggering.wall_off_host(["claude"], self.tmp / "sb", self.tmp / "hm")
+        self.assertEqual(json.loads((self.tmp / "run" / "outputs" / "seen.json").read_text()), [False, False])
+        uid_dir = Path(f"/run/user/{os.getuid()}")
+        if uid_dir.is_dir():
+            self.assertIn(str(uid_dir), [args[i + 1] for i, a in enumerate(args) if a == "--tmpfs"])
+
+    def npm_layout(self, pkg_dir, node_dir, bin_dir):
+        """`claude` as an npm script: bin_dir/claude links to pkg_dir/cli.js,
+        whose `#!/usr/bin/env node` finds node_dir/node first on PATH (a fake
+        node that records what it can read, and whether the script path it
+        got still links into the package, as node needs to find its
+        dependencies)."""
+        pkg_dir.mkdir(parents=True)
+        (pkg_dir / "cli.js").write_text("#!/usr/bin/env node\n")
+        (pkg_dir / "cli.js").chmod(0o755)
+        for d in (node_dir, bin_dir):
+            d.mkdir(parents=True, exist_ok=True)
+        paths = [str(c) for c in self.copies]
+        fake_exe(node_dir, "node", [INIT, RESULT], 0, extra=(
+            "json.dump({'host': [os.path.exists(p) for p in %r],"
+            " 'cli': os.path.realpath(sys.argv[1]) == %r}, open('seen.json', 'w'))\n")
+            % (paths, str((pkg_dir / "cli.js").resolve())))
+        link = bin_dir / "claude"
+        if link.exists() or link.is_symlink():
+            link.unlink()
+        link.symlink_to(pkg_dir / "cli.js")
+        return mock.patch.dict(os.environ, {"PATH": f"{bin_dir}{os.pathsep}{node_dir}{os.pathsep}{os.environ['PATH']}"})
+
+    def test_an_npm_cli_never_binds_home_or_local(self):
+        """Node in ~/.local/bin bound all of ~/.local, and the package in
+        ~/.npm-global with node under ~/.nvm bound all of HOME; now only the
+        package folder and the two files are bound."""
+        h = self.host_home
+        layouts = {
+            "local": (h / ".local" / "lib" / "node_modules" / "@a" / "cli", h / ".local" / "bin", h / ".local" / "bin"),
+            "npm-global": (h / ".npm-global" / "lib" / "node_modules" / "cli",
+                           h / ".nvm" / "versions" / "node" / "v1" / "bin", h / ".npm-global" / "bin"),
+        }
+        for name, (pkg, node_dir, bin_dir) in layouts.items():
+            with self.subTest(layout=name), self.npm_layout(pkg, node_dir, bin_dir):
+                out = self.subject(skill_name="s", with_skill=False)
+                self.assertTrue(out["ok"], out)
+                seen = json.loads((self.tmp / "run" / "outputs" / "seen.json").read_text())
+                self.assertEqual(seen, {"host": [False] * 4, "cli": True})
+                args = run_triggering.wall_off_host(["claude"], self.tmp / "sb", self.tmp / "hm")
+                bound = [args[i + 1] for i, a in enumerate(args) if a == "--ro-bind" and args[i + 1] != "/dev/null"]
+                self.assertIn(str(pkg), bound)
+
+    def kiro_data(self):
+        """A fake kiro-cli data folder under the host's ~/.local/share (which
+        harness_env hands a kiro subject as XDG_DATA_HOME), a second marker
+        beside it, and the probe a fake harness CLI runs: what it can read,
+        and whether it can write into kiro-cli/."""
+        data = self.host_home / ".local" / "share"
+        for d, text in (("kiro-cli", "kiro"), ("other", "other")):
+            (data / d).mkdir(parents=True, exist_ok=True)
+            (data / d / "marker").write_text(text)
+        probe = ("d = %r\nseen = {'kiro': os.path.isfile(d + '/kiro-cli/marker'),"
+                 " 'other': os.path.exists(d + '/other/marker')}\n"
+                 "try:\n    open(d + '/kiro-cli/written', 'w').write('x')\n    seen['wrote'] = True\n"
+                 "except OSError:\n    seen['wrote'] = False\n"
+                 "json.dump(seen, open('seen.json', 'w'))\n") % str(data)
+        return data, probe
+
+    def adapter_seen(self, run, name, probe):
+        sandbox, home = self.tmp / "sb", self.tmp / "hm"
+        for d in (sandbox, home):
+            shutil.rmtree(d, ignore_errors=True)
+            d.mkdir()
+        fake_exe(self.host_home / ".local" / "bin", name, [], 0, extra=probe)
+        harness = {"kiro-cli": "kiro"}.get(name, name)
+        env = run_triggering.harness_env({k: v for k, v in os.environ.items() if k != "XDG_DATA_HOME"},
+                                         home, harness)
+        run("q", "s", self.skill, None, 30, sandbox, home, env)
+        return json.loads((sandbox / "seen.json").read_text())
+
+    def test_a_kiro_subject_reads_and_writes_only_its_kiro_cli_folder(self):
+        """A kiro subject signs in from the operator's
+        kiro-cli data folder (PR 565), so the wall binds that one folder back
+        read-write; the rest of ~/.local/share stays hidden. Both call sites:
+        the triggering adapter and the task runner."""
+        data, probe = self.kiro_data()
+        want = {"kiro": True, "other": False, "wrote": True}
+        self.assertEqual(self.adapter_seen(run_triggering.run_kiro, "kiro-cli", probe), want)
+        self.assertTrue((data / "kiro-cli" / "written").is_file())
+        (data / "kiro-cli" / "written").unlink()
+        fake_exe(self.host_home / ".local" / "bin", "kiro-cli", KIRO_TYPED, 0, extra=probe)
+        with mock.patch.dict(os.environ):
+            os.environ.pop("XDG_DATA_HOME", None)
+            out = self.subject(harness="kiro", with_skill=False)
+        self.assertTrue(out["ok"], out)
+        self.assertEqual(json.loads((self.tmp / "run" / "outputs" / "seen.json").read_text()), want)
+        self.assertTrue((data / "kiro-cli" / "written").is_file())
+
+    def test_claude_and_codex_subjects_read_no_kiro_data(self):
+        _, probe = self.kiro_data()
+        for run, name in ((run_triggering.run_claude, "claude"), (run_triggering.run_codex, "codex")):
+            with self.subTest(harness=name):
+                self.assertEqual(self.adapter_seen(run, name, probe),
+                                 {"kiro": False, "other": False, "wrote": False})
+
+    def test_a_rw_dir_that_is_home_local_share_or_a_wall_is_not_bound(self):
+        data, _ = self.kiro_data()
+        h = self.host_home
+        refused = (h, h / ".local", data, Path("/tmp"), Path("/"))
+        args = run_triggering.wall_off_host(["claude"], self.tmp / "sb", self.tmp / "hm",
+                                            rw_dirs=(*refused, data / "kiro-cli", data / "absent"))
+        bound = [args[i + 1] for i, a in enumerate(args) if a == "--bind"]
+        self.assertEqual(bound, [str((data / "kiro-cli").resolve()), str((self.tmp / "sb").resolve()),
+                                 str((self.tmp / "hm").resolve())])
+
+    def test_no_bwrap_stops_before_any_subject_starts(self):
+        with mock.patch.object(run_triggering.shutil, "which", return_value=None), \
+                self.assertRaisesRegex(RuntimeError, "bwrap is not installed"):
+            run_triggering.wall_off_host(["claude"], self.tmp, self.tmp)
+
+    def test_every_triggering_adapter_runs_under_the_wall(self):
+        sandbox, home = self.tmp / "sb", self.tmp / "hm"
+        for name in ("claude", "kiro-cli", "codex"):
+            fake_exe(self.host_home / ".local" / "bin", name, [], 0)
+        for run in (run_triggering.run_claude, run_triggering.run_kiro, run_triggering.run_codex):
+            for d in (sandbox, home):
+                shutil.rmtree(d, ignore_errors=True)
+                d.mkdir()
+            with self.subTest(run=run.__name__), \
+                    mock.patch.object(run_triggering, "wall_off_host", wraps=REAL_WALL_OFF_HOST) as wall:
+                run("q", "s", self.skill, None, 30, sandbox, home, dict(os.environ))
+                self.assertEqual(wall.call_args.args[1:], (sandbox, home, self.skill))
+
+
+class NoBwrap(Tmp):
+    """Never skipped: it guards the host with no bwrap."""
+
+    def test_no_bwrap_stops_before_any_subject_starts(self):
+        with mock.patch.object(run_triggering.shutil, "which", return_value=None), \
+                self.assertRaisesRegex(RuntimeError, "bwrap is not installed"):
+            REAL_WALL_OFF_HOST(["claude"], self.tmp, self.tmp)
 
 
 # ---------- invalid runs --------------------------------------------------------
@@ -1572,24 +2064,16 @@ class ClassCases(Tmp):
         targets = run_task_evals.CLASS_TARGETS
         keys = [t["run_key"] for t in targets]
         self.assertEqual(len(keys), len(set(keys)))
-        self.assertEqual(sorted(t["run_key"] for t in targets if t["blocking"]),
-                         ["devops-agent-eks-cost-intelligence", "devops-agent-eks-recon",
-                          "devops-agent-eks-security"])
-        self.assertEqual(len(targets), 22 + 4 + 6)
+        self.assertEqual([t["run_key"] for t in targets if t["blocking"]], [])
+        self.assertEqual(len(targets), 22 + 4)
         self.assertNotIn("dotnet-aws-ecs", keys)
         for t in targets:
             self.assertTrue((REPO / t["skill_dir"] / "SKILL.md").is_file(), t)
 
-    def test_devops_copy_has_its_own_run_key(self):
-        copy = run_task_evals.resolve_target("devops-agent-eks-recon")
-        twin = run_task_evals.resolve_target("eks-recon")
-        self.assertEqual(copy["skill_rel"], "devops-agent/eks-recon")
-        self.assertIsNone(copy["own_eval_dir"])
-        self.assertEqual(copy["workspace"],
-                         run_task_evals.TARGETS_WORKSPACE / "devops-agent-eks-recon" / "workspace")
-        self.assertNotEqual(copy["workspace"], twin["workspace"])
-        self.assertNotEqual(run_task_evals.history_path("devops-agent-eks-recon"),
-                            run_task_evals.history_path("eks-recon"))
+    def test_no_devops_copy_is_a_task_target(self):
+        self.assertIsNone(run_task_evals.class_target("devops-agent-eks-recon"))
+        self.assertEqual([t for t in run_task_evals.CLASS_TARGETS
+                          if t["skill_dir"].startswith("devops-agent/")], [])
 
     def test_list_targets_prints_runnable_keys_and_runs_nothing(self):
         out = io.StringIO()
@@ -1600,8 +2084,8 @@ class ClassCases(Tmp):
         mint.assert_not_called()
         rows = [json.loads(l) for l in out.getvalue().splitlines()]
         self.assertIn("eks-recon", [r["run_key"] for r in rows])
-        copy = [r for r in rows if r["run_key"] == "devops-agent-eks-security"]
-        self.assertEqual([r["classes"] for r in copy], [["apex-base"]])
+        planned = [r for r in rows if r["run_key"] == "ecs-recon"]
+        self.assertEqual([r["classes"] for r in planned], [["apex-base"]])
 
     def test_kubeconfig_is_copied_per_run(self):
         shared = self.tmp / "kubeconfig.readonly"
@@ -1639,6 +2123,7 @@ class RunSkill(Tmp):
             self.addCleanup(p.stop)
         self.fail_case = set()
         self.subject_fails = set()
+        self.no_timing = set()
 
     def write_own(self, skill, cases):
         d = self.evals / skill
@@ -1651,11 +2136,12 @@ class RunSkill(Tmp):
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "outputs").mkdir(exist_ok=True)
         tokens = 100 if kw["with_skill"] else 50
-        (run_dir / "timing.json").write_text(json.dumps({
-            "total_tokens": tokens, "input_tokens": tokens - 10, "output_tokens": 10,
-            "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0,
-            "token_source": "usage", "total_duration_seconds": 2.5}))
         key = (kw["eval_id"], run_dir.parent.name, run_dir.name)
+        if key not in self.no_timing:
+            (run_dir / "timing.json").write_text(json.dumps({
+                "total_tokens": tokens, "input_tokens": tokens - 10, "output_tokens": 10,
+                "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0,
+                "token_source": "usage", "total_duration_seconds": 2.5}))
         if key in self.subject_fails:
             return {"transcript_path": "t", "outputs_dir": str(run_dir / "outputs"), "ok": False,
                     "reason": "subject exited 1", "invalid": True, "exit_codes": [1],
@@ -1773,6 +2259,21 @@ class RunSkill(Tmp):
         self.assertEqual(pa["failure_classes"], {"invalid_run": 1})
         self.assertEqual(out["history_entry"]["skill_summary"]["arms"]["with_skill"]["invalid_runs"], 3)
 
+    def test_a_run_with_no_timing_records_no_time_and_the_means_skip_it(self):
+        """Check fix: at d536a756 a run with no timing.json scored 0.0 s and
+        pulled the time means down, to 1.6667 here."""
+        self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
+        self.subject_fails = self.no_timing = {(1, "with_skill", "run-1")}
+        out = self.run_it("eks-recon", runs=3)
+        new = out["history_entry"]["cases"][0]["arms"]["with_skill"]
+        self.assertEqual(sorted(new["wall_seconds_per_run"], key=str), [2.5, 2.5, None])
+        self.assertEqual(new["wall_seconds_mean"], 2.5)
+        arm = out["history_entry"]["skill_summary"]["arms"]["with_skill"]
+        self.assertEqual(arm["wall_seconds_per_run_mean"], 2.5)
+        rec = json.loads((Path(out["runs_dir"]) / "eval-1" / "with_skill" / "run-1"
+                          / "run-result.json").read_text())
+        self.assertIsNone(rec["wall_seconds"])
+
     def test_missing_events_file_is_an_invalid_run(self):
         """Check fix: at HEAD a missing events.jsonl was skipped silently."""
         self.write_own("eks-recon", [{"id": 99, "prompt": "p", "expectations": ["e"],
@@ -1795,17 +2296,17 @@ class RunSkill(Tmp):
         suite.mkdir(parents=True)
         (suite / "evals.json").write_text(json.dumps({"evals": [
             {"id": 9004, "prompt": "p", "expectations": ["e"]}]}))
-        out = self.run_it("devops-agent-eks-recon", runs=1)
+        out = self.run_it("ecs-recon", runs=1)
         entry = out["history_entry"]
-        self.assertEqual(entry["run_key"], "devops-agent-eks-recon")
-        self.assertEqual(entry["skill_dir"], "devops-agent/eks-recon")
-        self.assertTrue(entry["blocking"])
+        self.assertEqual(entry["run_key"], "ecs-recon")
+        self.assertEqual(entry["skill_dir"], "skills/ecs-recon")
+        self.assertFalse(entry["blocking"])
         self.assertEqual(entry["cases"][0]["source"], "class:apex-base/read-only")
         self.assertEqual(self.calls[0]["skill_eval_dir"], suite)
-        self.assertEqual(self.calls[0]["repo_skill_dir"], REPO / "devops-agent" / "eks-recon")
-        self.assertTrue(out["runs_dir"].startswith(str(self.evals / "workspace" / "devops-agent-eks-recon")))
-        self.assertEqual(self.bench_skill_path, REPO / "devops-agent" / "eks-recon")
-        self.assertTrue((self.history / "devops-agent-eks-recon.jsonl").exists())
+        self.assertEqual(self.calls[0]["repo_skill_dir"], REPO / "skills" / "ecs-recon")
+        self.assertTrue(out["runs_dir"].startswith(str(self.evals / "workspace" / "ecs-recon")))
+        self.assertEqual(self.bench_skill_path, REPO / "skills" / "ecs-recon")
+        self.assertTrue((self.history / "ecs-recon.jsonl").exists())
 
     def test_member_runs_own_and_shared_cases(self):
         self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]}])
@@ -1828,6 +2329,290 @@ class RunSkill(Tmp):
             entry = self.run_it("eks-recon", runs=1, harness=harness,
                                 subject_model_id="s-id")["history_entry"]
             self.assertEqual((entry["model"], entry["subject_model"]), ("m", "s-id"))
+
+    # The k runs of a case on one arm run at the same time, and the report
+    # is the one a serial run of the same results gives.
+
+    def two_cases(self):
+        self.write_own("eks-recon", [{"id": 1, "prompt": "p", "expectations": ["e"]},
+                                     {"id": 2, "prompt": "q", "expectations": ["e"]}])
+        self.graded = []
+
+    def grader(self, **kw):
+        run = kw["run_dir"]
+        self.graded.append(run)
+        if run.parts[-3:] == ("eval-2", "with_skill", "run-3"):
+            return {"error": "grader produced no grading.json"}
+        return self.fake_grader(**kw)
+
+    def run_with(self, subject=None, serial=False):
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(
+                run_task_evals, "run_subject", side_effect=subject or self.fake_subject))
+            stack.enter_context(mock.patch.object(
+                run_task_evals, "run_grader", side_effect=self.grader))
+            if serial:
+                stack.enter_context(mock.patch.object(
+                    run_task_evals, "_side_by_side", lambda fn, items: [fn(i) for i in items]))
+            return self.run_it("eks-recon", runs=3)
+
+    def test_runs_overlap(self):
+        self.two_cases()
+        lock, live, peak = threading.Lock(), [0], [0]
+        barrier = threading.Barrier(3, timeout=10)  # a serial loop never passes it
+
+        def side_by_side(fn):
+            def call(**kw):
+                with lock:
+                    live[0] += 1
+                    peak[0] = max(peak[0], live[0])
+                try:
+                    barrier.wait()
+                    return fn(**kw)
+                finally:
+                    with lock:
+                        live[0] -= 1
+            return call
+
+        self.grader = side_by_side(self.grader)
+        self.run_with(subject=side_by_side(self.fake_subject))
+        self.assertEqual(peak[0], 3, "three runs at once, one arm at a time")
+        self.assertEqual(len(self.calls), 12)
+
+    def test_report_equals_a_serial_run_of_the_same_results(self):
+        self.two_cases()
+        self.subject_fails = {(1, "with_skill", "run-2")}
+        self.fail_case = {(2, "without_skill")}
+
+        def run_1_ends_last(**kw):
+            time.sleep({"run-1": 0.3, "run-2": 0.1}.get(kw["run_dir"].name, 0))
+            return self.fake_subject(**kw)
+
+        reports = []
+        for serial in (False, True):
+            out = self.run_with(subject=run_1_ends_last, serial=serial)
+            runs_dir = Path(out["runs_dir"])
+            entry = dict(out["history_entry"])
+            entry.pop("ts")
+            files = {str(f.relative_to(runs_dir)): f.read_text()
+                     for f in sorted(runs_dir.glob("eval-*/*/run-*/*.json"))}
+            reports.append((entry, (runs_dir / "cases.json").read_text(), files))
+            shutil.rmtree(runs_dir)
+        self.assertEqual(reports[0], reports[1])
+        by_id = {c["eval_id"]: c for c in reports[0][0]["cases"]}
+        self.assertEqual(by_id[1]["arms"]["with_skill"]["passes"], 2)
+        self.assertEqual(by_id[2]["arms"]["with_skill"]["passes"], 2)
+
+    def test_one_failed_run_is_recorded_without_losing_the_others(self):
+        self.two_cases()
+        self.subject_fails = {(1, "with_skill", "run-2")}
+        out = self.run_with()
+        case = {c["eval_id"]: c for c in out["history_entry"]["cases"]}[1]
+        arm = case["arms"]["with_skill"]
+        self.assertEqual((arm["runs"], arm["valid_runs"], arm["passes"]), (3, 2, 2))
+        self.assertEqual(arm["invalid_reasons"], ["subject exited 1"])
+        self.assertEqual(arm["tokens_per_run"], [100, 100, 100])
+        self.assertTrue(case["pass"])
+        run_2 = Path(out["runs_dir"]) / "eval-1" / "with_skill" / "run-2"
+        self.assertTrue(json.loads((run_2 / "grading.json").read_text())["invalid_run"])
+        self.assertNotIn(run_2, self.graded)
+        self.assertEqual(len(self.graded), 11)
+
+    def test_an_error_in_one_run_is_raised_after_the_others_end(self):
+        self.two_cases()
+        ended = []
+
+        def subject(**kw):
+            if kw["run_dir"].name == "run-1":
+                raise run_triggering.EvalCredentialError("refresh failed")
+            time.sleep(0.2)
+            ended.append(kw["run_dir"].name)
+            return self.fake_subject(**kw)
+
+        with self.assertRaisesRegex(run_triggering.EvalCredentialError, "refresh failed"):
+            self.run_with(subject=subject)
+        self.assertEqual(sorted(ended), ["run-2", "run-3"])
+        self.assertEqual(self.graded, [])
+
+
+class SharedStateSideBySide(unittest.TestCase):
+    def test_multiturn_runs_side_by_side_read_their_own_exit_codes(self):
+        barrier = threading.Barrier(2, timeout=10)
+        got = {}
+
+        def run(code):
+            with run_task_evals._recording_popen() as procs:
+                barrier.wait()
+                elicitation.subprocess.Popen(
+                    [sys.executable, "-c", f"raise SystemExit({code})"]).wait()
+                barrier.wait()
+                got[code] = [proc.returncode for proc in procs]
+
+        run_task_evals._side_by_side(run, [3, 5])
+        self.assertEqual(got, {3: [3], 5: [5]})
+        self.assertIs(elicitation.subprocess, subprocess)
+
+    def test_one_eval_role_refresh_at_a_time(self):
+        lock, live, peak = threading.Lock(), [0], [0]
+
+        def env(timeout):
+            with lock:
+                live[0] += 1
+                peak[0] = max(peak[0], live[0])
+            time.sleep(0.05)
+            with lock:
+                live[0] -= 1
+            return {"AWS_REGION": "r"}
+
+        with mock.patch.object(run_task_evals, "eval_aws_env", side_effect=env):
+            out = run_task_evals._side_by_side(run_task_evals._eval_env, [600, 600, 600])
+        self.assertEqual(out, [{"AWS_REGION": "r"}] * 3)
+        self.assertEqual(peak[0], 1)
+
+
+class ChangedKeyWithNoRunnableCase(unittest.TestCase):
+    """`--list-targets --changed-since`: a changed key with no runnable case
+    is named as not gated, so gate-changed never reads it as gated."""
+
+    def test_it_is_named_and_not_listed(self):
+        def target(key):
+            return {"run_key": key, "skill_rel": f"skills/{key}", "classes": [], "refused": None,
+                    "own_eval_dir": None, "blocking": None}
+
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(run_task_evals, "discover_skills", return_value=["ecs-x", "eks-y"]), \
+                mock.patch.object(run_task_evals, "CLASS_TARGETS", []), \
+                mock.patch.object(run_task_evals, "REFUSED_TARGETS", {}), \
+                mock.patch.object(run_task_evals, "resolve_target", side_effect=target), \
+                mock.patch.object(run_task_evals, "target_cases",
+                                  side_effect=lambda t, live: [] if t["run_key"] == "ecs-x" else [{}]), \
+                mock.patch.object(run_task_evals, "changed_paths",
+                                  return_value=["skills/ecs-x/SKILL.md", "skills/eks-y/SKILL.md"]), \
+                mock.patch.object(sys, "argv", ["run_task_evals.py", "--list-targets",
+                                                "--changed-since", "abc"]), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(run_task_evals.main(), 0)
+        self.assertEqual([json.loads(l)["run_key"] for l in out.getvalue().splitlines()], ["eks-y"])
+        self.assertIn("[gate] ecs-x changed but has no runnable case: not gated", err.getvalue())
+
+    def test_a_changed_skill_with_no_run_key_is_named(self):
+        """skills/terraform-skill has no misc/evals folder and no class target:
+        a change to it printed nothing and gate-changed read nothing gated."""
+        def target(key):
+            return {"run_key": key, "skill_rel": f"skills/{key}", "classes": [], "refused": None,
+                    "own_eval_dir": None, "blocking": None}
+
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(run_task_evals, "discover_skills", return_value=["eks-y"]), \
+                mock.patch.object(run_task_evals, "CLASS_TARGETS", []), \
+                mock.patch.object(run_task_evals, "REFUSED_TARGETS", {}), \
+                mock.patch.object(run_task_evals, "resolve_target", side_effect=target), \
+                mock.patch.object(run_task_evals, "target_cases", return_value=[{}]), \
+                mock.patch.object(run_task_evals, "changed_paths",
+                                  return_value=["skills/terraform-skill/SKILL.md",
+                                                "skills/terraform-skill/references/a.md",
+                                                "skills/eks-y/SKILL.md", "skills/README.md"]), \
+                mock.patch.object(sys, "argv", ["run_task_evals.py", "--list-targets",
+                                                "--changed-since", "abc"]), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(run_task_evals.main(), 0)
+        self.assertEqual([json.loads(l)["run_key"] for l in out.getvalue().splitlines()], ["eks-y"])
+        self.assertEqual(err.getvalue().splitlines(),
+                         ["[gate] skills/terraform-skill changed but has no run key: not gated"])
+
+
+class ChangedSince(unittest.TestCase):
+    """The gate-changed selection, on a temporary git repo
+    (REPO_ROOT and EVALS_ROOT point at it)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="evals-changed-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.repo = self.tmp / "repo"
+        for rel in ("skills/a/SKILL.md", "skills/b/SKILL.md", "misc/evals/c/evals.json",
+                    "classes/service-eks/evals/live-cluster/evals.json", "README.md",
+                    "misc/evals/scripts/regression.py"):
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text("v1\n")
+        self.git("init", "-q")
+        self.base = self.commit("base", "skills", "misc", "classes", "README.md")
+        for p in (mock.patch.object(run_task_evals, "REPO_ROOT", self.repo),
+                  mock.patch.object(run_task_evals, "EVALS_ROOT", self.repo / "misc" / "evals")):
+            p.start()
+            self.addCleanup(p.stop)
+        self.targets = [
+            {"run_key": "a", "skill_rel": "skills/a", "classes": []},
+            {"run_key": "b", "skill_rel": "skills/b", "classes": []},
+            {"run_key": "c", "skill_rel": "skills/c", "classes": []},
+            {"run_key": "devops-agent-d", "skill_rel": "devops-agent/d", "classes": ["service-eks"]},
+        ]
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=t",
+                               "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                              capture_output=True, text=True, check=True).stdout.strip()
+
+    def commit(self, msg, *paths):
+        self.git("add", "--", *paths)
+        self.git("commit", "-q", "-m", msg)
+        return self.git("rev-parse", "HEAD")
+
+    def selected(self):
+        paths = run_task_evals.changed_paths(self.base)
+        return [t["run_key"] for t in self.targets if run_task_evals.target_changed(t, paths)]
+
+    def test_only_the_changed_skill_is_selected(self):
+        (self.repo / "skills/a/SKILL.md").write_text("v2\n")
+        self.commit("a", "skills/a/SKILL.md")
+        self.assertEqual(self.selected(), ["a"])
+
+    def test_an_eval_folder_or_a_class_evals_change_selects_its_targets(self):
+        (self.repo / "misc/evals/c/evals.json").write_text("v2\n")
+        (self.repo / "classes/service-eks/evals/live-cluster/evals.json").write_text("v2\n")
+        self.commit("c and class", "misc/evals/c/evals.json", "classes")
+        self.assertEqual(self.selected(), ["c", "devops-agent-d"])
+
+    def test_a_gate_script_change_selects_every_target(self):
+        (self.repo / "misc/evals/scripts/regression.py").write_text("v2\n")
+        self.commit("gate", "misc/evals/scripts/regression.py")
+        self.assertEqual(self.selected(), ["a", "b", "c", "devops-agent-d"])
+
+    def test_a_class_reader_or_skill_creator_script_change_selects_every_target(self):
+        """Each of these gated 0 of the keys before."""
+        for rel in ("classes/steward/scripts/run_checks.py", "misc/safe_frontmatter.py",
+                    "skills/skill-creator/scripts/aggregate_benchmark.py"):
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text("v2\n")
+            head = self.commit(rel, rel)
+            self.assertEqual(self.selected(), ["a", "b", "c", "devops-agent-d"], rel)
+            self.base = head
+
+    def test_a_class_yaml_change_selects_that_class_targets(self):
+        (self.repo / "classes/service-eks/class.yaml").write_text("name: service-eks\n")
+        self.commit("class.yaml", "classes/service-eks/class.yaml")
+        self.assertEqual(self.selected(), ["devops-agent-d"])
+
+    def test_an_unrelated_change_selects_nothing(self):
+        (self.repo / "README.md").write_text("v2\n")
+        (self.repo / "skills/ab").mkdir()
+        (self.repo / "skills/ab/SKILL.md").write_text("v1\n")  # a prefix of no target folder
+        self.commit("other", "README.md", "skills/ab/SKILL.md")
+        self.assertEqual(self.selected(), [])
+
+    def test_a_base_naming_no_commit_is_refused(self):
+        with self.assertRaisesRegex(run_task_evals.BaseRefError, "--changed-since"):
+            run_task_evals.changed_paths("no-such-ref")
+        out = self.tmp / "written"
+        with self.assertRaisesRegex(run_task_evals.BaseRefError, "is not a ref"):
+            run_task_evals.changed_paths(f"--output={out}")  # never read as a git diff option
+        self.assertFalse(out.exists())
+
+    def test_changed_since_needs_list_targets(self):
+        with mock.patch.object(sys, "argv", ["run_task_evals.py", "--changed-since", self.base]), \
+                contextlib.redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit) as e:
+            run_task_evals.main()
+        self.assertEqual(e.exception.code, 2)
+        self.assertIn("--changed-since needs --list-targets", err.getvalue())
 
 
 class BaseRef(unittest.TestCase):
@@ -2155,21 +2940,37 @@ class TargetsAndCases(Tmp):
 
     def test_list_targets_keeps_only_keys_with_a_runnable_case(self):
         keys, err = self.list_targets()
-        self.assertIn("devops-agent-eks-security", keys)
+        self.assertIn("ecs-recon", keys)
         self.assertNotIn("setup", keys)
         self.assertIn("setup: no runnable case", err)
-        # With no shared class cases, a copy with no suite of its own has no
+        # With no shared class cases, a target with no suite of its own has no
         # case, and a key whose own cases are all live-only lists only with
         # --include-live-only.
         with mock.patch.object(run_task_evals, "CLASSES_ROOT", self.tmp / "no-classes"):
             keys, err = self.list_targets()
             self.assertIn("eks-recon", keys)
-            self.assertNotIn("devops-agent-eks-security", keys)
-            self.assertIn("devops-agent-eks-security: no runnable case", err)
+            self.assertNotIn("ecs-recon", keys)
+            self.assertIn("ecs-recon: no runnable case", err)
             self.assertNotIn("eks-operation-review", keys)
             keys, _ = self.list_targets("--include-live-only")
             self.assertIn("eks-operation-review", keys)
             self.assertNotIn("setup", keys)
+
+    def test_a_refused_target_is_listed_and_its_run_fails(self):
+        """The refused key is listed (so the gate runs it) and its
+        run fails with the reason; every other key still lists."""
+        with mock.patch.dict(run_task_evals.CLASS_TARGETS_REFUSED, {"devops-agent/bad": "bad: refused"}), \
+                mock.patch.dict(run_task_evals.REFUSED_TARGETS, {"devops-agent-bad": "devops-agent/bad"}):
+            keys, _ = self.list_targets()
+            t = run_task_evals.resolve_target("devops-agent-bad")
+            got = run_task_evals.run_skill("devops-agent-bad", model="m", runs=3,
+                                           include_live_only=False, subject_timeout=None,
+                                           grader_timeout=1, extra_env=None)
+        self.assertIn("devops-agent-bad", keys)
+        self.assertIn("eks-recon", keys)
+        self.assertEqual((t["skill_rel"], t["refused"]), ("devops-agent/bad", "bad: refused"))
+        self.assertEqual(got, {"skill": "devops-agent-bad", "error": "bad: refused"})
+        self.assertIsNone(run_task_evals.resolve_target("eks-recon")["refused"])
 
     def test_subject_model_flag_overrides_the_harness_default(self):
         captured = {}
@@ -2280,18 +3081,26 @@ class GateTmp(unittest.TestCase):
         self.env = mock.patch.dict(os.environ, {}, clear=False)
         self.env.start()
         os.environ.pop("GITHUB_STEP_SUMMARY", None)
+        # a report with no runs dir goes under EVALS_ROOT: never the real tree
+        self.root = mock.patch.object(regression, "EVALS_ROOT", self.tmp / "evals")
+        self.root.start()
 
     def tearDown(self):
+        self.root.stop()
         self.env.stop()
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def gate(self, outcome_or_text, key="eks-recon", threshold=5.0):
+    def gate(self, outcome_or_text, key="eks-recon", threshold=5.0, trigger=None):
         path = self.tmp / "task.json"
         path.write_text(outcome_or_text if isinstance(outcome_or_text, str)
                         else json.dumps(outcome_or_text))
+        tpath = None
+        if trigger is not None:
+            tpath = self.tmp / "trigger.json"
+            tpath.write_text(json.dumps(trigger))
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            rc = regression.run_gate(key, path, threshold)
+            rc = regression.run_gate(key, path, threshold, tpath)
         return rc, out.getvalue(), err.getvalue()
 
     def outcome(self, entry, key="eks-recon"):
@@ -2364,9 +3173,9 @@ class GatePerCase(GateTmp):
     def test_report_only_target_lists_shared_fails_without_blocking(self):
         shared = gate_case(9001, 0, 3, source="class:apex-base/read-only")
         rc, out, _ = self.gate(self.outcome(gate_entry([shared], blocking=False,
-                                                       key="devops-agent-eks-ingress-migration"),
-                                            key="devops-agent-eks-ingress-migration"),
-                               key="devops-agent-eks-ingress-migration")
+                                                       key="ecs-recon"),
+                                            key="ecs-recon"),
+                               key="ecs-recon")
         self.assertEqual((rc, json.loads(out)["status"]), (0, "WARNING"))
         self.assertEqual(json.loads(out)["report_only_failures"], [9001])
         # The same target's own case still blocks, and a blocking target's shared case blocks.
@@ -2415,6 +3224,180 @@ class GatePerCase(GateTmp):
         self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])))
         self.assertIn("# Eval Gate Report: eks-recon", summary.read_text())
 
+
+def trigger_rows(queries):
+    """results[] rows scored by the runner's own score_case from three runs:
+    (should_trigger, triggers, source), or (should_trigger, triggers, source,
+    invalid) with `invalid` of the runs invalid (the last ones)."""
+    rows = []
+    for i, q in enumerate(queries, 1):
+        should, hits, source = q[:3]
+        invalid = q[3] if len(q) > 3 else 0
+        records = [rec(triggered=j < hits) for j in range(3 - invalid)]
+        records += [dict(rec(), invalid=True, invalid_reason="no system/init event")
+                    for _ in range(invalid)]
+        rows.append(run_triggering.score_case(
+            {"query": f"query {i}", "should_trigger": should, "source": source}, records, 0.5))
+    return rows
+
+
+def trigger_result(queries, *, blocking=None, key="eks-recon", base="same"):
+    """A `run_triggering.py --run-key` result. `base`: "same" runs the base
+    arm on the same rows, a list gives its own rows, None the note a skill
+    new at the base ref gets, "absent" no "base" at all."""
+    results = trigger_rows(queries)
+    out = {"run_key": key, "harness": "claude", "runs_per_query": 3, "results": results,
+           "classes": [], "blocking": blocking}
+    if base == "absent":
+        return out
+    out["base"] = {"base_ref": "v1.3.0", "base_ref_sha": "b" * 40, "arm": None,
+                   "note": f"skills/{key} does not exist at v1.3.0: no base arm"}
+    if base is not None:
+        out["base"].update(arm="base_skill", note=None,
+                           results=trigger_rows(queries) if base == "same" else trigger_rows(base))
+        out["base"].pop("note")
+    return out
+
+
+class GateTriggeringAndMergeLine(GateTmp):
+    """A trigger query that fails on with_skill blocks, and the triggering
+    base arm is read; the report says when the merge line is held."""
+
+    def report(self):
+        return (self.tmp / "ws" / "gate-report.md").read_text()
+
+    def test_a_should_trigger_query_at_0_of_3_exits_2(self):
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])),
+                               trigger=trigger_result([(True, 0, "member"), (False, 0, "member")]))
+        self.assertEqual(rc, 2)
+        self.assertEqual(json.loads(out)["reasons"],
+                         ["trigger query 1 failed (0/3 triggered, trigger rate below threshold)"])
+        report = self.report()
+        self.assertIn("**Merge line:** " + regression.MERGE_HELD, report)
+        self.assertIn("| 1 | query 1 | member | yes | 0/3 | 0/3 | yes | FAIL, trigger rate below threshold |",
+                      report)
+
+    def test_all_queries_passing_exits_0(self):
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])),
+                               trigger=trigger_result([(True, 3, "member"), (False, 0, "member")]))
+        self.assertEqual((rc, json.loads(out)["status"]), (0, "PASS"))
+        self.assertIn("**Merge line:** " + regression.MERGE_NOT_HELD, self.report())
+        self.assertIn("| 2 | query 2 | member | no | 0/3 | 0/3 | yes | pass |", self.report())
+
+    def test_a_shared_query_on_a_report_only_target_warns(self):
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])),
+                               trigger=trigger_result([(True, 0, "class:apex-base")], blocking=False))
+        self.assertEqual((rc, json.loads(out)["status"]), (0, "WARNING"))
+        self.assertIn("fail (report-only)", self.report())
+
+    def test_a_key_with_no_trigger_case_is_named_and_scores_its_cases(self):
+        skipped = {"run_key": "eks-recon", "skipped": "no trigger case"}
+        rc, _, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=skipped)
+        self.assertEqual(rc, 0)
+        self.assertIn("Not run: no trigger case.", self.report())
+        rc, _, _ = self.gate(self.outcome(gate_entry([gate_case(1, 0, 0)])), trigger=skipped)
+        self.assertEqual(rc, 2)
+
+    def test_a_trigger_result_that_cannot_be_scored_exits_1_and_holds(self):
+        short = trigger_result([(True, 3, "member")])
+        short["results"][0]["attempted_runs"] = 2
+        short_base = trigger_result([(True, 3, "member")])
+        short_base["base"]["results"][0]["attempted_runs"] = 2
+        other_base = trigger_result([(True, 3, "member")])
+        other_base["base"]["results"][0]["query"] = "another query"
+        for trig, why in ((short, "with_skill trigger query 1 ran 2"),
+                          (short_base, "base_skill trigger query 1 ran 2"),
+                          (other_base, "ran other queries than with_skill"),
+                          (trigger_result([(True, 3, "member")], base="absent"), "has no base arm"),
+                          (dict(trigger_result([(True, 3, "member")]), run_key="other"),
+                           "no triggering result for eks-recon"),
+                          (dict(trigger_result([]), results=[]), "holds no with_skill query")):
+            with self.subTest(why=why):
+                rc, out, err = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+                self.assertEqual((rc, out), (1, ""))
+                self.assertIn(why, err)
+                self.assertIn("**Merge line:** " + regression.MERGE_HELD, self.report())
+
+    def test_a_base_query_with_fewer_than_three_valid_runs_exits_1(self):
+        """An invalid base run scored as 0 inflated the delta: an all-invalid
+        base arm turned -33.3pp into +66.7pp and passed."""
+        for base, why in (([(True, 0, "member", 3), (False, 0, "member", 3)],
+                           "base_skill trigger query 1 ('query 1') had 0 of 3 runs valid"),
+                          ([(True, 3, "member"), (False, 0, "member", 3)],
+                           "base_skill trigger query 2 ('query 2') had 0 of 3 runs valid"),
+                          ([(True, 3, "member", 1), (False, 0, "member")],
+                           "base_skill trigger query 1 ('query 1') had 2 of 3 runs valid")):
+            with self.subTest(why=why):
+                trig = trigger_result([(True, 2, "member"), (False, 1, "member")], base=base)
+                rc, out, err = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+                self.assertEqual((rc, out), (1, ""))
+                self.assertIn(why, err)
+                self.assertIn("**Merge line:** " + regression.MERGE_HELD, self.report())
+
+    def test_a_query_decided_on_fewer_than_three_valid_runs_fails(self):
+        """1 valid run of 3 that triggered: the runner passes it, the gate does not."""
+        trig = trigger_result([(True, 1, "member", 2), (False, 0, "member")],
+                              base=[(True, 3, "member"), (False, 0, "member")])
+        self.assertTrue(trig["results"][0]["pass"])
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual(rc, 2)
+        self.assertEqual(json.loads(out)["reasons"],
+                         ["trigger query 1 failed (1/1 triggered, 1 of 3 runs valid) (base_skill passed it)"])
+        trig = trigger_result([(True, 3, "member"), (False, 0, "member")])
+        rc, _, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual(rc, 0)
+
+    def test_triggering_old_against_new_blocks_a_drop_past_the_threshold(self):
+        """Both arms pass every query, but with_skill triggers as expected in
+        fewer runs than the skill at the base ref: 4/6 against 6/6 is -33.3pp."""
+        trig = trigger_result([(True, 2, "member"), (False, 1, "member")],
+                              base=[(True, 3, "member"), (False, 0, "member")])
+        self.assertTrue(all(r["pass"] for r in trig["results"]))
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual(rc, 2)
+        result = json.loads(out)
+        self.assertEqual(result["triggering"]["delta_pp"], -33.3)
+        self.assertEqual(result["reasons"],
+                         ["triggering as expected -33.3pp against base_skill, threshold is 5.0pp"])
+        report = self.report()
+        self.assertIn("with_skill against base_skill (the skill at v1.3.0, bbbbbbbbbbbb)", report)
+        self.assertIn("| 1 | query 1 | member | yes | 2/3 | 3/3 | yes | pass |", report)
+        # the same drop on a report-only target's shared queries warns only
+        trig = trigger_result([(True, 2, "class:apex-base")], blocking=False,
+                              base=[(True, 3, "class:apex-base")])
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual((rc, json.loads(out)["status"]), (0, "WARNING"))
+
+    def test_a_query_that_regressed_from_the_base_arm_names_it(self):
+        trig = trigger_result([(True, 0, "member")], base=[(True, 3, "member")])
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual(rc, 2)
+        self.assertIn("trigger query 1 failed (0/3 triggered, trigger rate below threshold) "
+                      "(base_skill passed it)", json.loads(out)["reasons"])
+
+    def test_a_skill_new_at_the_base_ref_is_scored_on_with_skill_alone(self):
+        trig = trigger_result([(True, 3, "member")], base=None)
+        rc, out, _ = self.gate(self.outcome(gate_entry([gate_case(1, 3, 3)])), trigger=trig)
+        self.assertEqual((rc, json.loads(out)["triggering"]["delta_pp"]), (0, None))
+        self.assertIn("with_skill only: skills/eks-recon does not exist at v1.3.0", self.report())
+
+    def test_no_task_result_writes_a_held_report_over_a_stale_one(self):
+        ws = self.tmp / "evals" / "eks-recon" / "workspace"
+        ws.mkdir(parents=True)
+        (self.tmp / "evals" / "eks-recon" / "evals.json").write_text("{}")
+        (ws / "gate-report.md").write_text("**Status:** PASS (stale)")
+        rc, _, _ = self.gate("not json")
+        self.assertEqual(rc, 1)
+        held = (ws / "gate-report.md").read_text()
+        self.assertNotIn("stale", held)
+        self.assertIn("**Merge line:** " + regression.MERGE_HELD, held)
+
+    def test_the_three_runs_of_a_case_side_by_side(self):
+        case = gate_case(1, 2, 1)  # with_skill runs 1 and 2 pass; base run 1
+        rc, _, _ = self.gate(self.outcome(gate_entry([case])))
+        self.assertEqual(rc, 0)
+        self.assertIn("| 2/3 | 1/3 | yes | no |", self.report())
+
 class RegressionBaseArm(unittest.TestCase):
     """regression.py reads the base arm the runner names, so a
     base_skill run's benchmark (no without_skill arm) is not a KeyError."""
@@ -2423,11 +3406,13 @@ class RegressionBaseArm(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp(prefix="evals-regr-"))
         self.latest = self.tmp / "eks-recon" / "workspace" / "latest"
         self.latest.mkdir(parents=True)
-        self.root = mock.patch.object(regression, "EVALS_ROOT", self.tmp)
-        self.root.start()
+        self.roots = [mock.patch.object(m, "EVALS_ROOT", self.tmp) for m in (regression, snapshot)]
+        for p in self.roots:
+            p.start()
 
     def tearDown(self):
-        self.root.stop()
+        for p in self.roots:
+            p.stop()
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def bench(self, arms):
@@ -2451,6 +3436,26 @@ class RegressionBaseArm(unittest.TestCase):
         self.bench({"with_skill": 0.9, "without_skill": 0.5})
         task = regression.gather_from_workspace("eks-recon", 3)["task"]
         self.assertEqual((task["with_skill_mean"], task["without_skill_mean"]), (0.9, 0.5))
+
+    def test_a_class_target_reads_its_own_workspace_and_baseline(self):
+        """A class target (no misc/evals/<key>/) is read where
+        run_task_evals runs it and snapshot.py writes its baseline."""
+        ws = self.tmp / "workspace" / "devops-agent-eks-recon" / "workspace"
+        (ws / "latest").mkdir(parents=True)
+        rs = {a: {"pass_rate": {"mean": m, "stddev": 0.1}} for a, m in
+              (("with_skill", 0.8), ("without_skill", 0.4))}
+        (ws / "latest" / "benchmark.json").write_text(json.dumps({"run_summary": rs}))
+        (ws / "runs" / "t1").mkdir(parents=True)
+        (ws / "runs" / "t1" / "metrics.json").write_text(json.dumps(
+            {"overall": {"accuracy": 0.75}, "positive": {"passed": 1, "total": 2},
+             "negative": {"passed": 2, "total": 2}}))
+        (ws.parent / "baselines").mkdir()
+        (ws.parent / "baselines" / "baseline.json").write_text(json.dumps({"version": 2, "skill": "x"}))
+        with mock.patch.object(run_task_evals, "TARGETS_WORKSPACE", self.tmp / "workspace"):
+            got = regression.gather_from_workspace("devops-agent-eks-recon", 3)
+            baseline = regression.load_baseline("devops-agent-eks-recon")
+        self.assertEqual((got["task"]["with_skill_mean"], got["triggering"]["accuracy"]), (0.8, 0.75))
+        self.assertEqual(baseline, {"version": 2, "skill": "x"})
 
     def test_history_base_arm(self):
         hist = self.tmp / "history"
@@ -2572,10 +3577,19 @@ class EvalManifest(unittest.TestCase):
         (self.tmp / "history" / "eks-recon.jsonl").write_text(json.dumps(entry) + "\n" + '{"kind": "ta')
         with contextlib.redirect_stderr(io.StringIO()) as err:
             self.assertEqual(self.gem.tokens_per_run("eks-recon"), 200)
-        self.assertIn("skipping a line that is not JSON", err.getvalue())
+        self.assertIn("skipping a line that is not a JSON object", err.getvalue())
         entry["skill_summary"]["arms"]["with_skill"]["tokens_per_run_mean"] = None
         (self.tmp / "history" / "eks-recon.jsonl").write_text(json.dumps(entry) + "\n")
         self.assertIsNone(self.gem.tokens_per_run("eks-recon"))
+
+    def test_a_line_that_is_not_an_object_is_skipped(self):
+        """A JSON list, string or number line tracebacked at row.get."""
+        entry = gate_entry([gate_case(1, 3, 3)])
+        (self.tmp / "history" / "eks-recon.jsonl").write_text(
+            json.dumps(entry) + "\n[1, 2]\n\"task\"\n7\nnull\n")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(self.gem.tokens_per_run("eks-recon"), 200)
+        self.assertEqual(err.getvalue().count("skipping a line that is not a JSON object"), 4)
 
     def test_check_both_ways_and_writes_nothing(self):
         code, err = self.main("--check")
@@ -2595,12 +3609,35 @@ class EvalManifest(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("make"), "make not installed")
 class GateMakefile(unittest.TestCase):
-    """The gate and task Makefile targets, by `make -n` (prints the commands, runs none)."""
+    """The gate and task Makefile targets, by `make -n` (prints the commands, runs none).
+    A real run (dry_run=False) gets EVALS_ROOT on the make command line, which
+    beats the Makefile's own `EVALS_ROOT := $(CURDIR)` (the environment form
+    does not), so no script under the real tree can start, and a scratch HOME,
+    so no ~/.apex-eval is read."""
 
-    def make(self, *args, dry_run=True):
+    FENCE = "/nonexistent-p307"
+
+    def make(self, *args, dry_run=True, env=None):
+        home = tempfile.mkdtemp(prefix="p307-home-")
+        self.addCleanup(shutil.rmtree, home, True)
+        fence = [] if dry_run else ["EVALS_ROOT=" + self.FENCE]
         return subprocess.run(["make"] + (["-n"] if dry_run else []) + ["--no-print-directory", "-C",
-                               os.path.join(MISC_DIR, "evals"), *args],
-                              capture_output=True, text=True, timeout=60)
+                               os.path.join(MISC_DIR, "evals"), *args, *fence],
+                              capture_output=True, text=True, timeout=60,
+                              env={**os.environ, **(env or {}), "HOME": home})
+
+    def test_a_real_run_is_fenced_on_the_command_line(self):
+        r = self.make("gate-stages", "GATE_STAGES=echo root=$(EVALS_ROOT) home=$$HOME", dry_run=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("root=" + self.FENCE + " home=" + tempfile.gettempdir(), r.stdout)
+
+    def test_evals_root_in_the_environment_alone_does_not_fence(self):
+        real = os.path.join(MISC_DIR, "evals", "scripts", "run_task_evals.py")
+        r = self.make("gate", "SKILL=eks-recon", env={"EVALS_ROOT": self.FENCE})
+        self.assertIn(real, r.stdout)  # the env value is ignored: the real tree
+        r = self.make("gate", "SKILL=eks-recon", "EVALS_ROOT=" + self.FENCE)
+        self.assertNotIn(real, r.stdout)
+        self.assertIn(self.FENCE + "/scripts/run_task_evals.py", r.stdout)
 
     def test_gate_runs_stages_then_runner_then_gate(self):
         r = self.make("gate", "SKILL=eks-recon", "GATE_STAGES=echo stage-one; echo stage-two")
@@ -2608,11 +3645,39 @@ class GateMakefile(unittest.TestCase):
         out = r.stdout
         marks = ["set -e; echo stage-one; echo stage-two",
                  "run_task_evals.py --skill eks-recon --harness claude",
+                 "run_triggering.py --run-key eks-recon --harness claude",
                  "regression.py --gate --skill eks-recon --task-result"]
         self.assertEqual([out.index(m) for m in marks], sorted(out.index(m) for m in marks))
-        self.assertNotIn("--runs", out)
+        self.assertIn('${targ:+"$targ" "$tout"}', out)  # triggering is scored when it ran
+        self.assertIn("[ $rc -ne 0 ] || { python3", out)  # only after the task runner exits 0
+        self.assertNotIn("--runs ", out)
         self.assertNotIn("--base-ref", out)  # empty BASE_REF: the runner's own default
         self.assertIn("no stage wired", self.make("gate-stages").stdout)
+
+    # The stage order the gate's design gives, as GATE_STAGES is to be wired: class admission checks,
+    # schema validation, link check, size check, then evals.
+    STAGE_ORDER = ["python3 -B classes/steward/scripts/run_checks.py",
+                   "python3 misc/evals/scripts/check_hygiene.py",
+                   "python3 classes/apex-base/checks/ab-link.py skills/eks-recon",
+                   "python3 classes/apex-base/checks/ab-size.py skills/eks-recon"]
+
+    def test_gate_stages_run_in_order_and_a_failing_stage_stops_the_gate(self):
+        for target in ("gate", "gate-changed"):
+            r = self.make(target, "SKILL=eks-recon", "BASE=abc", "GATE_STAGES=" + "; ".join(self.STAGE_ORDER))
+            self.assertEqual(r.returncode, 0, r.stderr)
+            marks = self.STAGE_ORDER + ["run_task_evals.py"]
+            at = [r.stdout.index(m) for m in marks]
+            self.assertEqual(at, sorted(at), target)
+            self.assertIn("set -e; " + self.STAGE_ORDER[0], r.stdout, target)
+        # A real run: the second stage exits 1, so the third and the runner never start.
+        # make() fences EVALS_ROOT, so a broken stop could not start a real runner.
+        r = self.make("gate", "SKILL=eks-recon",
+                      "GATE_STAGES=echo stage-admission; false; echo stage-link", dry_run=False)
+        self.assertEqual(r.returncode, 2)
+        lines = r.stdout.splitlines()
+        self.assertIn("stage-admission", lines)
+        self.assertNotIn("stage-link", lines)
+        self.assertNotIn("run_task_evals.py", r.stdout)
 
     def test_overrides_and_subject_model_per_harness(self):
         r = self.make("gate", "SKILL=eks-recon", "RUNS_PER_PROMPT=3", "HARNESS=codex", "BASE_REF=v1.2.0")
@@ -2629,7 +3694,7 @@ class GateMakefile(unittest.TestCase):
         self.assertEqual(r.returncode, 2)  # make's own exit for a failed recipe
         self.assertEqual(r.stdout.strip().splitlines(),
                          ["usage: make gate SKILL=<run key> [HARNESS=claude|kiro|codex] "
-                          "[BASE_REF=<ref>] [RUNS_PER_PROMPT=<n>]"])
+                          "[BASE_REF=<ref>] [RUNS_PER_PROMPT=3]"])
         for target in ("gate", "snapshot", "regression", "composite", "init-evals-finalize"):
             r = self.make(target, "SKILL=x; echo INJECTED; #", dry_run=False)
             self.assertEqual(r.returncode, 2, target)
@@ -2643,6 +3708,49 @@ class GateMakefile(unittest.TestCase):
         r = self.make("triggering-eks-recon", "HARNESS=codex")
         self.assertIn("--harness codex", r.stdout)
         self.assertIn("--subject-model m2", self.make("triggering-eks-recon", "SUBJECT_MODEL=m2").stdout)
+        self.assertIn("--base-ref v1.2.0", self.make("triggering-eks-recon", "BASE_REF=v1.2.0").stdout)
+
+    def test_task_takes_harness_and_subject_model(self):
+        """Check fix: at d536a756 task-<skill> passed neither."""
+        r = self.make("task-eks-recon", "HARNESS=codex", "SUBJECT_MODEL=m2")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("--harness codex", r.stdout)
+        self.assertIn("--subject-model m2", r.stdout)
+        self.assertIn("--model global.anthropic.claude-opus-4-6-v1", r.stdout)  # the grader
+        r = self.make("task-eks-recon")
+        self.assertIn("--harness claude", r.stdout)
+        self.assertNotIn("--subject-model", r.stdout)
+
+    def test_gate_changed_lists_the_changed_keys_and_gates_each(self):
+        r = self.make("gate-changed", "BASE=" + "a" * 40, "HARNESS=codex")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(r.stdout, r'run_task_evals\.py --list-targets +--changed-since "\$BASE" +\| python3 -c')
+        self.assertIn("regression.py --gate --skill $k", r.stdout)
+        self.assertIn("run_task_evals.py --skill $k --harness codex", r.stdout)
+        self.assertIn('no run key with a runnable case changed since $BASE: nothing gated"; exit 0;',
+                      r.stdout)
+        self.assertIn("--list-targets --include-live-only --changed-since",
+                      self.make("gate-changed", "BASE=abc", "INCLUDE_LIVE_ONLY=1").stdout)
+        # each key's old arm is the skill at the PR's base; gate keeps the runner default
+        self.assertIn("--harness codex --base-ref " + "a" * 40, r.stdout)
+        self.assertIn("--run-key $k --harness codex --base-ref " + "a" * 40, r.stdout)
+        self.assertIn("against " + "a" * 40, r.stdout)
+        self.assertNotIn("--base-ref", self.make("gate", "SKILL=eks-recon").stdout)
+        self.assertRegex(self.make("gate", "SKILL=eks-recon").stdout,
+                         r"run_task_evals\.py --skill eks-recon [^\n]* --gate > ")
+        # gate-all keeps exit 1 when no key is listed
+        self.assertIn('no run key has a runnable case"; exit 1;', self.make("gate-all").stdout)
+
+    def test_gate_changed_needs_a_plain_base(self):
+        r = self.make("gate-changed", dry_run=False)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("usage: make gate-changed BASE=<commit>", r.stdout)
+        self.assertIn("[RUNS_PER_PROMPT=3]", r.stdout)  # the gate takes only 3
+        self.assertNotIn("RUNS_PER_PROMPT=<n>", r.stdout)
+        r = self.make("gate-changed", "BASE=x; echo INJECTED; #", dry_run=False)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("BASE must match", r.stdout)
+        self.assertNotIn("INJECTED", r.stdout.replace("echo INJECTED", ""))
 
     def test_gate_all_lists_runnable_targets_and_gates_each(self):
         r = self.make("gate-all")
@@ -2653,10 +3761,129 @@ class GateMakefile(unittest.TestCase):
                       self.make("gate-all", "INCLUDE_LIVE_ONLY=1").stdout)
         self.assertIn("regression.py --gate --skill $k", r.stdout)
 
+    def fake_gate(self, entry, trigger, task_rc=0):
+        """A real `make gate` on fake runners that print `entry` and
+        `trigger`, the task runner exiting `task_rc` and the triggering runner
+        writing triggering-ran beside them; regression.py is the real one."""
+        root = Path(tempfile.mkdtemp(prefix="p307-fake-evals-"))
+        self.addCleanup(shutil.rmtree, root, True)
+        (root / "scripts").mkdir()
+        runs = root / "ws" / "runs" / "t1"
+        runs.mkdir(parents=True)
+        outcome = [{"skill": "eks-recon", "runs_dir": str(runs), "history_entry": entry}]
+        (root / "scripts" / "run_task_evals.py").write_text(
+            f"import sys\nprint({json.dumps(json.dumps(outcome))})\nsys.exit({task_rc})\n")
+        (root / "scripts" / "run_triggering.py").write_text(
+            f"open({str(root / 'triggering-ran')!r}, 'w').close()\n"
+            f"print({json.dumps(json.dumps(trigger))})\n")
+        self.fake_root = root
+        (root / "scripts" / "regression.py").write_text(
+            f"import sys\nsys.path.insert(0, {SCRIPTS_DIR!r})\nimport regression\nregression.main()\n")
+        home = tempfile.mkdtemp(prefix="p307-home-")
+        self.addCleanup(shutil.rmtree, home, True)
+        return subprocess.run(["make", "--no-print-directory", "-C", os.path.join(MISC_DIR, "evals"),
+                               "gate", "SKILL=eks-recon", "EVALS_ROOT=" + str(root)],
+                              capture_output=True, text=True, timeout=60, env={**os.environ, "HOME": home})
+
+    def test_a_should_trigger_query_at_0_of_3_fails_the_gate(self):
+        """Through make: 0/3 fails (make's exit 2), all passing exits 0."""
+        entry = gate_entry([gate_case(1, 3, 3)])
+        r = self.fake_gate(entry, trigger_result([(True, 0, "member")]))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("trigger query 1 failed (0/3 triggered", r.stderr)
+        r = self.fake_gate(entry, trigger_result([(True, 3, "member"), (False, 0, "member")]))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn('"status": "PASS"', r.stdout)
+
+    def test_the_triggering_stage_runs_only_when_the_task_runner_exits_0(self):
+        entry = gate_entry([gate_case(1, 3, 3)])
+        trig = trigger_result([(True, 3, "member")])
+        r = self.fake_gate(entry, trig, task_rc=2)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse((self.fake_root / "triggering-ran").exists())
+        r = self.fake_gate(entry, trig)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue((self.fake_root / "triggering-ran").exists())
+
     def test_only_bedrock_provider(self):
         r = self.make("help", "PROVIDER=anthropic")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("PROVIDER must be 'bedrock', got 'anthropic'", r.stderr)
+
+
+class RecorderOutlivesAnEndedRun(unittest.TestCase):
+    """Two multi-turn runs side by side: run A ends before run B starts its
+    next turn. B's later turn must still be recorded (its exit code decides
+    whether B is valid), so the recorder stays in place until the last run
+    ends (the `_RECORDER.users == 0` test on the way out)."""
+
+    def test_a_turn_after_another_run_ended_is_still_recorded(self):
+        a_in, a_done = threading.Event(), threading.Event()
+        seen = {}
+
+        def run_a():
+            with run_task_evals._recording_popen():
+                a_in.set()
+            a_done.set()
+
+        def run_b():
+            with run_task_evals._recording_popen() as procs:
+                threading.Thread(target=run_a).start()
+                a_in.wait(5)
+                a_done.wait(5)  # A has ended; B now starts its next turn
+                elicitation.subprocess.Popen(["true"]).wait()
+                seen["procs"] = len(procs)
+                seen["recorder"] = elicitation.subprocess is run_task_evals._RECORDER
+
+        original = elicitation.subprocess
+        t = threading.Thread(target=run_b)
+        t.start()
+        t.join(10)
+        self.assertEqual(seen, {"procs": 1, "recorder": True})
+        self.assertIs(elicitation.subprocess, original)  # restored once both ended
+        self.assertEqual(run_task_evals._RECORDER.users, 0)
+
+
+class GateRunFloor(unittest.TestCase):
+    """--gate refuses a run of other than three runs per case before the
+    version check, the eval-role session or any run."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="evals-floor-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "eks-recon").mkdir()
+        p = mock.patch.object(skilleval_config, "EVALS_ROOT", self.tmp)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def main(self, pass_k, *extra):
+        (self.tmp / "eks-recon" / ".skilleval.yaml").write_text(f"regression:\n  pass_k: {pass_k}\n")
+        err = io.StringIO()
+        argv = ["run_task_evals.py", "--skill", "eks-recon", "--gate", *extra]
+        with mock.patch.object(sys, "argv", argv), \
+                mock.patch.object(run_task_evals, "check_cli_versions", return_value="stop") as cli, \
+                mock.patch.object(run_task_evals, "mint_eval_role_credentials") as mint, \
+                mock.patch.object(run_task_evals, "run_skill") as run_skill, \
+                contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = run_task_evals.main()
+        return code, err.getvalue(), cli.called or mint.called or run_skill.called
+
+    def test_pass_k_2_is_refused_before_the_runner(self):
+        code, err, ran = self.main(2)
+        self.assertEqual(code, 2)
+        self.assertIn("the gate scores three runs per case; eks-recon would run 2", err)
+        self.assertFalse(ran)
+
+    def test_a_runs_override_other_than_3_is_refused(self):
+        code, err, ran = self.main(3, "--runs", "10")
+        self.assertIn("eks-recon would run 10", err)
+        self.assertFalse(ran)
+
+    def test_pass_k_3_goes_on_to_the_version_check(self):
+        code, err, ran = self.main(3)
+        self.assertEqual(code, 2)  # the patched version check stops it
+        self.assertNotIn("three runs per case", err)
+        self.assertTrue(ran)
 
 
 class EvalGateWorkflow(unittest.TestCase):
@@ -2689,6 +3916,12 @@ class EvalGateWorkflow(unittest.TestCase):
         install = next(s for s in self.job["steps"] if s.get("name") == "Install the eval tools")
         self.assertIn("@anthropic-ai/claude-code@2.1.328", install["run"])
         self.assertIn("@openai/codex@0.163.0", install["run"])
+
+    def test_offline_eval_checks_watch_the_class_reader(self):
+        """The tests import run_checks.py through run_triggering."""
+        step = next(st for st in self.wf["jobs"]["eval-script-regressions"]["steps"]
+                    if st.get("id") == "changes")
+        self.assertIn("'classes/steward/scripts/run_checks.py'", step["run"])
 
     def test_a_dispatched_run_is_not_cancelled(self):
         c = self.wf["concurrency"]
@@ -2768,6 +4001,341 @@ class CliVersionCheck(unittest.TestCase):
         versions = run_triggering.HARNESS_CLI_VERSIONS
         self.assertIn(f"@anthropic-ai/claude-code@{versions['claude'][1]}", text)
         self.assertIn(f"@openai/codex@{versions['codex'][1]}", text)
+
+
+# ---------- eval gate groundwork (artifact targets, pass_k, eval-gate, token totals, manifest) ----------
+
+def _tmp(test):
+    root = Path(tempfile.mkdtemp())
+    test.addCleanup(shutil.rmtree, root, ignore_errors=True)
+    return root
+
+
+class ArtifactValidationTargets(unittest.TestCase):
+    """run_artifact_validation finds a target's cases and runs where
+    run_task_evals.resolve_target puts them."""
+
+    def _run_dir(self, workspace):
+        run_dir = workspace / "latest" / "eval-1" / "with_skill" / "run-1"
+        (run_dir / "outputs").mkdir(parents=True)
+        (run_dir.parent.parent / "eval_metadata.json").write_text(json.dumps({"eval_id": 1}))
+        return run_dir
+
+    def _main(self, root, key, class_targets=()):
+        results = run_artifact_validation.ArtifactValidationResults(
+            artifact_root=".", structural_results=[], validator_results=[])
+        err = io.StringIO()
+        with mock.patch.object(run_task_evals, "EVALS_ROOT", root), \
+                mock.patch.object(run_task_evals, "TARGETS_WORKSPACE", root / "workspace"), \
+                mock.patch.object(run_task_evals, "CLASSES_ROOT", root / "classes"), \
+                mock.patch.object(run_task_evals, "CLASS_TARGETS", tuple(class_targets)), \
+                mock.patch.object(run_artifact_validation, "EVALS_ROOT", root), \
+                mock.patch.object(run_artifact_validation, "validate_run",
+                                  return_value=results) as vr, \
+                mock.patch.object(sys, "argv", ["run_artifact_validation.py", "--skill", key]), \
+                contextlib.redirect_stderr(err):
+            rc = run_artifact_validation.main()
+        return rc, vr.call_count, err.getvalue()
+
+    def test_class_target_key_finds_its_runs(self):
+        root = _tmp(self)
+        key = "devops-agent-eks-recon"
+        suite = root / "classes" / "service-eks" / "evals" / "live-cluster"
+        suite.mkdir(parents=True)
+        (suite / "evals.json").write_text(json.dumps({"evals": [
+            {"id": 1, "prompt": "p", "artifact_assertions": {"validators": [{"type": "terraform-fmt"}]}}]}))
+        run_dir = self._run_dir(root / "workspace" / key / "workspace")
+        target = {"run_key": key, "skill_dir": "devops-agent/eks-recon",
+                  "classes": ["service-eks"], "blocking": False}
+        rc, calls, err = self._main(root, key, [target])
+        self.assertEqual((rc, calls), (0, 1), err)
+        self.assertTrue((run_dir / "artifact-validation.json").exists())
+        self.assertIn(f"[artifact] {key} latest/eval-1/with_skill/run-1: PASS", err)
+
+    def test_plain_skill_still_works(self):
+        root = _tmp(self)
+        (root / "sk").mkdir()
+        (root / "sk" / "evals.json").write_text(json.dumps({"evals": [
+            {"id": 1, "artifact_assertions": {"validators": [{"type": "terraform-fmt"}]}}]}))
+        self._run_dir(root / "sk" / "workspace")
+        rc, calls, err = self._main(root, "sk")
+        self.assertEqual((rc, calls), (0, 1), err)
+        self.assertIn("[artifact] sk latest/eval-1/with_skill/run-1: PASS", err)
+
+    def test_unknown_key_is_refused(self):
+        rc, calls, err = self._main(_tmp(self), "nope")
+        self.assertEqual((rc, calls), (2, 0))
+        self.assertIn("missing:", err)
+
+
+class PassKBounds(unittest.TestCase):
+    def _load(self, pass_k_text):
+        root = _tmp(self)
+        (root / "demo").mkdir()
+        (root / "demo" / ".skilleval.yaml").write_text(f"regression:\n  pass_k: {pass_k_text}\n")
+        with mock.patch.object(skilleval_config, "EVALS_ROOT", root):
+            return skilleval_config.load_config("demo")
+
+    def test_pass_k_below_one_is_refused(self):
+        for bad in ("0", "-2"):
+            with self.subTest(bad=bad), self.assertRaisesRegex(RuntimeError, "pass_k"):
+                self._load(bad)
+
+    def test_non_integer_pass_k_is_refused(self):
+        for bad in ("2.5", "three", "true"):
+            with self.subTest(bad=bad), self.assertRaisesRegex(RuntimeError, "pass_k"):
+                self._load(bad)
+
+    def test_valid_pass_k_loads(self):
+        self.assertEqual(self._load("1").pass_k, 1)
+        self.assertEqual(self._load("5").pass_k, 5)
+
+
+def _arm(mean):
+    return {"pass_rate": {"mean": mean, "stddev": 0.1}}
+
+
+class SnapshotPassKAndCost(unittest.TestCase):
+    def _tree(self, pass_k=5, workspace=None, arms=None, base_arm="without_skill"):
+        root = _tmp(self)
+        ws = workspace(root) if workspace else root / "demo" / "workspace"
+        (ws / "runs" / "t1").mkdir(parents=True)
+        (ws / "runs" / "t1" / "metrics.json").write_text(json.dumps({
+            "overall": {"accuracy": 1.0, "ci_lo": 0.9, "ci_hi": 1.0},
+            "positive": {"passed": 1, "total": 1}, "negative": {"passed": 1, "total": 1}}))
+        latest = ws / "latest"
+        latest.mkdir()
+        (latest / "benchmark.json").write_text(json.dumps({
+            "run_summary": arms or {"with_skill": _arm(0.8), "without_skill": _arm(0.8)},
+            "metadata": {"runs_per_configuration": pass_k}}))
+        (latest / "cases.json").write_text(json.dumps({"base_arm": base_arm, "pass_k": pass_k}))
+        if not workspace:
+            (root / "demo" / ".skilleval.yaml").write_text(f"regression:\n  pass_k: {pass_k}\n")
+        return root
+
+    def _run(self, root, *flags, key="demo", class_targets=()):
+        argv = ["snapshot.py", "--skill", key, *flags]
+        with mock.patch.object(snapshot, "EVALS_ROOT", root), \
+                mock.patch.object(skilleval_config, "EVALS_ROOT", root), \
+                mock.patch.object(run_task_evals, "EVALS_ROOT", root), \
+                mock.patch.object(run_task_evals, "TARGETS_WORKSPACE", root / "workspace"), \
+                mock.patch.object(run_task_evals, "CLASS_TARGETS", tuple(class_targets)), \
+                mock.patch.object(snapshot, "get_git_head", return_value="abc1234"), \
+                mock.patch.object(sys, "argv", argv), \
+                contextlib.redirect_stdout(io.StringIO()):
+            snapshot.main()
+        own = root / key
+        out = (own if own.is_dir() else root / "workspace" / key) / "baselines" / "baseline.json"
+        return json.loads(out.read_text())
+
+    def test_config_pass_k_5_gives_baseline_pass_k_5(self):
+        self.assertEqual(self._run(self._tree(pass_k=5))["pass_k"], 5)
+
+    def test_explicit_flag_wins_over_config(self):
+        self.assertEqual(self._run(self._tree(pass_k=5), "--pass-k", "2")["pass_k"], 2)
+
+    def test_base_skill_arm_scores_its_own_pass_rate(self):
+        arms = {"with_skill": _arm(0.9), "base_skill": _arm(0.6), "without_skill": _arm(0.3)}
+        task = self._run(self._tree(arms=arms, base_arm="base_skill"))["task"]
+        self.assertEqual((task["baseline_arm"], task["base_mean"]), ("base_skill", 0.6))
+        self.assertIsNone(task["without_skill_mean"])
+
+    def test_no_harness_or_token_means_in_baseline(self):
+        task = self._run(self._tree())["task"]
+        for key in ("harness", "with_skill_tokens_per_run_mean", "base_wall_seconds_per_run_mean"):
+            self.assertNotIn(key, task)
+
+    def test_class_target_snapshots_from_its_workspace(self):
+        key = "devops-agent-eks-recon"
+        target = {"run_key": key, "skill_dir": "devops-agent/eks-recon",
+                  "classes": ["service-eks"], "blocking": False}
+        root = self._tree(pass_k=3, workspace=lambda r: r / "workspace" / key / "workspace")
+        baseline = self._run(root, key=key, class_targets=[target])
+        self.assertEqual((baseline["skill"], baseline["task"]["with_skill_mean"]), (key, 0.8))
+        self.assertFalse((root / key).exists())
+
+
+KEY = "eks-recon"
+_ABSENT = object()
+
+
+def _entry(pass_k=3):
+    arm = {"runs": 3, "valid_runs": 3, "passes": 3, "pass_at_k": True, "pass_all_k": True}
+    entry = {"kind": "task", "run_key": KEY, "harness": "claude", "baseline_arm": "base_skill",
+             "delta": 0.0, "cases": [{"eval_id": 1, "source": "own", "pass": True,
+                                      "arms": {"with_skill": arm, "base_skill": arm}}]}
+    if pass_k is not _ABSENT:
+        entry["pass_k"] = pass_k
+    return entry
+
+
+class ThreeRunFloor(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="p307-gate-"))
+        self._summary = os.environ.pop("GITHUB_STEP_SUMMARY", None)
+        root = mock.patch.object(regression, "EVALS_ROOT", self.tmp / "evals")
+        root.start()
+        self.addCleanup(root.stop)
+
+    def tearDown(self):
+        if self._summary is not None:
+            os.environ["GITHUB_STEP_SUMMARY"] = self._summary
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def gate(self, entry):
+        runs = self.tmp / "ws" / "runs" / "20261120T000000Z"
+        runs.mkdir(parents=True, exist_ok=True)
+        path = self.tmp / "task.json"
+        path.write_text(json.dumps([{"skill": KEY, "runs_dir": str(runs), "history_entry": entry}]))
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = regression.run_gate(KEY, path, 5.0)
+        return rc, out.getvalue(), err.getvalue()
+
+    def assert_refused(self, entry):
+        rc, out, err = self.gate(entry)
+        self.assertEqual(rc, 1)
+        self.assertEqual(out, "")
+        self.assertIn("three runs per case", err)
+
+    def test_pass_k_one_exits_1(self):
+        self.assert_refused(_entry(1))
+
+    def test_pass_k_two_exits_1(self):
+        self.assert_refused(_entry(2))
+
+    def test_pass_k_ten_exits_1(self):
+        self.assert_refused(_entry(10))
+
+    def test_pass_k_missing_exits_1(self):
+        self.assert_refused(_entry(_ABSENT))
+
+    def test_pass_k_not_an_int_exits_1(self):
+        for bad in ("3", 3.0, True, None):
+            with self.subTest(pass_k=bad):
+                self.assert_refused(_entry(bad))
+
+    def test_pass_k_three_passes_as_today(self):
+        rc, out, _ = self.gate(_entry(3))
+        self.assertEqual(rc, 0)
+        self.assertEqual(json.loads(out)["status"], "PASS")
+
+    def test_runs_per_case_other_than_three_exit_1(self):
+        """The declared pass_k was checked, not the runs: `arms {}` passed."""
+        empty = dict(gate_case(1, 3, 3), arms={})
+        two_new = gate_case(1, 2, 2, k=2)
+        two_base = gate_case(1, 3, 3)
+        two_base["arms"]["base_skill"] = gate_case(1, 2, 2, k=2)["arms"]["base_skill"]
+        no_base = gate_case(1, 3, 3)
+        del no_base["arms"]["base_skill"]
+        for case, why in ((empty, "with_skill ran none"), (two_new, "with_skill ran 2"),
+                          (two_base, "base_skill ran 2"), (no_base, "base_skill ran none")):
+            with self.subTest(why=why):
+                rc, out, err = self.gate(gate_entry([case], key=KEY))
+                self.assertEqual((rc, out), (1, ""))
+                self.assertIn("eval-1 " + why, err)
+
+
+# One run's usage, as each harness reports it. Claude's input_tokens leaves
+# cache reads and writes out; codex's input_tokens counts its cached input.
+TOKENS_CLAUDE_STREAM = [
+    {"type": "system", "subtype": "init"},
+    {"type": "result", "subtype": "success", "usage": {
+        "input_tokens": 315, "cache_read_input_tokens": 24448,
+        "cache_creation_input_tokens": 0, "output_tokens": 122}},
+]
+TOKENS_CODEX_STREAM = [
+    {"type": "thread.started", "thread_id": "t1"},
+    {"type": "turn.completed", "usage": {
+        "input_tokens": 24763, "cached_input_tokens": 24448, "output_tokens": 122}},
+]
+
+
+class TotalTokensWithCache(unittest.TestCase):
+    def test_claude_adds_cache_reads_and_writes(self):
+        stream = [TOKENS_CLAUDE_STREAM[0], {"type": "result", "usage": {
+            "input_tokens": 7, "cache_read_input_tokens": 33441,
+            "cache_creation_input_tokens": 10262, "output_tokens": 917}}]
+        s = extract_result_summary(normalize_events(stream, "claude"))
+        self.assertEqual(s["total_tokens"], 7 + 917)
+        self.assertEqual(s["total_tokens_with_cache"], 7 + 33441 + 10262 + 917)
+
+    def test_codex_counts_cached_input_once(self):
+        s = extract_result_summary(normalize_events(TOKENS_CODEX_STREAM, "codex"))
+        self.assertEqual(s["total_tokens"], 24763 + 122)
+        self.assertEqual(s["total_tokens_with_cache"], 24763 + 122)
+
+    def test_matched_claude_and_codex_usage_give_equal_totals(self):
+        claude = extract_result_summary(normalize_events(TOKENS_CLAUDE_STREAM, "claude"))
+        codex = extract_result_summary(normalize_events(TOKENS_CODEX_STREAM, "codex"))
+        self.assertEqual(claude["total_tokens_with_cache"],
+                         codex["total_tokens_with_cache"])
+
+    def test_no_result_reads_zero(self):
+        self.assertEqual(extract_result_summary([])["total_tokens_with_cache"], 0)
+
+
+def task_row(harness, tokens):
+    row = {"kind": "task", "skill_summary": {
+        "cases": 3, "arms": {"with_skill": {"tokens_per_run_mean": tokens}}}}
+    if harness is not None:
+        row["harness"] = harness
+    return row
+
+
+class ManifestClaudeRow(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="p307-manifest-"))
+        (self.tmp / "eks-recon" / "baselines").mkdir(parents=True)
+        (self.tmp / "eks-recon" / "baselines" / "baseline.json").write_text(json.dumps(
+            {"skill": "eks-recon", "composite": {"score": 80.0, "grade": "B"}, "task": {}}))
+        (self.tmp / "history").mkdir()
+        self.hist = self.tmp / "history" / "eks-recon.jsonl"
+        self.patches = [mock.patch.object(gem, "EVALS_ROOT", self.tmp),
+                        mock.patch.object(gem, "HISTORY_DIR", self.tmp / "history")]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, *rows):
+        self.hist.write_text("".join(json.dumps(r) + "\n" for r in rows))
+
+    def entry(self):
+        return gem.extract_entry(self.tmp / "eks-recon" / "baselines" / "baseline.json")
+
+    def test_claude_row_then_codex_row_yields_the_claude_value(self):
+        self.write(task_row("claude", 200.0), task_row("codex", 900.0))
+        self.assertEqual(self.entry()["tokens_per_run"], 200)
+
+    def test_row_with_no_harness_is_claude(self):
+        self.write(task_row(None, 150.0), task_row("kiro", 900.0))
+        self.assertEqual(self.entry()["tokens_per_run"], 150)
+
+    def test_no_claude_row_or_no_summary_reads_none(self):
+        self.write(task_row("codex", 900.0))
+        self.assertIsNone(self.entry()["tokens_per_run"])
+        self.write({"kind": "task", "with_skill_mean": 1.0})
+        self.assertIsNone(self.entry()["tokens_per_run"])
+
+    def test_no_time_or_cases_field(self):
+        self.write(task_row("claude", 200.0))
+        e = self.entry()
+        self.assertNotIn("seconds_per_run", e)
+        self.assertNotIn("cases_passed", e)
+
+    def test_score_and_layers_round_to_one_decimal(self):
+        (self.tmp / "eks-recon" / "baselines" / "baseline.json").write_text(json.dumps(
+            {"skill": "eks-recon", "task": {}, "composite": {"score": 80.04, "grade": "B",
+             "contributions": {"process": {"raw_score": 61.26, "weight": 0.25,
+                                           "contribution": 15.315}}}}))
+        e = self.entry()
+        self.assertEqual(e["score"], 80.0)
+        self.assertEqual(e["layers"]["process"],
+                         {"raw_score": 61.3, "weight": 0.2, "contribution": 15.3})
 
 
 if __name__ == "__main__":

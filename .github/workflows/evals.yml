@@ -182,6 +182,7 @@ jobs:
           'misc/evals/scripts/**'
           'misc/evals/Makefile'
           'misc/safe_frontmatter.py'
+          'classes/steward/scripts/run_checks.py'
           'misc/tests/test_parse_trajectory_tokens.py'
           'misc/tests/test_eval_runner_robust.py'
           'misc/tests/test_safe_frontmatter.py'
@@ -222,17 +223,19 @@ jobs:
         run: python3 -B misc/tests/test_service_eks_preflight.py -v
 
   # The model-backed merge gate: `make -C misc/evals gate` or
-  # `gate-all` runs the deterministic stages, then with_skill against the
-  # skill at v1.3.0, scored per case on Pass@k; it exits 2 on a regression.
+  # `gate-all` runs the deterministic stages, then the task evals with_skill
+  # against the skill at v1.3.0, scored per case on Pass@k, then, when they
+  # exit 0, the trigger queries with_skill against the skill at v1.3.0,
+  # scored per query; it exits 2 on a regression.
   # It runs once per harness in the matrix. CI does not run kiro: its model
   # calls go to Kiro's own service, not to Bedrock in the eval account. It
   # has no pass path without its secrets: the
   # first step fails when any is absent, and a fork pull request gets none
-  # (GitHub passes no secret but GITHUB_TOKEN to a fork's run). Until a
-  # maintainer configures CI credentials it runs only by hand
-  # (workflow_dispatch); on pull_request and push it is not run, so main
-  # stays green. Going live is deleting this `if:`, after which a pull
-  # request without the secrets fails here. It must not be a required check
+  # (GitHub passes no secret but GITHUB_TOKEN to a fork's run).
+  # This repository sets no eval secrets, so the job stays dispatch-only;
+  # live gate runs happen locally with
+  # `make -C misc/evals gate`.
+  # It must not be a required check
   # while the `if:` is there: GitHub counts a job that did not run as passing
   # a required check.
   eval-gate:
@@ -273,6 +276,8 @@ jobs:
           HARNESS: ${{ matrix.harness }}
         run: |
           pip install 'jsonschema[format-nongpl]>=4.26,<5' 'pyyaml>=6,<7'
+          # The subject wall (run_triggering.wall_off_host) needs bwrap.
+          sudo apt-get install -y bubblewrap
           # Pinned to the CLI versions the adapters and parsers were written
           # against. The grader is claude -p on every harness.
           npm install -g @anthropic-ai/claude-code@2.1.328

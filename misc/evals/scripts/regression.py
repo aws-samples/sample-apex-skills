@@ -4,8 +4,16 @@
 (--task-result, required with --gate): the new arm (with_skill) against the
 base arm the runner names (baseline_arm: base_skill at --base-ref, or
 without_skill), per case on Pass@k. It exits 2 on a regression and 1 when
-there is no result to score; tokens and time are in the report and never
-block: only pass rate blocks.
+there is no result to score or it ran other than three runs per case
+(pass_k 3); tokens and time are in the report and never block: only pass
+rate blocks. With --trigger-result it also scores the key's triggering
+run (three runs per query): a with_skill query that fails, or that ran
+fewer than three valid runs, blocks as a failed case does, and the
+with_skill arm is compared with the skill at the base ref (base_skill)
+when that arm ran: a pooled drop in the share of runs that triggered as
+expected past the threshold blocks too. The report's "Merge line" says when
+the gate holds the pull request off the merge list: on a regression and on
+no result.
 """
 
 import argparse
@@ -18,7 +26,7 @@ from typing import Any, Optional
 
 from composite_score import compute_from_baseline, compute_from_workspace
 from skilleval_config import load_config
-from snapshot import compute_eval_set_hash
+from snapshot import compute_eval_set_hash, target_workspace
 
 EVALS_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = EVALS_ROOT.parent.parent
@@ -37,6 +45,9 @@ LAYER_FILENAME = {"knowledge_assertions": "knowledge-assertions.json",
 # The arms run_task_evals.py compares with_skill against (contract: baseline_arm).
 BASE_ARMS = ("base_skill", "without_skill")
 GATE_TOKENS_NOTE = "Tokens and time are reported and do not block: only pass rate blocks."
+# A failed gate holds the PR off the merge list until it passes.
+MERGE_HELD = "HELD: this pull request stays off the merge list until this gate passes"
+MERGE_NOT_HELD = "not held by this gate"
 
 
 def get_git_head() -> str:
@@ -63,7 +74,9 @@ def compute_pass_k(latest: Path, k: int) -> Optional[float]:
 
 
 def load_baseline(skill: str) -> Optional[dict[str, Any]]:
-    path = EVALS_ROOT / skill / "baselines" / "baseline.json"
+    # Beside the run key's workspace, where snapshot.py writes it (a class
+    # target's is under misc/evals/workspace/<key>/).
+    path = target_workspace(skill).parent / "baselines" / "baseline.json"
     if not path.exists():
         return None
     baseline = json.loads(path.read_text())
@@ -264,11 +277,12 @@ def workspace_base_arm(latest: Path, run_summary: dict[str, Any]) -> str:
 
 
 def gather_from_workspace(skill: str, pass_k: int) -> dict[str, Any]:
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    ws = target_workspace(skill)
+    latest = ws / "latest"
     if not latest.exists():
         print(f"Error: workspace/latest not found for {skill}", file=sys.stderr)
         sys.exit(1)
-    runs_dir = EVALS_ROOT / skill / "workspace" / "runs"
+    runs_dir = ws / "runs"
     triggering = None
     if runs_dir.is_dir():
         for d in sorted([d for d in runs_dir.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True):
@@ -403,6 +417,19 @@ def load_gate_entry(skill: str, task_result: Path) -> tuple[dict[str, Any], Opti
         raise GateInputError(f"no per-case task result for {skill}")
     if not entry["cases"]:
         raise GateInputError(f"the task result for {skill} holds no case")
+    k = entry.get("pass_k")
+    if type(k) is not int or k != 3:
+        raise GateInputError(f"the gate scores three runs per case; the task result for {skill} "
+                             f"ran pass_k {k!r}")
+    base_arm = entry.get("baseline_arm") or "without_skill"
+    for c in entry["cases"]:
+        arms = (c.get("arms") if isinstance(c, dict) else None) or {}
+        for arm in ("with_skill", base_arm):
+            runs = arms[arm].get("runs") if isinstance(arms.get(arm), dict) else None
+            if runs != k:
+                eval_id = c.get("eval_id") if isinstance(c, dict) else None
+                raise GateInputError(f"the gate scores three runs per case; eval-{eval_id} "
+                                     f"{arm} ran {runs if runs is not None else 'none'}")
     return entry, runs_dir
 
 
@@ -466,6 +493,110 @@ def evaluate_gate(entry: dict[str, Any], threshold: float) -> dict[str, Any]:
             "not_blocking": GATE_TOKENS_NOTE}
 
 
+def _check_trigger_rows(skill: str, results: Any, arm: str) -> None:
+    if not isinstance(results, list) or not results:
+        raise GateInputError(f"the triggering result for {skill} holds no {arm} query")
+    for i, r in enumerate(results, 1):
+        runs = r.get("attempted_runs") if isinstance(r, dict) else None
+        if runs != 3:
+            raise GateInputError(f"the gate scores three runs per query; {arm} trigger query {i} "
+                                 f"ran {runs if runs is not None else 'none'}")
+
+
+def load_trigger_result(skill: str, path: Path) -> dict[str, Any]:
+    """The run key's triggering result: the JSON `run_triggering.py --run-key`
+    printed, each query run three times on with_skill and on the base arm
+    under "base" (arm None, with a note, when the skill is new at the base
+    ref), or its "skipped". A result with no "base", or a base arm query
+    with fewer than three valid runs, is refused: the gate compares old
+    against new, and such a query would score as 0 and hide a drop."""
+    try:
+        trig = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        raise GateInputError(f"cannot read the triggering result {path}: {e}")
+    if not isinstance(trig, dict) or trig.get("run_key") != skill:
+        raise GateInputError(f"{path} holds no triggering result for {skill}")
+    if "skipped" in trig:
+        return trig
+    _check_trigger_rows(skill, trig.get("results"), "with_skill")
+    base = trig.get("base")
+    if not isinstance(base, dict):
+        raise GateInputError(f"the triggering result for {skill} has no base arm "
+                             "(run_triggering.py --run-key runs one unless --base-ref none)")
+    if base.get("arm") is not None:
+        _check_trigger_rows(skill, base.get("results"), base["arm"])
+        if [r.get("query") for r in base["results"]] != [r.get("query") for r in trig["results"]]:
+            raise GateInputError(f"the triggering base arm for {skill} ran other queries "
+                                 "than with_skill")
+        for i, r in enumerate(base["results"], 1):
+            if r.get("runs") != 3:
+                raise GateInputError(f"{base['arm']} trigger query {i} ({r.get('query')!r}) had "
+                                     f"{r.get('runs')} of 3 runs valid: it cannot be compared")
+    return trig
+
+
+def _expected_share(r: dict[str, Any]) -> Optional[float]:
+    """The share of a query's valid runs that triggered as expected."""
+    rate = r.get("trigger_rate")
+    if not r.get("runs") or not isinstance(rate, (int, float)):
+        return None
+    return rate if r.get("should_trigger") is True else 1 - rate
+
+
+def add_triggering(result: dict[str, Any], trig: dict[str, Any]) -> None:
+    """Score the triggering result into `result`. A with_skill query fails
+    when the runner failed it or when fewer than three of its runs were
+    valid; a failed query blocks when it is the key's own (source "member")
+    or the target blocks, as a task case does. With a base arm, the pooled
+    share of runs that triggered as expected (with_skill less base_skill,
+    rounded to 0.1 pp) also blocks below -threshold when a query blocks."""
+    if "skipped" in trig:
+        result["triggering"] = {"skipped": trig["skipped"]}
+        return
+    base = trig["base"]
+    base_rows = base.get("results") if base.get("arm") else None
+    rows = []
+    for i, r in enumerate(trig["results"], 1):
+        blocks = r.get("source", "member") == "member" or trig.get("blocking") is not False
+        fail_reason = r.get("fail_reason")
+        if r.get("pass") is True and r.get("runs") != 3:
+            fail_reason = f"{r.get('runs')} of 3 runs valid"
+        b = base_rows[i - 1] if base_rows else None
+        rows.append({"n": i, "query": str(r.get("query", "")), "source": r.get("source", "member"),
+                     "should_trigger": r.get("should_trigger") is True, "triggers": r.get("triggers"),
+                     "runs": r.get("runs"), "pass": fail_reason is None, "blocks": blocks,
+                     "fail_reason": fail_reason,
+                     "base": None if b is None else {"triggers": b.get("triggers"), "runs": b.get("runs"),
+                                                     "pass": b.get("pass") is True and b.get("runs") == 3}})
+    delta_pp = None
+    if base_rows:
+        new = [_expected_share(r) for r in trig["results"]]
+        old = [_expected_share(r) for r in base_rows]
+        delta_pp = round((sum(v or 0.0 for v in new) - sum(v or 0.0 for v in old))
+                         / len(new) * 100, 1)
+    result["triggering"] = {"queries": rows, "base_ref": base.get("base_ref"),
+                            "base_ref_sha": base.get("base_ref_sha"), "base_arm": base.get("arm"),
+                            "base_note": base.get("note"), "delta_pp": delta_pp}
+    result["reasons"] += [f"trigger query {q['n']} failed ({q['triggers']}/{q['runs']} triggered, "
+                          f"{q['fail_reason']})"
+                          + (" (base_skill passed it)" if q["base"] and q["base"]["pass"] else "")
+                          for q in rows if not q["pass"] and q["blocks"]]
+    threshold = result["threshold_pp"]
+    if delta_pp is not None and delta_pp < -threshold and any(q["blocks"] for q in rows):
+        result["reasons"].append(f"triggering as expected {delta_pp:+.1f}pp against base_skill, "
+                                 f"threshold is {threshold:.1f}pp")
+    if result["reasons"]:
+        result["status"] = "REGRESSION"
+    elif result["status"] == "PASS" and (any(not q["pass"] for q in rows)
+                                         or (delta_pp is not None and delta_pp < 0)):
+        result["status"] = "WARNING"
+
+
+def _cell(text: str) -> str:
+    text = " ".join(text.split()).replace("|", "\\|")
+    return text if len(text) <= 80 else text[:77] + "..."
+
+
 def _num(v: Any, fmt: str) -> str:
     return format(v, fmt) if isinstance(v, (int, float)) else "n/a"
 
@@ -479,6 +610,7 @@ def render_gate_report(result: dict[str, Any]) -> str:
         against = "without_skill (no skill: the skill is new at the base ref, or --base-ref none)"
     lines = [f"# Eval Gate Report: {result['skill']}", "",
              f"**Status:** {result['status']}",
+             f"**Merge line:** {MERGE_HELD if result['status'] == 'REGRESSION' else MERGE_NOT_HELD}",
              f"**Harness:** {result.get('harness')}",
              f"**Comparison:** with_skill against {against}",
              f"**Pass@{k}:** a case passes when at least one of its {k} with_skill runs passes; "
@@ -501,6 +633,28 @@ def render_gate_report(result: dict[str, Any]) -> str:
             f"| {_num(new['tokens_mean'], '.0f')} | {_num(old['tokens_mean'], '.0f')} "
             f"| {_num(new['wall_seconds_mean'], '.1f')} | {_num(old['wall_seconds_mean'], '.1f')} "
             f"| {verdict} |")
+    trig = result.get("triggering")
+    if trig and "skipped" in trig:
+        lines += ["", "## Triggering", "", f"Not run: {trig['skipped']}."]
+    elif trig:
+        if trig["base_arm"]:
+            tsha = (trig.get("base_ref_sha") or "")[:12]
+            tagainst = (f"with_skill against base_skill (the skill at {trig.get('base_ref')}, {tsha}); "
+                        f"triggering as expected {_num(trig['delta_pp'], '+.1f')}pp "
+                        f"(threshold {result['threshold_pp']:.1f}pp)")
+        else:
+            tagainst = f"with_skill only: {trig.get('base_note') or 'no base arm'}"
+        lines += ["", "## Triggering", "", f"**Comparison:** {tagainst}", "",
+                  "| Query | Text | Source | Should trigger | Triggered | base_skill triggered "
+                  "| Blocks | Result |",
+                  "|---|---|---|---|---|---|---|---|"]
+        for q in trig["queries"]:
+            verdict = "pass" if q["pass"] else (f"FAIL, {q['fail_reason']}" if q["blocks"]
+                                                else f"fail (report-only), {q['fail_reason']}")
+            old = f"{q['base']['triggers']}/{q['base']['runs']}" if q["base"] else "n/a"
+            lines.append(f"| {q['n']} | {_cell(q['query'])} | {q['source']} "
+                         f"| {'yes' if q['should_trigger'] else 'no'} | {q['triggers']}/{q['runs']} "
+                         f"| {old} | {'yes' if q['blocks'] else 'no'} | {verdict} |")
     lines += ["", "## Per skill", "",
               f"| Arm | Cases Pass@{k} | Cases pass^{k} | Runs | Invalid runs | Tokens/run | Time/run (s) |",
               "|---|---|---|---|---|---|---|"]
@@ -530,16 +684,7 @@ def gate_workspace(skill: str, runs_dir: Optional[Path]) -> Path:
     return (own if (own / "evals.json").exists() else EVALS_ROOT / "workspace" / skill) / "workspace"
 
 
-def run_gate(skill: str, task_result: Path, threshold: float) -> int:
-    try:
-        entry, runs_dir = load_gate_entry(skill, task_result)
-    except GateInputError as e:
-        print(f"[gate] {skill}: FAIL, {e}", file=sys.stderr)
-        return 1
-    result = evaluate_gate(entry, threshold)
-    result["skill"] = result["skill"] or skill
-    report = render_gate_report(result)
-    print(json.dumps(result, indent=2))
+def _publish(skill: str, runs_dir: Optional[Path], report: str) -> None:
     print(report, file=sys.stderr)
     ws = gate_workspace(skill, runs_dir)
     if ws.is_dir():
@@ -548,6 +693,25 @@ def run_gate(skill: str, task_result: Path, threshold: float) -> int:
     if summary:
         with open(summary, "a") as fh:
             fh.write(report + "\n")
+
+
+def run_gate(skill: str, task_result: Path, threshold: float,
+             trigger_result: Optional[Path] = None) -> int:
+    runs_dir = None
+    try:
+        entry, runs_dir = load_gate_entry(skill, task_result)
+        trig = load_trigger_result(skill, trigger_result) if trigger_result else None
+    except GateInputError as e:
+        print(f"[gate] {skill}: FAIL, {e}", file=sys.stderr)
+        _publish(skill, runs_dir, f"# Eval Gate Report: {skill}\n\n**Status:** FAIL (no result "
+                 f"to score: {e})\n**Merge line:** {MERGE_HELD}\n")
+        return 1
+    result = evaluate_gate(entry, threshold)
+    result["skill"] = result["skill"] or skill
+    if trig is not None:
+        add_triggering(result, trig)
+    print(json.dumps(result, indent=2))
+    _publish(skill, runs_dir, render_gate_report(result))
     return 2 if result["status"] == "REGRESSION" else 0
 
 
@@ -561,14 +725,18 @@ def main() -> None:
     parser.add_argument("--gate", action="store_true",
                         help="Score the run key's per-case task result (with_skill against the "
                              "base arm the runner names); exit 2 on a regression, 1 when there is "
-                             "no result to score. Needs --task-result.")
+                             "no result to score or pass_k is not 3. Needs --task-result.")
     parser.add_argument("--task-result", type=Path, default=None,
                         help="With --gate: the JSON run_task_evals.py printed.")
+    parser.add_argument("--trigger-result", type=Path, default=None,
+                        help="With --gate: the JSON `run_triggering.py --run-key` printed; a "
+                             "query that fails on with_skill blocks as a failed case does, and "
+                             "a pooled drop against the base arm past --threshold blocks.")
     args = parser.parse_args()
     if args.gate:
         if args.task_result is None:
             parser.error("--gate needs --task-result")
-        sys.exit(run_gate(args.skill, args.task_result, args.threshold))
+        sys.exit(run_gate(args.skill, args.task_result, args.threshold, args.trigger_result))
     skill, threshold, pass_k = args.skill, args.threshold, args.pass_k
 
     baseline = load_baseline(skill)
@@ -612,7 +780,7 @@ def main() -> None:
         status = "PASS"
 
     # --- Per-eval-case drill-down for regressed layers ---
-    latest = EVALS_ROOT / skill / "workspace" / "latest"
+    latest = target_workspace(skill) / "latest"
     per_case_drilldown: dict[str, list[dict[str, Any]]] = {}
     current_cases: dict[str, dict[str, Any]] = {}
 
@@ -653,7 +821,7 @@ def main() -> None:
               "current_git_head": git_head}
     print(json.dumps(result, indent=2))
 
-    ws_dir = EVALS_ROOT / skill / "workspace"
+    ws_dir = target_workspace(skill)
     if ws_dir.is_dir():
         rows = []
         for layer in LAYERS:
