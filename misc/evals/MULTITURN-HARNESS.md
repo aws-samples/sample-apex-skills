@@ -84,7 +84,7 @@ Stated limits (`elicitation.py:77-83 @ 33a5bc2f`):
 
 ### 3.2 `elicitation_answer` record
 
-Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). This change, not PR 570, adds its rendering: `format_transcript` shows it in transcript.md, the file the grader reads, as a `**Eval harness reply (canned user answer):**` line before that event (`run_task_evals.py:246-251 @ b6d5bafb`). Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
+Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). This change, not PR 570, adds its rendering: `format_transcript` shows it in transcript.md, the file the grader reads, as a `**Eval harness reply (canned user answer):**` line before that event (`run_task_evals.py:246-251 @ bd72ffaa`). Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
 
 PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:203-207`, `:229 @ 33a5bc2f`).
 
