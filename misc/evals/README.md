@@ -84,7 +84,7 @@ make task-all-parallel                      # all skills, all layers
 make composite-all                          # recompute all grades
 ```
 
-The `process-<skill>`, `artifact-<skill>`, `knowledge-<skill>` and `composite-<skill>` targets score the latest `make task-<skill>` run. Until one exists, process, artifact and knowledge exit 2 with "no run data found" for a skill whose `evals.json` defines that layer's assertions (a skill with none exits 0), and composite exits 1 with "No layer scores available" when there is no task or triggering run.
+The `process-<skill>`, `artifact-<skill>`, `knowledge-<skill>` and `composite-<skill>` targets score the latest `make task-<skill>` run. Until one exists, process, artifact and knowledge print "no run data found" for a skill whose `evals.json` defines that layer's assertions (a skill with none exits 0), and composite prints "No layer scores available" when there is no task or triggering run; through `make`, each of those exits 2.
 
 ### Step 2 — Update the scorecard in this README
 
@@ -320,4 +320,4 @@ pip install pyyaml jsonschema
 
 - **Source mapping**: [`SOURCE-MAPPING.md`](./SOURCE-MAPPING.md) — research sources per layer
 - **Skill-creator schemas**: [`skills/skill-creator/references/schemas.md`](../../skills/skill-creator/references/schemas.md)
-- **Description optimizer**: [`scripts/run_optimize.py`](./scripts/run_optimize.py) proposes a tighter skill description from a saved triggering run's false and missed triggers (through skill-creator's `improve_description.py`) and validates the proposal with `run_triggering.py`. It has no make target. Its improver step runs `claude -p` with the caller's environment and does not mint an eval-role session itself, so before running it export the session credentials of the eval account's Bedrock-only role (see [Eval-role setup](#eval-role-setup-apex-eval)), where the runner mints that session for every other eval run. `--build-only` makes no model call. See `python3 scripts/run_optimize.py --help`.
+- **Description optimizer**: [`scripts/run_optimize.py`](./scripts/run_optimize.py) proposes a tighter skill description from a saved triggering run's false and missed triggers (through skill-creator's `improve_description.py`) and validates the proposal with `run_triggering.py`. It has no make target. Its improver step runs `claude -p` with the caller's environment and does not mint an eval-role session itself, so before running it, in the same shell, export the session credentials of the eval account's Bedrock-only role, `CLAUDE_CODE_USE_BEDROCK=1` and `AWS_REGION` set to the Region in `~/.apex-eval/aws-config` (see [Eval-role setup](#eval-role-setup-apex-eval)); for every other eval run the runner mints that session and sets the Region, and the Makefile sets `CLAUDE_CODE_USE_BEDROCK=1`. `--build-only` makes no model call. See `python3 scripts/run_optimize.py --help`.
