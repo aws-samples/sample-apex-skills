@@ -234,8 +234,8 @@ def main() -> int:
 
         # 7. knowledge_assertions schema validation (if present): the runner's
         #    own validate_assertion, so flat and group entries pass or fail
-        #    here as validate_assertion reads them. validate_assertion does not compile patterns or check flags,
-        #    so a passing entry can still fail in evaluate(). Non-object entries are
+        #    here as validate_assertion reads them. validate_assertion compiles only when_parent_matches, not `pattern` or `flags`,
+        #    so a passing entry can still raise in evaluate() and stop the run. Non-object entries are
         #    caught first, since the runner would crash on them.
         for p in prompts:
             ka = p.get("knowledge_assertions")

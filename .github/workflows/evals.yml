@@ -52,7 +52,7 @@ jobs:
           '.github/scripts/ci-gate.sh'
       - name: No-op (no watched path changed)
         if: steps.changes.outputs.relevant == 'false'
-        run: echo "No change to skills/ or misc/evals/; eval hygiene check not needed."
+        run: echo "No change to skills/, misc/evals/ or the hygiene tests; eval hygiene check not needed."
       # Anything but an explicit 'false' runs the real check.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.changes.outputs.relevant != 'false'
