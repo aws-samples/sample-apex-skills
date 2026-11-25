@@ -64,6 +64,9 @@ jobs:
       - name: Run hygiene check tests
         if: steps.changes.outputs.relevant != 'false'
         run: python3 -B misc/tests/test_check_hygiene.py -v
+      - name: Check every skill has an eval set or is exempt
+        if: steps.changes.outputs.relevant != 'false'
+        run: make -C misc/evals check-evals-coverage
 
   gitops-regressions:
     name: eks-recon GitOps regression
@@ -190,6 +193,10 @@ jobs:
           'misc/tests/test_parse_trajectory_tokens.py'
           'misc/tests/test_eval_runner_robust.py'
           'misc/tests/test_safe_frontmatter.py'
+          'misc/tests/test_run_optimize.py'
+          'misc/tests/test_elicitation.py'
+          'misc/tests/test_check_hygiene.py'
+          'misc/tests/test_update_sibling_map.py'
           '.github/workflows/evals.yml'
           '.github/scripts/ci-gate.sh'
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -198,7 +205,7 @@ jobs:
           python-version: '3.x'
       - name: Run offline eval script and frontmatter parser checks
         if: steps.changes.outputs.relevant != 'false'
-        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_parse_trajectory_tokens.py -v && python3 -B misc/tests/test_eval_runner_robust.py -v && python3 -B misc/tests/test_safe_frontmatter.py -v
+        run: pip install 'pyyaml>=6,<7' && python3 -B misc/tests/test_parse_trajectory_tokens.py -v && python3 -B misc/tests/test_eval_runner_robust.py -v && python3 -B misc/tests/test_safe_frontmatter.py -v && python3 -B misc/tests/test_run_optimize.py -v && python3 -B misc/tests/test_elicitation.py -v && python3 -B misc/tests/test_check_hygiene.py -v && python3 -B misc/tests/test_update_sibling_map.py -v
 
   service-eks-preflight:
     name: service-eks preflight regression

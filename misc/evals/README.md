@@ -84,6 +84,8 @@ make task-all-parallel                      # all skills, all layers
 make composite-all                          # recompute all grades
 ```
 
+The `process-<skill>`, `artifact-<skill>`, `knowledge-<skill>` and `composite-<skill>` targets score the latest `make task-<skill>` run, so until one exists they exit non-zero: the first three print "no run data found", and composite prints "No layer scores available".
+
 ### Step 2 — Update the scorecard in this README
 
 After running evals, read the composite scores from each skill's output and manually update the scorecard table above. The composite score output shows the grade, overall score, and per-layer breakdown.
@@ -318,3 +320,4 @@ pip install pyyaml jsonschema
 
 - **Source mapping**: [`SOURCE-MAPPING.md`](./SOURCE-MAPPING.md) — research sources per layer
 - **Skill-creator schemas**: [`skills/skill-creator/references/schemas.md`](../../skills/skill-creator/references/schemas.md)
+- **Description optimizer**: [`scripts/run_optimize.py`](./scripts/run_optimize.py) proposes a tighter skill description from a saved triggering run's false and missed triggers (through skill-creator's `improve_description.py`) and validates the proposal with `run_triggering.py`. It has no make target. Its improver step runs `claude -p` with the caller's environment, so run it only under the eval account's Bedrock-only role; `--build-only` makes no model call. See `python3 scripts/run_optimize.py --help`.
