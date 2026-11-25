@@ -1,6 +1,6 @@
 # `misc/evals/MULTITURN-HARNESS.md`: multi-turn eval harness
 
-Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ b3115e5a` is the head of PR 570 (branch `fix/p308-elicitation-eval-hygiene`), not yet on main, based on 2133c43d.
+Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ 33a5bc2f` is `origin/main` after PR 570 merged (33a5bc2f9f3457c6aba43c2283f9fc207834b4c1).
 
 ## 1. Purpose and scope
 
@@ -68,24 +68,25 @@ If the last turn has no question, or no canned turn matches it, the loop stops (
 - On claude the events pass through `normalize_events` unchanged (`misc/evals/scripts/parse_trajectory.py:544-545 @ 2133c43d`) and are written to `events.jsonl` (`run_task_evals.py:724 @ 2133c43d`); `format_transcript` writes `transcript.md` (`run_task_evals.py:719`, `:212 @ 2133c43d`).
 - stderr: on the multi-turn path the runner's `stderr` stays empty (`run_task_evals.py:651 @ 2133c43d`); `elicitation.py` pipes each turn's stderr and never reads it (`elicitation.py:178`, `:200 @ 2133c43d`).
 
-## 3. What PR 570 adds @ b3115e5a
+## 3. What PR 570 added @ 33a5bc2f
 
-On branch `fix/p308-elicitation-eval-hygiene` (PR 570), not yet on main.
+PR 570 merged into main as 4b34709f.
 
 ### 3.1 Plain-text question heuristic
 
-eks-build, eks-design and eks-mcp-server ask in plain text, not with `AskUserQuestion` (`elicitation.py:63-66 @ b3115e5a`). With no `AskUserQuestion` in the final assistant message, `detect_pending_question` takes that message's last non-empty text block, splits it on blank lines, and returns the last paragraph if it holds a `?`, else None (`elicitation.py:84-87 @ b3115e5a`). `AskUserQuestion` still wins when present (`elicitation.py:75-83 @ b3115e5a`).
+eks-build, eks-design and eks-mcp-server ask in plain text, not with `AskUserQuestion` (`elicitation.py:69-72 @ 33a5bc2f`). With no `AskUserQuestion` in the final assistant message, `detect_pending_question` takes that message's last non-empty text block, reads a closed fenced block as one paragraph, splits it on blank lines, and returns the last paragraph if it holds a `?` outside an inline code span or a URL, else None (`elicitation.py:98-102 @ 33a5bc2f`). `AskUserQuestion` still wins when present (`elicitation.py:89-97 @ 33a5bc2f`).
 
-Stated limits (`elicitation.py:67-69 @ b3115e5a`):
+Stated limits (`elicitation.py:77-83 @ 33a5bc2f`):
 
-- False negative: a question followed by an options paragraph is missed.
+- False negative: a question followed by another paragraph, such as an options paragraph or a sign-off, is missed, and so is a question on a fence's closing line.
 - False positive: a closing offer that ends in `?` counts as a question, such as "Want me to confirm?" (the "confirm" false catch). It is then sent to `match_answer`, so a canned turn whose regex matches the offer answers it.
+- A fence of 4 or more backticks is closed early by an inner ```` ``` ```` line, so a `?` in the rest of that block counts.
 
 ### 3.2 `elicitation_answer` record
 
-Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:217-221 @ b3115e5a`; docstring `:179-182`). No grader reads it yet: transcript.md does not show it. Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:181-182 @ b3115e5a`).
+Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). No grader reads it yet: transcript.md does not show it. Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
 
-The branch also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:188-192`, `:214 @ b3115e5a`).
+PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:203-207`, `:229 @ 33a5bc2f`).
 
 ## 4. Open and planned (not built)
 
