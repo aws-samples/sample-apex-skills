@@ -74,5 +74,13 @@
   {
     "query": "score our EKS cluster against the Well-Architected Framework's five pillars",
     "should_trigger": false
+  },
+  {
+    "query": "What will 500 Nitro Sandbox pods with 0.5 vCPU and 1 GiB cost per month on demand, and how many nodes do they need?",
+    "should_trigger": false
+  },
+  {
+    "query": "Is c, m or r cheaper per sandbox for confidential-sandbox pods with 1 vCPU and 3 GiB?",
+    "should_trigger": false
   }
 ]

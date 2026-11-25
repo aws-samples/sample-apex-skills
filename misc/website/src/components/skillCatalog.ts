@@ -83,6 +83,12 @@ const LINES: Record<string, Lines> = {
     notFor: 'quick advice with no document (eks-best-practices)',
     output: 'A design document with Mermaid diagrams, ADRs and a validation report',
   },
+  'eks-sandbox-instance-selector': {
+    job: 'design',
+    use: 'Pick the instance type and node count for Nitro Sandbox pods on EKS.',
+    notFor: 'deciding whether to use sandboxes or how to secure them (eks-security)',
+    output: 'Sandboxes per node, the first limit reached, node count, on-demand cost and a NodePool snippet',
+  },
   'eks-best-practices': {
     job: 'knowledge',
     use: 'Answer EKS and Kubernetes architecture and configuration questions, such as Karpenter or Auto Mode compute.',

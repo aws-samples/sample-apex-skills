@@ -21,6 +21,7 @@ description: "Browse every APEX skill: AWS skills for AI agents doing platform e
 - [**eks-operation-review**](./eks/eks-operation-review/index.md): EKS operational excellence assessment across 10 areas, GREEN/AMBER/RED rated, with prioritized recommendations and deprecated-API review with no target version
 - [**eks-platform-engineering**](./eks/eks-platform-engineering/index.md): Internal Developer Platform design on EKS: Backstage, ArgoCD, Kargo, progressive delivery, golden paths and DORA metrics
 - [**eks-recon**](./eks/eks-recon/index.md): EKS cluster discovery: compute, networking, security facts, add-ons, workloads, storage, IaC and CI/CD, reported as facts
+- [**eks-sandbox-instance-selector**](./eks/eks-sandbox-instance-selector/index.md): Pick EC2 instance types for EKS Nitro Sandbox pods: sandboxes per node, first limit reached, node count, on-demand cost and a NodePool snippet
 - [**eks-security**](./eks/eks-security/index.md): Read-only scripted reviews of a live cluster (CVEs, events, posture); hardening: CIS, HIPAA, PCI-DSS, FedRAMP, SOC 2, GuardDuty, Pod Identity, image signing
 - [**eks-upgrade-check**](./eks/eks-upgrade-check/index.md): Assess EKS cluster upgrade readiness with a 0-100 score across 8 areas including deprecated APIs, add-on compatibility and workload risks
 - [**eks-well-architected-review**](./eks/eks-well-architected-review/index.md): Unofficial, deterministic Well-Architected style review of a live EKS cluster (Linux nodes only) across five pillars; run only on an explicit WAFR request

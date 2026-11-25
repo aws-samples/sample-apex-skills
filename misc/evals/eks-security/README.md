@@ -44,6 +44,7 @@ eks-security owns live security reviews (an advisory verdict, an event response,
 - **`eks-upgrade-check`** (upgrade readiness to a target version with no advisory: deprecated APIs, add-on compatibility) negatives 29, 33 ("is my cluster ready to upgrade from 1.30 to 1.33", "vpc-cni two minor versions behind latest, no advisory").
 - **`eks-mcp-server`** (EKS MCP server setup in an AI assistant) negative 30 ("configure the EKS MCP server so it can read my cluster").
 - **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster: five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) negatives 31, 35 ("score our EKS cluster across all five Well-Architected pillars", "full Well-Architected review across all pillars").
+- **`eks-sandbox-instance-selector`** (instance type, density and cost sizing for Nitro Sandbox pods) — negatives 37, 38 ("We already chose isolated-sandbox for o…").
 <!-- SIBLING_MAP_END -->
 
 The discriminator: a **security verdict on a live cluster, a security event, or a security control or compliance regime** is the driver. Knowledge with no check, version lag, inventory, cost, build and a full Well-Architected review go to the sibling.

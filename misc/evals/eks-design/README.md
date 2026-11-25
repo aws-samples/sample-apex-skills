@@ -18,6 +18,7 @@ The boundary between `eks-design` and its neighbours hinges on whether the promp
 - **`eks-security`** (EKS security & compliance hardening — CIS, HIPAA/PCI/FedRAMP/GDPR, Pod Identity/Access Entries, PSA, GuardDuty, image signing, audit logging) — negative 21 ("Harden our EKS cluster for FedRAMP Mode…").
 - **`eks-well-architected-review`** (deterministic Well-Architected review of a live EKS cluster — five pillars, fixed jq detections, severity-weighted 0-100 per pillar plus a coverage gate) — negative 22 ("run a Well-Architected review against o…").
 - **`ecs-modernize`** (assessing an existing app for replatform vs rearchitect and migrating it onto Amazon ECS, not EKS): negatives 23, 24 ("Assess our WebSphere traditional app…", "We have a .NET Framework app on a Windows EC2…").
+- **`eks-sandbox-instance-selector`** (instance type, density and cost sizing for Nitro Sandbox pods) — negatives 25, 26 ("Size the nodes for 1000 isolated-sandbo…").
 <!-- SIBLING_MAP_END -->
 
 The key discriminator: `eks-design` fires when the prompt requests a **persistent design artifact** (architecture document, ADR, Mermaid diagram, validation report, or design-for-handoff-to-build) rather than a verbal recommendation, executable code, live cluster query, or process/standards check.

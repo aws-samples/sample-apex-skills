@@ -1,0 +1,42 @@
+{
+  "skill_name": "eks-sandbox-instance-selector",
+  "evals": [
+    {
+      "id": 1,
+      "name": "auto-mode-graviton-cpu-bound",
+      "prompt": "We run 100 Nitro Sandbox pods on EKS Auto Mode in us-west-2 with runtimeClassName isolated-sandbox. Each pod requests 1 vCPU and 2048Mi of memory. Which instance type should we allow, how many nodes do we need, and what does it cost on demand?",
+      "expectations": [
+        "Runs the bundled select.py with --region us-west-2 --mode auto --runtime-class isolated --count 100 --cpu-req 1 --mem-req 2048, and does not ask for these six inputs again because the prompt gives all of them",
+        "Recommends a Graviton type as the lowest cost overall (m6g.4xlarge in the bundled data) and names the lowest-cost x86 type separately",
+        "States that CPU is the first limit reached and that part of the node memory stays idle",
+        "Gives the node count (7) and the hourly or monthly on-demand cost for 100 sandboxes",
+        "Includes an Auto Mode NodePool requirements snippet that uses the eks.amazonaws.com/instance-family key",
+        "Says the result is an estimate to check on a cluster"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "missing-required-inputs",
+      "prompt": "What instance type should I use for my EKS Nitro Sandbox pods? Each one needs 0.5 vCPU.",
+      "expectations": [
+        "Does not give an instance type recommendation before it has the missing required inputs",
+        "Asks for the Region, the cluster type (Auto Mode or standard EKS), the RuntimeClass, the number of sandboxes and the memory request, and does not ask again for the CPU request the user gave",
+        "Shows a default with each question (for example us-west-2, EKS Auto Mode, isolated-sandbox, 100 sandboxes, 2048 MiB)"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "standard-eks-x86-smt-and-daemonsets",
+      "prompt": "Standard EKS with Karpenter in us-west-2, x86 only because our images are amd64. 40 confidential-sandbox pods, each requesting 1.5 vCPU and 1024Mi. Pick the instance type.",
+      "expectations": [
+        "Runs select.py with --mode std --runtime-class confidential --count 40 --cpu-req 1.5 --mem-req 1024 --arch x86_64",
+        "Says the guest gets 2 vCPU because the CPU request is rounded up, while the scheduler counts only 1500m",
+        "States the DaemonSet overhead it assumed for standard EKS (3 pods / 150m / 200 MiB by default) and that the real value can change the result",
+        "Uses the karpenter.k8s.aws/instance-family key in the NodePool snippet"
+      ],
+      "files": []
+    }
+  ]
+}

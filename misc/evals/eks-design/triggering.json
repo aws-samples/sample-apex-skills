@@ -94,5 +94,13 @@
   {
     "query": "We have a .NET Framework app on a Windows EC2 instance. Containerize it and move it onto Amazon ECS.",
     "should_trigger": false
+  },
+  {
+    "query": "Size the nodes for 1000 isolated-sandbox pods in ap-east-1, 2 vCPU and 4 GiB each.",
+    "should_trigger": false
+  },
+  {
+    "query": "Which instance type should our Karpenter NodePool use for 100 Nitro Sandbox pods at 1 vCPU and 2048Mi?",
+    "should_trigger": false
   }
 ]

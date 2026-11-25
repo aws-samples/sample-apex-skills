@@ -289,6 +289,32 @@ EKS cluster reconnaissance and environment discovery — reports the raw FACTS o
 
 ---
 
+### [eks-sandbox-instance-selector](./eks-sandbox-instance-selector/)
+
+Picks EC2 instance types for Amazon EKS nodes that run AWS Nitro Sandboxes (pods with runtimeClassName isolated-sandbox or confidential-sandbox). From the sandbox pod's CPU and memory request, the sandbox count, the Region and the cluster type (EKS Auto Mode, or standard EKS with Karpenter or node groups), a bundled script computes for each supported instance type how many sandboxes fit on one node, which limit is reached first (sandbox slots, vCPU budget, memory, CPU, max-pods), the node count and the on-demand cost, then gives the lowest-cost Graviton and x86 picks and a NodePool requirements snippet. Use when someone asks which instance type or family to use for Nitro Sandbox pods, how many sandboxes fit on a node, how many nodes N sandboxes need, or what sandbox capacity costs. Not for whether to use Nitro Sandboxes or how to harden them (eks-security), general EKS compute advice for ordinary pods (eks-best-practices), a cost audit of a live cluster (eks-cost-intelligence), or ECS tasks.
+
+**References** (loaded on demand):
+
+| Reference | Description |
+|-----------|-------------|
+| [rules.md](./eks-sandbox-instance-selector/references/rules.md) | Rules |
+
+**Scripts:**
+
+| Script | Description |
+|--------|-------------|
+| [build_data.py](./eks-sandbox-instance-selector/scripts/build_data.py) | Build data |
+| [fetch_raw.sh](./eks-sandbox-instance-selector/scripts/fetch_raw.sh) | Fetch raw |
+| [select.py](./eks-sandbox-instance-selector/scripts/select.py) | Select |
+
+**Data:**
+
+| File | Description |
+|------|-------------|
+| [data.json](./eks-sandbox-instance-selector/data/data.json) | Data |
+
+---
+
 ### [eks-security](./eks-security/)
 
 Read-only scripted security reviews of a live Amazon EKS cluster (exposed / not exposed / unknown), plus hardening and compliance guidance. (1) CVE and advisory review - "am I exposed to CVE-...", "check this AWS bulletin or GHSA against my cluster", "CVE review for EKS" - verdicts for add-ons and images; kubelet and node-OS items are review-only. (2) Security event response - compromised image or package, leaked credential, suspicious pod - scope, record, contain, snapshot, fix, verify. (3) Posture check - "would my cluster contain a compromised pod", IMDS, NetworkPolicy, PSA, identity, logging, GuardDuty, endpoint, supply chain. Also hardening and audit prep - 7-layer stack, CIS, HIPAA/PCI-DSS/FedRAMP/SOC 2, Pod Identity vs IRSA, Access Entries, image signing. Skip for EKS knowledge (eks-best-practices), Well-Architected review (eks-well-architected-review), upgrade readiness (eks-upgrade-check), an operational review (eks-operation-review), inventory (eks-recon), GenAI model security (eks-genai), non-EKS.
