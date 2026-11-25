@@ -24,7 +24,9 @@ Documentation pages:
 | x86 SMT | On types with two threads per core, a core runs only one sandbox at a time, so sandbox compute is bounded by physical cores. With 1 guest vCPU about half the CPU is usable; an even vCPU count uses all of it; an odd count n is estimated as n/(n+1). Applied to CPU bin packing by default (`--no-smt` turns it off) | EC2 page, "CPU on instances with two threads per core"; the n/(n+1) factor is an estimate, not measured |
 | CPU delivered | min(1, allocatable CPU × SMT factor ÷ (CPU request × sandboxes per node)) | Estimate |
 | Sort order | With `--count`: total cost = ceil(count ÷ per node) × hourly price. With `--count 0`: hourly price ÷ per node | — |
-| Price | Linux on-demand, shared tenancy, per hour | AWS Price List API (`source_date` in `data/data.json`) |
+| Price | Linux on-demand, shared tenancy, per hour | AWS Price List API; each Region's pull date is in `data/data.json` and in the script's output |
+| Types offered in a Region | A supported type is offered in a Region when that Region has an on-demand Linux price for it | Matches `DescribeInstanceTypes` in us-west-2 and ap-east-1 type for type (checked 2026-11-25) |
+| Instance specs | One spec per type (vCPU, threads per core, memory, ENIs, IPs per ENI, metal), used for every Region | `DescribeInstanceTypes` in us-west-2 and ap-east-1 gave the same values for all 401 types both offer (checked 2026-11-25). A type offered only in a Region whose specs can't be read is skipped |
 
 Not included: CPU used by the sandbox itself (guest kernel, Firecracker); EBS and network bandwidth; Spot prices; the memory pool's own use (2 MiB per sandbox, and in confidential mode 16 MiB per virtual device, EC2 page "Memory"), which the scheduler does not count.
 

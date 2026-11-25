@@ -1,10 +1,16 @@
-"""Build data.json for the Nitro Sandbox instance selector.
+"""Build or update data/data.json for the Nitro Sandbox instance selector.
 
-Usage: python build_data.py [RAW_DIR]   (default: <skill>/raw, produced by fetch_raw.sh)
-Inputs: RAW_DIR/types-<region>.json (describe-instance-types), RAW_DIR/price-raw-<region>.json (pricing get-products).
-Output: <skill>/data/data.json. Regions = every types-<region>.json found in RAW_DIR.
+Usage: python3 build_data.py [RAW_DIR]   (default: <skill>/raw, produced by fetch_raw.sh)
+Inputs: RAW_DIR/types-<region>.json (ec2 describe-instance-types) for any Regions that could be read,
+        RAW_DIR/price-raw-<region>.json (pricing get-products) for each Region to update.
+Output: <skill>/data/data.json, merged: the Regions with a price file in RAW_DIR are rebuilt, every
+        other Region already in data.json is kept as it is.
+
+Layout: "types" holds each supported type's specs once (specs don't differ by Region); "regions" maps
+each Region to {"date", "prices": {type: USD per hour}}. A type is offered in a Region when that
+Region has an on-demand Linux price for it.
 Supported families/exceptions transcribed from
-https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-nitro-sandboxes.html (2026-11-18).
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-nitro-sandboxes.html (checked 2026-11-25).
 Only general purpose / compute / memory optimized families are included.
 """
 import datetime, json, sys
@@ -13,7 +19,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 SKILL = HERE.parent
 RAW = Path(sys.argv[1]) if len(sys.argv) > 1 else SKILL / "raw"
-REGIONS = sorted(f.name[len("types-"):-len(".json")] for f in RAW.glob("types-*.json"))
+OUT = SKILL / "data" / "data.json"
 
 # family -> sizes NOT supported (from EC2 doc)
 SUPPORTED = {
@@ -79,31 +85,43 @@ def prices(region):
     return out
 
 
+def spec(it):
+    fam = it["t"].partition(".")[0]
+    return {
+        "t": it["t"], "fam": fam, "cat": fam[0], "gen": int("".join(ch for ch in fam[1:] if ch.isdigit())[:1] or 0),
+        "vcpu": it["v"], "tpc": it.get("tpc") or 1, "mem": it["m"],
+        "arch": "arm64" if "arm64" in it["a"] else "x86_64",
+        "eni": it["eni"], "ip": it["ip"], "metal": it["bm"], "autoBlocked": fam in AUTO_MODE_BLOCKED,
+    }
+
+
+def supported(t):
+    fam, _, size = t.partition(".")
+    return fam in SUPPORTED and size not in SUPPORTED[fam] and "flex" not in fam
+
+
 def build():
-    mtime = max(f.stat().st_mtime for f in RAW.glob("*.json"))
-    data = {"source_date": datetime.date.fromtimestamp(mtime).isoformat(), "regions": {}}
-    for r in REGIONS:
+    data = json.loads(OUT.read_text()) if OUT.exists() else {"types": {}, "regions": {}}
+    for f in sorted(RAW.glob("types-*.json")):  # specs are the same in every Region; the newest read wins
+        for it in json.load(open(f)):
+            if supported(it["t"]):
+                data["types"][it["t"]] = spec(it)
+    for f in sorted(RAW.glob("price-raw-*.json")):
+        r = f.name[len("price-raw-"):-len(".json")]
         pr = prices(r)
-        rows = []
-        for it in json.load(open(RAW / f"types-{r}.json")):
-            fam, _, size = it["t"].partition(".")
-            if fam not in SUPPORTED or size in SUPPORTED[fam] or "flex" in fam:
-                continue
-            arch = "arm64" if "arm64" in it["a"] else "x86_64"
-            rows.append({
-                "t": it["t"], "fam": fam, "cat": fam[0], "gen": int("".join(ch for ch in fam[1:] if ch.isdigit())[:1] or 0),
-                "vcpu": it["v"], "tpc": it.get("tpc") or 1, "mem": it["m"], "arch": arch,
-                "eni": it["eni"], "ip": it["ip"], "metal": it["bm"],
-                "price": pr.get(it["t"]), "autoBlocked": fam in AUTO_MODE_BLOCKED,
-            })
-        rows.sort(key=lambda x: (x["fam"], x["vcpu"]))
-        data["regions"][r] = rows
-        print(r, len(rows), "types,", sum(1 for x in rows if x["price"] is None), "without price", file=sys.stderr)
+        offered = {t: pr[t] for t in sorted(pr) if supported(t)}
+        missing = [t for t in offered if t not in data["types"]]
+        data["regions"][r] = {
+            "date": datetime.date.fromtimestamp(f.stat().st_mtime).isoformat(),
+            "prices": {t: p for t, p in offered.items() if t in data["types"]},
+        }
+        print(r, len(data["regions"][r]["prices"]), "types", f"(skipped, no specs: {', '.join(missing)})" if missing else "", file=sys.stderr)
+    data["types"] = dict(sorted(data["types"].items()))
+    data["regions"] = dict(sorted(data["regions"].items()))
     return data
 
 
 if __name__ == "__main__":
     data = build()
-    out = SKILL / "data" / "data.json"
-    out.write_text(json.dumps(data, separators=(",", ":")))
-    print("wrote", out, file=sys.stderr)
+    OUT.write_text(json.dumps(data, separators=(",", ":")))
+    print("wrote", OUT, len(data["types"]), "types,", len(data["regions"]), "Regions", file=sys.stderr)

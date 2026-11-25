@@ -15,7 +15,7 @@ This page is generated from [skills/eks-sandbox-instance-selector/SKILL.md](http
 
 Turns a Nitro Sandbox pod spec into: how many sandboxes fit on one node, which limit is reached first, how many nodes the user needs, and what they cost. The results are estimates to shorten the list of instance types; the user tests the final types on a cluster.
 
-The skill reads no cluster and calls no AWS API at run time: `scripts/select.py` works offline on the bundled `data/data.json` (instance types and on-demand prices, dated in its `source_date`).
+The skill reads no cluster and needs no AWS credentials to answer: `scripts/select.py` works offline on the bundled `data/data.json`: instance specs, and on-demand prices for 18 Regions (the 17 commercial Regions that need no opt-in, plus ap-east-1), each Region with the date its prices were pulled.
 
 ## Step 1: Get the required inputs
 
@@ -34,7 +34,7 @@ If the user's message or the conversation so far doesn't state one or more of th
 
 | Input | Options (first = default) |
 |---|---|
-| Region | us-west-2, then the other Regions in `data/data.json` (today ap-east-1) |
+| Region | us-west-2, us-east-1, eu-west-1, ap-northeast-1; any other Region in `data/data.json` through the user's own answer |
 | Cluster type | EKS Auto Mode, standard EKS (Karpenter or node groups) |
 | RuntimeClass | isolated-sandbox (overhead 256 MiB), confidential-sandbox (overhead 512 MiB) |
 | Number of sandboxes | 100, 10, 1000, not sure (sort by cost per sandbox, `--count 0`) |
@@ -43,7 +43,7 @@ If the user's message or the conversation so far doesn't state one or more of th
 
 If an ask tool takes fewer questions than are missing (Claude Code's takes 4), ask in two rounds: Region, cluster type, RuntimeClass and number of sandboxes first, then the CPU and memory requests. Don't give a recommendation until you have all six. The script also rejects a run without them.
 
-If the user's Region is not in `data/data.json`, say so, and offer a Region that is, or a data refresh (see "Refresh the data"), which needs AWS credentials.
+If the user's Region is not in `data/data.json` (the script lists the Regions it has), say so, and offer a Region that is, or a refresh of just that Region (see "Refresh the data"), which needs AWS credentials and takes about 20 seconds. Offer the same refresh when the user asks for current prices.
 
 ## Step 2: Optional inputs
 
@@ -89,12 +89,15 @@ It prints Markdown: recommendations (lowest cost overall, Graviton and x86), not
 
 ## Refresh the data
 
-`data/data.json` holds prebuilt instance types and on-demand prices. When it is out of date, or to add a Region, a maintainer runs (with AWS credentials; read-only calls):
+`data/data.json` holds each supported type's specs once (they don't differ by Region) and a price table per Region. To add or refresh Regions (AWS credentials; read-only calls):
 
 ```bash
 cd "${CLAUDE_SKILL_DIR}"
-./scripts/fetch_raw.sh us-west-2 ap-east-1 eu-west-1   # writes raw/, which is not committed
-python3 scripts/build_data.py                           # raw/ -> data/data.json
+./scripts/fetch_raw.sh me-central-1        # one or more Regions; no argument = the 17 default Regions
+python3 scripts/build_data.py              # updates those Regions in data/data.json, keeps the others
+rm -rf raw                                 # raw/ is scratch, never committed
 ```
+
+A Region that isn't enabled in the account still gets its prices (the Pricing API needs no opt-in); its types take their specs from the Regions already in the data, and a type with no specs anywhere is skipped and named in the output.
 
 The supported families and excluded sizes are copied by hand into `SUPPORTED` in `scripts/build_data.py`, from the [EC2 Nitro Sandboxes considerations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/amazon-ec2-nitro-sandboxes.html) (checked on 2026-11-25). When that page changes, update the table by hand. The families that EKS Auto Mode excludes for now are in `AUTO_MODE_BLOCKED`, from [EKS sandboxing considerations](https://docs.aws.amazon.com/eks/latest/userguide/sandboxing-limitations.html).

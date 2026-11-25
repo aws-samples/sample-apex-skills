@@ -102,8 +102,11 @@ def main():
     data = json.loads(p.data.read_text())
     if p.region not in data["regions"]:
         sys.exit(f"region {p.region} not in data; available: {', '.join(data['regions'])}")
+    region = data["regions"][p.region]
+    offered = sorted((dict(data["types"][t], price=price) for t, price in region["prices"].items()),
+                     key=lambda x: (x["fam"], x["vcpu"], x["t"]))
     cats = {y for c in p.cats for y in (["x", "z"] if c == "x" else [c])}
-    rows = [it for it in data["regions"][p.region]
+    rows = [it for it in offered
             if it["cat"] in cats and it["gen"] >= p.min_gen
             and (p.arch == "any" or it["arch"] == p.arch)
             and (p.metal or not it["metal"])
@@ -116,7 +119,7 @@ def main():
     out = []
     w = out.append
     w("# Nitro Sandbox instance selection\n")
-    w(f"Data: {p.region}, describe-instance-types + Pricing API ({data['source_date']}). These are estimates to shorten the list; test the types on your cluster.\n")
+    w(f"Data: {p.region}, describe-instance-types + Pricing API ({region['date']}). These are estimates to shorten the list; test the types on your cluster.\n")
     w(f"Inputs: {'EKS Auto Mode' if p.mode == 'auto' else 'Standard EKS'} · "
       f"{'confidential-sandbox' if p.overhead == 512 else 'isolated-sandbox'} (overhead {p.overhead}Mi) · "
       f"CPU request {p.cpu_req:g} vCPU{f' / limit {p.cpu_lim:g} vCPU' if p.cpu_lim else ''} · memory request {p.mem_req:g}Mi"

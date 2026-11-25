@@ -12,12 +12,12 @@ Sizing nodes for sandbox pods is a question none of the current skills answers. 
 Options weighed:
 
 - **Add the rules to an existing skill** (eks-best-practices, eks-design or eks-security). The rules alone don't give an answer: the user wants a type, a node count and a cost, which needs the instance and price data and the arithmetic, and none of those skills ships a script for it. Prose arithmetic over hundreds of types would be slow and error-prone.
-- **Query live AWS APIs at run time.** Always current, but needs credentials and network access for a question that is otherwise offline, and makes results change between runs.
+- **Query live AWS APIs at run time.** Always current, but needs AWS credentials (`pricing:GetProducts`, `ec2:DescribeInstanceTypes`), takes about 20 seconds and 10 MB per Region, and makes results change between runs. The data that goes stale fastest, the list of types that support Nitro Sandboxes, comes from the EC2 documentation, which no API returns. Prices barely move: in us-west-2, none of 1,374 on-demand Linux prices changed between 2026-11-18 and 2026-11-25.
 - **A standalone solution skill with a bundled script and dated data.** Deterministic and offline; the data goes stale and needs a refresh.
 
 ## Decision
 
-Add `eks-sandbox-instance-selector`, a standalone solution skill ([ADR 0004](0004-naming.md)). Its `scripts/select.py` (Python standard library only) reads the bundled `data/data.json` (supported instance types and Linux on-demand prices, with a `source_date`) and computes, for each type, sandboxes per node, the first limit reached, node count and cost, then prints the recommendations and a NodePool requirements snippet. `scripts/fetch_raw.sh` and `scripts/build_data.py` refresh the data with read-only AWS calls; they are maintainer tools, not run during a normal answer.
+Add `eks-sandbox-instance-selector`, a standalone solution skill ([ADR 0004](0004-naming.md)). Its `scripts/select.py` (Python standard library only) reads the bundled `data/data.json` (each supported type's specs once, and a Linux on-demand price table per Region with its pull date; 18 Regions: the 17 commercial Regions that need no opt-in, plus ap-east-1) and computes, for each type, sandboxes per node, the first limit reached, node count and cost, then prints the recommendations and a NodePool requirements snippet. `scripts/fetch_raw.sh` and `scripts/build_data.py` refresh the data with read-only AWS calls, for all default Regions or for one Region, which is merged in and leaves the others as they are. A normal answer runs neither; the skill offers a one-Region refresh only when the user's Region is missing or the user asks for current prices.
 
 The skill asks for six required inputs before it recommends anything (Region, cluster type, RuntimeClass, number of sandboxes, CPU request, memory request) and shows a default with each question; the script rejects a run without them.
 
@@ -34,4 +34,4 @@ The skill takes no class in this change. It fits `script` (its own script does t
 
 - Whether Auto Mode caps max-pods at 110 or 250 as the EKS AMI does is not verified; the script caps by default (`--no-podcap` turns it off).
 - Auto Mode does not provision multi-NUMA types, and there is no published list; the script estimates them as types with 96 or more vCPU.
-- The data covers two Regions (us-west-2, ap-east-1). More Regions need a refresh with AWS credentials.
+- Regions that need opt-in, other than ap-east-1, are not bundled; a user adds one with a one-Region refresh. Should the bundle cover every commercial Region (about 500 KB instead of about 320 KB)?
