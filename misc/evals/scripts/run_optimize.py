@@ -36,8 +36,11 @@ Usage:
   run_optimize.py --skill eks-recon --model <id>     # propose, validate, surface
 
 `--model` is used by both model calls. The improver runs `claude -p` with
-the caller's environment, so run it only under the eval account's
-Bedrock-only role, never with a host's admin credentials.
+the caller's environment and mints no eval-role session, so before
+running it, in the same shell, export the session credentials of the eval
+account's Bedrock-only role, CLAUDE_CODE_USE_BEDROCK=1 and AWS_REGION set
+to the Region in ~/.apex-eval/aws-config (misc/evals/README.md, Eval-role
+setup); never run it with a host's admin credentials.
 run_triggering.py mints the eval-role session itself.
 
 Output: the proposal is written beside the eval results file
@@ -169,8 +172,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="Write the eval results and stop; no model call")
     parser.add_argument("--model", default=None,
                         help="Model for the improver and the validation run (required unless --build-only). "
-                             "The improver runs `claude -p` with the caller's environment: run it only under "
-                             "the eval account's Bedrock-only role, never with a host's admin credentials")
+                             "The improver runs `claude -p` with the caller's environment: first export, in the "
+                             "same shell, the eval account's Bedrock-only role session credentials, "
+                             "CLAUDE_CODE_USE_BEDROCK=1 and AWS_REGION set to the Region in ~/.apex-eval/aws-config; "
+                             "never a host's admin credentials")
     args = parser.parse_args(argv)
 
     skill_dir = REPO_ROOT / "skills" / args.skill
