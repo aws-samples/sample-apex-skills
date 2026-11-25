@@ -241,8 +241,9 @@ def build_index_to_sibling(
     A README may instead number negatives relative to the negative list (no
     live README does). To keep the parser robust without touching bullet
     text, try absolute first; if any cited index is not a negative entry,
-    retry with a relative-to-negatives offset. Anything still misaligned bucks to
-    `other`.
+    retry with a relative-to-negatives offset. If neither pass places every
+    cited index on a negative, no sibling is mapped and every negative buckets
+    to `other`.
 
     Returns (map, matched_indices, unmatched_indices_in_triggering).
     """
