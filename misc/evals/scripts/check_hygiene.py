@@ -32,13 +32,9 @@ from typing import Any
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
-def _load_run_all_evals():
-    """Import run_all_evals.py without relying on a package __init__.py."""
-    name = "_run_all_evals_for_hygiene"
-    spec = importlib.util.spec_from_file_location(
-        name,
-        SCRIPTS_DIR / "run_all_evals.py",
-    )
+def _load_script(name: str, filename: str):
+    """Import a sibling script without relying on a package __init__.py."""
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS_DIR / filename)
     mod = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     sys.modules[name] = mod
@@ -55,7 +51,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    rae = _load_run_all_evals()
+    rae = _load_script("_run_all_evals_for_hygiene", "run_all_evals.py")
+    ka_mod = _load_script("_knowledge_assertions_for_hygiene", "knowledge_assertions.py")
 
     skills = rae.discover_skills()
     if args.skill:
@@ -235,10 +232,10 @@ def main() -> int:
             except Exception as e:
                 warnings.append(f".skilleval.yaml parse error: {e}")
 
-        # 7. knowledge_assertions schema validation (if present).
-        VALID_KNOWLEDGE_TYPES = {
-            "must-contain", "must-not-contain", "must-contain-one-of", "regex-match",
-        }
+        # 7. knowledge_assertions schema validation (if present): the runner's
+        #    own validate_assertion, so flat and group entries pass or fail
+        #    here exactly as the runner reads them. Non-object entries are
+        #    caught first, since the runner would crash on them.
         for p in prompts:
             ka = p.get("knowledge_assertions")
             if not ka:
@@ -248,23 +245,17 @@ def main() -> int:
                 warnings.append(f"evals.json prompt id={pid}: knowledge_assertions must be a list")
                 continue
             for i, a in enumerate(ka):
-                atype = a.get("type")
-                if atype not in VALID_KNOWLEDGE_TYPES:
-                    warnings.append(
-                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] has unknown type '{atype}'"
-                    )
-                if not a.get("source"):
-                    warnings.append(
-                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] missing required 'source' field"
-                    )
-                if atype in ("must-contain", "must-not-contain", "regex-match") and not a.get("pattern"):
-                    warnings.append(
-                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] type={atype} requires 'pattern'"
-                    )
-                if atype == "must-contain-one-of" and not isinstance(a.get("patterns"), list):
-                    warnings.append(
-                        f"evals.json prompt id={pid}: knowledge_assertions[{i}] type={atype} requires 'patterns' list"
-                    )
+                where = f"evals.json prompt id={pid}: knowledge_assertions[{i}]"
+                if not isinstance(a, dict):
+                    warnings.append(f"{where} must be an object")
+                    continue
+                children = a.get("assertions") if "group" in a else None
+                if isinstance(children, list) and not all(isinstance(c, dict) for c in children):
+                    warnings.append(f"{where}: every group 'assertions' entry must be an object")
+                    continue
+                err = ka_mod.validate_assertion(a)
+                if err:
+                    warnings.append(f"{where}: {err}")
 
         # 8. Template placeholders left from `make init-evals` (_template/):
         #    every `<REPLACE...>` must be filled in before the set counts.

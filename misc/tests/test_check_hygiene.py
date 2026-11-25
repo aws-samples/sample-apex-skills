@@ -79,6 +79,65 @@ class CheckHygienePlaceholders(unittest.TestCase):
         readme.write_text(readme.read_text() + "\n<REPLACE: 1-3 sentence scope description>\n")
         self.assert_fails_on_placeholder("README.md")
 
+    def set_knowledge(self, assertions: list) -> None:
+        def change(data):
+            data["evals"][0]["knowledge_assertions"] = assertions
+        self.edit_json("evals.json", change)
+
+    def assert_knowledge_fails(self, text: str) -> None:
+        res = self.run_check()
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn("knowledge_assertions[1]", res.stdout)
+        self.assertIn(text, res.stdout)
+
+    FLAT = {"type": "must-contain", "pattern": "docs", "source": "README.md"}
+
+    def group(self, **over) -> dict:
+        g = {
+            "group": "depth",
+            "weight": 0.5,
+            "assertions": [
+                {"type": "must-contain", "pattern": "mkdocs", "source": "README.md"},
+                {"type": "must-contain", "pattern": "nav", "source": "README.md",
+                 "when_parent_matches": "mkdocs", "weight": 2},
+            ],
+        }
+        g.update(over)
+        return g
+
+    def test_valid_group_passes(self):
+        self.set_knowledge([self.FLAT, self.group()])
+        res = self.run_check()
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+    def test_group_with_unknown_nested_type_fails(self):
+        g = self.group()
+        g["assertions"][1]["type"] = "must-match"
+        self.set_knowledge([self.FLAT, g])
+        self.assert_knowledge_fails("child[1]: unknown assertion type 'must-match'")
+
+    def test_group_with_empty_assertions_fails(self):
+        self.set_knowledge([self.FLAT, self.group(assertions=[])])
+        self.assert_knowledge_fails("must have a non-empty 'assertions' list")
+
+    def test_group_weight_above_one_fails(self):
+        self.set_knowledge([self.FLAT, self.group(weight=2)])
+        self.assert_knowledge_fails("Group 'weight' must be a float between 0 and 1")
+
+    def test_group_with_bad_when_parent_matches_fails(self):
+        g = self.group()
+        g["assertions"][1]["when_parent_matches"] = "("
+        self.set_knowledge([self.FLAT, g])
+        self.assert_knowledge_fails("invalid 'when_parent_matches' regex")
+
+    def test_group_with_non_object_child_fails(self):
+        self.set_knowledge([self.FLAT, self.group(assertions=["mkdocs"])])
+        self.assert_knowledge_fails("every group 'assertions' entry must be an object")
+
+    def test_flat_entry_unknown_type_still_fails(self):
+        self.set_knowledge([self.FLAT, dict(self.FLAT, type="must-match")])
+        self.assert_knowledge_fails("Unknown assertion type: 'must-match'")
+
 
 if __name__ == "__main__":
     unittest.main()
