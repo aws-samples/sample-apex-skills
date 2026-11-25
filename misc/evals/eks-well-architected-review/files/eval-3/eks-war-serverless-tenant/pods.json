@@ -1,0 +1,1602 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc01-7b6c5d4e3-00000",
+                "uid": "5a1cd00fc3a1689fcb2343f6b96aa920",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc01",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc01-7b6c5d4e3",
+                        "uid": "740ca21aa59676f4de71f2f0da50e166",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc01-7b6c5d4e3-00001",
+                "uid": "e0c3a7031188438ca7bd084291845a71",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc01",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc01-7b6c5d4e3",
+                        "uid": "740ca21aa59676f4de71f2f0da50e166",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc01-7b6c5d4e3-00002",
+                "uid": "761982001217afdb51b8ef988fa46007",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc01",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc01-7b6c5d4e3",
+                        "uid": "740ca21aa59676f4de71f2f0da50e166",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc02-7b6c5d4e3-00000",
+                "uid": "8ce8482c1edb8a10b25edc3b63b22c7f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc02",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc02-7b6c5d4e3",
+                        "uid": "ca5989aefacd3d81ad1d401809474f32",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc02-7b6c5d4e3-00001",
+                "uid": "f00f5e4ce58cb6ba7fb25ac93f4ac2c1",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc02",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc02-7b6c5d4e3",
+                        "uid": "ca5989aefacd3d81ad1d401809474f32",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc02-7b6c5d4e3-00002",
+                "uid": "d7fa7ee8d22975f836a9adc7023a6efb",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc02",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc02-7b6c5d4e3",
+                        "uid": "ca5989aefacd3d81ad1d401809474f32",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc03-7b6c5d4e3-00000",
+                "uid": "7b343939535e2701877bb34b8362aa53",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc03",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc03-7b6c5d4e3",
+                        "uid": "523e41f799e39f09f0a9e85a3a986462",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc03:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc03:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc03-7b6c5d4e3-00001",
+                "uid": "85bc221d5ecb68e5e4c108173dca4cd9",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc03",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc03-7b6c5d4e3",
+                        "uid": "523e41f799e39f09f0a9e85a3a986462",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc03:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc03:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc04-7b6c5d4e3-00000",
+                "uid": "bac1076c2d98ecbec7b13251c9eecb79",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc04",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc04-7b6c5d4e3",
+                        "uid": "63c99a30246442d4807152f08bd9e1a2",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc04:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc04:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc04-7b6c5d4e3-00001",
+                "uid": "5a7da289be737ea1d0b71ca393509ddb",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc04",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc04-7b6c5d4e3",
+                        "uid": "63c99a30246442d4807152f08bd9e1a2",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc04:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc04:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc05-7b6c5d4e3-00000",
+                "uid": "6f18cfb17263f14ee09e3d83a2982543",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc05",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc05-7b6c5d4e3",
+                        "uid": "20261588361d7368afc9eb2964090aee",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc05:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc05:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "apps-svc05-7b6c5d4e3-00001",
+                "uid": "cf7cbc36041fdb78ad38782ee5e9ff3c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc05",
+                    "eks.amazonaws.com/fargate-profile": "apps"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "apps-svc05-7b6c5d4e3",
+                        "uid": "20261588361d7368afc9eb2964090aee",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc05:1.0.0",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "250m",
+                                "memory": "512Mi"
+                            },
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "serviceAccountName": "default",
+                "serviceAccount": "default",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "app",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc05:1.0.0",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "coredns-6f9b8c7d5-00000",
+                "uid": "f26b8a30e0591554b4a69ac21c88751c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns",
+                    "eks.amazonaws.com/fargate-profile": "default"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "coredns-6f9b8c7d5",
+                        "uid": "d2c4e836d905e34fdde1b609a7780089",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "70Mi"
+                            },
+                            "limits": {
+                                "memory": "170Mi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "serviceAccountName": "coredns",
+                "serviceAccount": "coredns",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "coredns-6f9b8c7d5-00001",
+                "uid": "b153c18d5899dfbb60b4dd5975acf5da",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns",
+                    "eks.amazonaws.com/fargate-profile": "default"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "coredns-6f9b8c7d5",
+                        "uid": "d2c4e836d905e34fdde1b609a7780089",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "70Mi"
+                            },
+                            "limits": {
+                                "memory": "170Mi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-11.ap-southeast-1.compute.internal",
+                "serviceAccountName": "coredns",
+                "serviceAccount": "coredns",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "coredns-6f9b8c7d5-00002",
+                "uid": "d7bf9b2af354575fbc18181aea362fba",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns",
+                    "eks.amazonaws.com/fargate-profile": "default"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "coredns-6f9b8c7d5",
+                        "uid": "d2c4e836d905e34fdde1b609a7780089",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "70Mi"
+                            },
+                            "limits": {
+                                "memory": "170Mi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-12.ap-southeast-1.compute.internal",
+                "serviceAccountName": "coredns",
+                "serviceAccount": "coredns",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "coredns-6f9b8c7d5-00003",
+                "uid": "b35db2f16bdeec58cc9db3066b69b0b6",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns",
+                    "eks.amazonaws.com/fargate-profile": "default"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "coredns-6f9b8c7d5",
+                        "uid": "d2c4e836d905e34fdde1b609a7780089",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "70Mi"
+                            },
+                            "limits": {
+                                "memory": "170Mi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-13.ap-southeast-1.compute.internal",
+                "serviceAccountName": "coredns",
+                "serviceAccount": "coredns",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "coredns-6f9b8c7d5-00004",
+                "uid": "5e8a1463fe6c19da90c12018ea2aa7fc",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns",
+                    "eks.amazonaws.com/fargate-profile": "default"
+                },
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "kind": "ReplicaSet",
+                        "name": "coredns-6f9b8c7d5",
+                        "uid": "d2c4e836d905e34fdde1b609a7780089",
+                        "controller": true,
+                        "blockOwnerDeletion": true
+                    }
+                ]
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "imagePullPolicy": "IfNotPresent",
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "resources": {
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "70Mi"
+                            },
+                            "limits": {
+                                "memory": "170Mi"
+                            }
+                        }
+                    }
+                ],
+                "nodeName": "fargate-ip-10-0-0-10.ap-southeast-1.compute.internal",
+                "serviceAccountName": "coredns",
+                "serviceAccount": "coredns",
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "schedulerName": "fargate-scheduler",
+                "terminationGracePeriodSeconds": 30
+            },
+            "status": {
+                "phase": "Running",
+                "conditions": [
+                    {
+                        "type": "Initialized",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "ContainersReady",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    },
+                    {
+                        "type": "PodScheduled",
+                        "status": "True",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "name": "coredns",
+                        "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                        "ready": true,
+                        "started": true,
+                        "restartCount": 0,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-01-01T00:00:00Z"
+                            }
+                        }
+                    }
+                ],
+                "startTime": "2026-01-01T00:00:00Z",
+                "qosClass": "Burstable"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "kubernetes",
+                "uid": "712bea5f540a4213ed4077b9d3a7809d",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "default"
+            },
+            "spec": {
+                "type": "ClusterIP",
+                "clusterIP": "172.20.0.1",
+                "clusterIPs": [
+                    "172.20.0.1"
+                ],
+                "ports": [
+                    {
+                        "name": "https",
+                        "port": 443,
+                        "protocol": "TCP",
+                        "targetPort": 443
+                    }
+                ],
+                "sessionAffinity": "None",
+                "ipFamilies": [
+                    "IPv4"
+                ],
+                "ipFamilyPolicy": "SingleStack"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "kube-dns",
+                "uid": "b8ef81fdb00845fbac1a972e7b322d66",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system"
+            },
+            "spec": {
+                "type": "ClusterIP",
+                "clusterIP": "172.20.0.10",
+                "clusterIPs": [
+                    "172.20.0.10"
+                ],
+                "ports": [
+                    {
+                        "name": "dns",
+                        "port": 53,
+                        "protocol": "UDP",
+                        "targetPort": 53
+                    },
+                    {
+                        "name": "dns-tcp",
+                        "port": 53,
+                        "protocol": "TCP",
+                        "targetPort": 53
+                    }
+                ],
+                "sessionAffinity": "None",
+                "ipFamilies": [
+                    "IPv4"
+                ],
+                "ipFamilyPolicy": "SingleStack",
+                "selector": {
+                    "k8s-app": "kube-dns"
+                }
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

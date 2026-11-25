@@ -1,0 +1,196 @@
+{
+    "Volumes": [
+        {
+            "VolumeId": "vol-000000000000000200",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1a",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000200",
+                    "InstanceId": "i-000000000000000200",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        },
+        {
+            "VolumeId": "vol-000000000000000201",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1b",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000201",
+                    "InstanceId": "i-000000000000000201",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        },
+        {
+            "VolumeId": "vol-000000000000000202",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1c",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000202",
+                    "InstanceId": "i-000000000000000202",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        },
+        {
+            "VolumeId": "vol-000000000000000203",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1a",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000203",
+                    "InstanceId": "i-000000000000000203",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        },
+        {
+            "VolumeId": "vol-000000000000000204",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1b",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000204",
+                    "InstanceId": "i-000000000000000204",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        },
+        {
+            "VolumeId": "vol-000000000000000205",
+            "VolumeType": "gp3",
+            "Size": 20,
+            "Iops": 3000,
+            "Throughput": 125,
+            "Encrypted": true,
+            "KmsKeyId": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000001",
+            "State": "in-use",
+            "AvailabilityZone": "us-east-1c",
+            "CreateTime": "2025-12-01T00:00:00+00:00",
+            "MultiAttachEnabled": false,
+            "Attachments": [
+                {
+                    "VolumeId": "vol-000000000000000205",
+                    "InstanceId": "i-000000000000000205",
+                    "State": "attached",
+                    "Device": "/dev/xvdba",
+                    "DeleteOnTermination": false
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/prod-payments",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "ebs.csi.aws.com/cluster",
+                    "Value": "true"
+                }
+            ]
+        }
+    ]
+}

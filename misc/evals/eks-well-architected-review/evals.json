@@ -4,17 +4,18 @@
     {
       "id": 1,
       "name": "empty-cluster-must-not-score",
-      "prompt": "Run a Well-Architected review of EKS cluster `bare-sandbox` in eu-west-1 in `auto` mode. Activate the eks-well-architected-review skill, verify prerequisites, identify the cluster, set up the work directory, detect cluster mode, and evaluate the viability precondition before doing anything else.\n\nMock collected cluster data:\n- `cluster.json`: name bare-sandbox, ACTIVE, version 1.31, eu-west-1, VPC vpc-0a1b2c3d, `computeConfig.enabled` absent, endpointPublicAccess true, endpointPrivateAccess false, secrets encryption not configured, control-plane logging: no log types enabled\n- `nodes.json`: `{\"items\": []}`: zero nodes\n- `pods.json`: `{\"items\": []}`: zero pods in every namespace, including kube-system\n- `fargate.json`: `{\"fargateProfileNames\": []}`\n- `deployments.json`, `sg.json`, and every other collection: empty item lists\n\nProduce the review output. Do NOT fabricate findings: report only from the mock data above.",
-      "expected_output": "A report whose headline is the reducer's NOT VIABLE verdict (the `technical_overall` string, reported verbatim) that emits NO numeric technical overall. Pillar scores may still appear, but each is labelled declared configuration only and marked not comparable to a running cluster's. It reports the control-plane facts (version 1.31, public endpoint, no secrets encryption, no control-plane logging), and states how many questions were applicable.",
+      "prompt": "Run a Well-Architected review of EKS cluster `bare-sandbox` in eu-west-1 in `auto` mode. Activate the eks-well-architected-review skill and run its workflow through the Step 7 reducer, then report the reducer's verdict.\n\nThe collected work directory is `eks-war-bare-sandbox/` in the current directory: `assets/collect.sh` already ran there, and its `.collection.json` fingerprint is present, so skip Steps 1 and 2 and do not re-collect. Run the five pillar scorers and the reducer on `eks-war-bare-sandbox/`.\n\nWhat the collected files hold, in short:\n- `cluster.json`: name bare-sandbox, ACTIVE, version 1.31, eu-west-1, VPC vpc-0a1b2c3d, `computeConfig.enabled` absent, endpointPublicAccess true, endpointPrivateAccess false, no customer-managed KMS key for Secrets, control-plane logging: no log types enabled\n- `nodes.json`: `{\"items\": []}`: zero nodes\n- `pods.json`: `{\"items\": []}`: zero pods in every namespace, including kube-system\n- `fargate.json`: `{\"fargateProfileNames\": []}`\n- every other collection is empty except `namespaces.json` (the four default namespaces)\n\nProduce the review output. Do NOT fabricate findings: report only from the collected files.",
+      "expected_output": "A report whose headline is the reducer's NOT VIABLE verdict (the `technical_overall` string, reported verbatim) that emits NO numeric technical overall. Pillar scores may still appear, but each is labelled declared configuration only and marked not comparable to a running cluster's. Security, Reliability and Performance Efficiency are reported INSUFFICIENT (coverage 38, 21 and 9 percent). It reports the control-plane facts (version 1.31, public endpoint, no customer-managed KMS key for Secrets, no control-plane logging), and states how many questions were applicable.",
       "expectations": [
-        "The output declares the cluster NOT VIABLE (no data plane) because NODE_COUNT is 0 and WORKLOAD_PODS is 0.",
+        "The output declares the cluster NOT VIABLE (no data plane) because it has no Linux node: the verdict keys on the node count alone, not on pods.",
         "The response does not re-derive the viability verdict itself.",
         "No numeric technical overall is emitted: an empty cluster must never be rated Excellent, Good, Fair, Needs Improvement, or Poor overall.",
+        "The 50% coverage gate fires: Security, Reliability and Performance Efficiency are reported INSUFFICIENT (scores.json `coverage` 38, 21 and 9 percent).",
         "Any pillar score that is shown is labelled declared configuration only.",
         "Any pillar score that is shown is marked not comparable to a running cluster's.",
         "Control-plane facts are still reported: Kubernetes version 1.31.",
         "Control-plane facts are still reported: public API endpoint enabled with private disabled.",
-        "Control-plane facts are still reported: secrets encryption not configured.",
+        "Control-plane facts are still reported: Secrets have no customer-managed KMS key.",
         "Control-plane facts are still reported: no control-plane log types enabled.",
         "The output states how many questions were applicable rather than silently omitting the count.",
         "The skill does not invent node, pod, workload, or cost findings that the empty collections cannot support."
@@ -27,54 +28,90 @@
           "source": "skills/eks-well-architected-review/SKILL.md (scores.json table, technical_overall NOT VIABLE row)"
         }
       ],
-      "files": []
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-well-architected-review"}},
+        {"type": "tool-called", "tool": "Bash", "min": 1}
+      ],
+      "artifact_assertions": {
+        "structural": [
+        {"type": "file-exists", "path": "eks-war-bare-sandbox/scores.json"},
+        {"type": "contains", "file": "eks-war-bare-sandbox/scores.json", "pattern": "\"technical_overall\": \"NOT VIABLE"}
+        ]
+      },
+      "files": ["eval-1"]
     },
     {
       "id": 2,
       "name": "standard-cluster-deterministic-score",
-      "prompt": "Run a Well-Architected review of EKS cluster `prod-payments` in us-east-1 in `auto` mode. Activate the eks-well-architected-review skill and run the full workflow: prerequisites, cluster identification, collection into `$WORK`, mode detection, viability precondition, all five pillar scorer blocks, the Step 7 reducer, and the Step 8 HTML render.\n\nMock collected cluster data:\n- `cluster.json`: name prod-payments, ACTIVE, version 1.30, us-east-1, `computeConfig.enabled` absent (not Auto Mode), endpointPublicAccess false, endpointPrivateAccess true, secrets encryption configured with a KMS key, control-plane logging: api, audit, authenticator, controllerManager, scheduler all enabled, authenticationMode API_AND_CONFIG_MAP\n- `nodes.json`: 9 nodes, all `eks.amazonaws.com/compute-type` unset (EC2), instance types m6i.2xlarge (6) and m7g.2xlarge (3), spread across 3 AZs\n- `pods.json`: 84 pods total: 71 in workload namespaces (payments, ledger, web), 13 in kube-system\n- `deployments.json`: 22 workload Deployments; 19 define both resource requests and limits, 3 define neither; 14 have a PodDisruptionBudget, 8 do not\n- `fargate.json`: `{\"fargateProfileNames\": []}`\n- `sg.json`: no security group allows 0.0.0.0/0 on any port\n- Addons: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver all present and on supported versions; no metrics-server\n- HPAs: 11 of 22 Deployments have an HPA; no Cluster Autoscaler and no Karpenter installed\n- Storage: 6 PVs, all gp3, all encrypted\n- Spot adoption: 0%, every node is On-Demand. Graviton: 3 of 9 nodes are m7g\n\nProduce the review output plus the rendered HTML report. Do NOT fabricate findings: report only from the mock data above.",
-      "expected_output": "A scored review with a numeric technical overall and a numeric score plus a coverage figure (the reducer's coverage percentage, or the applicable/total count) for each of the five pillars, derived from the Step 7 reducer rather than from hand arithmetic. Security scores well (private endpoint, secrets encryption, full control-plane logging, no 0.0.0.0/0 rules). Reliability is dragged down by the 8 Deployments with no PDB and the absent cluster autoscaler. The Cost pillar is explicitly labelled cost hygiene, with Spot (0%) and Graviton (3 of 9) named as narrative opportunities that are NOT inside that score. A self-contained HTML report is written and its path is reported.",
+      "prompt": "Run a Well-Architected review of EKS cluster `prod-payments` in us-east-1 in `auto` mode. Activate the eks-well-architected-review skill and run the workflow from Step 3: mode detection, the viability precondition, all five pillar scorers, the Step 7 reducer, and the Step 8 HTML render.\n\nThe collected work directory is `eks-war-prod-payments/` in the current directory: `assets/collect.sh` already ran there, and its `.collection.json` fingerprint is present, so skip Steps 1 and 2 and do not re-collect.\n\nWhat the collected files hold, in short:\n- `cluster.json`: name prod-payments, ACTIVE, version 1.30, us-east-1, `computeConfig.enabled` absent (not Auto Mode), endpointPublicAccess false, endpointPrivateAccess true, secrets encryption configured with a KMS key, control-plane logging: api, audit, authenticator, controllerManager, scheduler all enabled, authenticationMode API_AND_CONFIG_MAP\n- `nodes.json`: 9 nodes, all `eks.amazonaws.com/compute-type` unset (EC2), instance types m6i.2xlarge (6) and m7g.2xlarge (3), spread across 3 AZs\n- `pods.json`: 84 pods total: 71 in workload namespaces (payments, ledger, web), 13 in kube-system\n- `deployments.json`: 22 workload Deployments; 19 define both resource requests and limits, 3 define neither; 14 have a PodDisruptionBudget, 8 do not\n- `fargate.json`: `{\"fargateProfileNames\": []}`\n- `sg.json`: no security group allows inbound 0.0.0.0/0 (the cluster SG keeps the EKS default all-traffic egress rule)\n- Addons: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver all present and on supported versions; no metrics-server\n- HPAs: 11 of 22 Deployments have an HPA; no Cluster Autoscaler and no Karpenter installed\n- Storage: 6 PVs, all gp3, all encrypted\n- Capacity type: none of the 9 nodes carries an `eks.amazonaws.com/capacityType` or `karpenter.sh/capacity-type` label and `nodegroups.json` lists no node group, so the skill's Spot read gives UNKNOWN for all 9; `instances.json` shows no Spot instance (`InstanceLifecycle` unset on all 9). Graviton: 3 of 9 nodes are m7g\n\nProduce the review output plus the rendered HTML report. Do NOT fabricate findings: report only from the collected files.",
+      "expected_output": "A scored review with a numeric technical overall, a numeric score for each of the five pillars and each pillar's coverage from scores.json (as `applicable` of `total` or as the `coverage` percentage), copied from the Step 7 reducer rather than from hand arithmetic: on these files the reducer gives a technical overall of 49 and pillar scores of Operational Excellence 33, Security 50, Reliability 45, Performance Efficiency 62 and Cost Optimization 53. Coverage on these files: Operational Excellence 12 of 18 (66%), Security 33 of 42 (78%), Reliability 19 of 23 (82%), Performance Efficiency 9 of 11 (81%), Cost Optimization 9 of 9 (100%). Security's passing findings cite the private endpoint, secrets encryption, the audit log type and no inbound 0.0.0.0/0 rules; Operational Excellence's cite all five control-plane log types. Reliability is dragged down by the 8 Deployments with no PDB and the absent cluster autoscaler. The Cost pillar is explicitly labelled cost hygiene, with Spot (capacity type unknown on all 9 nodes, none a Spot instance) and Graviton (3 of 9) named as narrative opportunities that are NOT inside that score. A self-contained HTML report is written and its path is reported.",
       "expectations": [
         "A numeric technical overall score is emitted.",
+        "The technical overall reported is 49, the reducer's number for these files.",
         "A numeric score is emitted for each of the five pillars (Operational Excellence, Security, Reliability, Performance Efficiency, Cost Optimization).",
-        "A coverage figure (the reducer's coverage percentage, or the applicable/total count) is emitted for each of the five pillars.",
+        "The pillar scores reported are Operational Excellence 33, Security 50, Reliability 45, Performance Efficiency 62 and Cost Optimization 53.",
+        "Each pillar's coverage from scores.json is emitted, as `applicable` of `total` or as the `coverage` percentage: Operational Excellence 12 of 18 (66%), Security 33 of 42 (78%), Reliability 19 of 23 (82%), Performance Efficiency 9 of 11 (81%), Cost Optimization 9 of 9 (100%).",
         "The response does not recompute or adjust any pillar number by hand.",
         "The Security pillar's passing findings cite the private-only API endpoint.",
         "The Security pillar's passing findings cite KMS secrets encryption.",
-        "The Security pillar's passing findings cite all five control-plane log types.",
-        "The Security pillar's passing findings cite the absence of any 0.0.0.0/0 security group rule.",
+        "The Security pillar's passing findings cite the audit log type (sec-26).",
+        "The Operational Excellence pillar's passing findings cite all five control-plane log types (ope-6).",
+        "The Security pillar's passing findings cite net-2 and sec-30 passing: no 0.0.0.0/0 or ::/0 inbound rule outside TCP 80/443 and UDP 443, and none on port 22.",
         "Reliability findings cite the 8 Deployments lacking a PodDisruptionBudget.",
         "Reliability findings cite the absence of Cluster Autoscaler.",
         "Reliability findings cite the absence of Karpenter.",
-        "The 3 Deployments with neither requests nor limits are cited under Performance Efficiency or Reliability.",
+        "The 3 Deployments with neither requests nor limits (ledger-svc20, web-svc21, payments-svc22: 9 of 71 workload containers; perf-1 62/71, rel-3 62/71) are cited under Performance Efficiency or Reliability.",
         "The Cost Optimization score is labelled as cost hygiene.",
-        "The response states that Spot (0% adoption), Graviton (3 of 9 nodes), and Extended Support are narrative opportunities that are NOT folded into the Cost Optimization score.",
+        "The response states that Spot (capacity type unknown on all 9 nodes, which carry no capacity-type label; none is a Spot instance per instances.json), Graviton (3 of 9 nodes), and Extended Support are narrative opportunities that are NOT folded into the Cost Optimization score.",
         "Governance questions are reported as Not Assessed.",
         "Governance questions are never guessed or scored `none`.",
         "Governance questions are not folded into the technical overall.",
         "A self-contained HTML report is produced via `assets/render-report.py`; the HTML is not hand-written.",
         "The filesystem path of the HTML report is stated."
       ],
-      "files": []
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-well-architected-review"}},
+        {"type": "tool-called", "tool": "Bash", "min": 1}
+      ],
+      "artifact_assertions": {
+        "structural": [
+        {"type": "file-exists", "path": "eks-war-prod-payments/scores.json"},
+        {"type": "contains", "file": "eks-war-prod-payments/scores.json", "pattern": "\"technical_overall\": 49,"},
+        {"type": "file-exists", "path": "eks-war-prod-payments/report.html"},
+        {"type": "contains", "file": "eks-war-prod-payments/report.html", "pattern": "Rendered locally from collected cluster data; this file makes no"}
+        ]
+      },
+      "files": ["eval-2"]
     },
     {
       "id": 3,
       "name": "fargate-only-na-and-coverage-gate",
-      "prompt": "Run a Well-Architected review of EKS cluster `serverless-tenant` in ap-southeast-1 in `auto` mode using the eks-well-architected-review skill. Pay particular attention to Step 3 mode detection and the Step 7 coverage gate.\n\nMock collected cluster data:\n- `cluster.json`: name serverless-tenant, ACTIVE, version 1.29, ap-southeast-1, `computeConfig.enabled` absent, endpointPublicAccess true, endpointPrivateAccess true, secrets encryption not configured, control-plane logging: audit only\n- `fargate.json`: `{\"fargateProfileNames\": [\"default\", \"apps\"]}`\n- `nodes.json`: 4 nodes, every one labelled `eks.amazonaws.com/compute-type: fargate`, so EC2_NODES is 0\n- `pods.json`: 17 pods: 12 in the `apps` namespace, 5 in kube-system\n- `deployments.json`: 5 workload Deployments, all with requests and limits, none with a PodDisruptionBudget\n- No DaemonSets. No node groups. No Karpenter. No EBS volumes and no PVs.\n\nProduce the review output. Do NOT fabricate findings: report only from the mock data above.",
-      "expected_output": "A review that detects Fargate-only mode (FARGATE_PROFILES 2, EC2_NODES 0) and marks EC2, DaemonSet, and node-hardening questions `na` rather than `none`. Any pillar whose applicable count falls below 50% of its measured questions reports INSUFFICIENT instead of a number, and the technical overall is WITHHELD if fewer than 4 pillars are numeric. Findings still flag the public API endpoint, missing secrets encryption, audit-only control-plane logging, and the absent PDBs.",
+      "prompt": "Run a Well-Architected review of EKS cluster `serverless-tenant` in ap-southeast-1 in `auto` mode using the eks-well-architected-review skill. Pay particular attention to Step 3 mode detection and the Step 7 coverage gate.\n\nThe collected work directory is `eks-war-serverless-tenant/` in the current directory: `assets/collect.sh` already ran there, and its `.collection.json` fingerprint is present, so skip Steps 1 and 2 and do not re-collect. Run the workflow from Step 3 through the Step 8 HTML render on `eks-war-serverless-tenant/`.\n\nWhat the collected files hold, in short:\n- `cluster.json`: name serverless-tenant, ACTIVE, version 1.29, ap-southeast-1, `computeConfig.enabled` absent, endpointPublicAccess true, endpointPrivateAccess true, no customer-managed KMS key for Secrets, control-plane logging: audit only\n- `fargate.json`: `{\"fargateProfileNames\": [\"default\", \"apps\"]}`\n- `nodes.json`: 4 nodes, every one labelled `eks.amazonaws.com/compute-type: fargate`, so EC2_NODES is 0\n- `pods.json`: 17 pods: 12 in the `apps` namespace, 5 in kube-system\n- `deployments.json`: 5 workload Deployments, all with requests and limits, none with a PodDisruptionBudget\n- No DaemonSets. No node groups. No Karpenter. No EBS volumes and no PVs.\n\nProduce the review output. Do NOT fabricate findings: report only from the collected files.",
+      "expected_output": "A review that detects Fargate-only mode (FARGATE_PROFILES 2, EC2_NODES 0) and marks EC2, DaemonSet, and node-hardening questions `na` rather than `none`. The 50% coverage gate is applied and reported per pillar; on these files every pillar clears it, so all five pillars are numeric and the technical overall is 29, not WITHHELD. Findings still flag the public API endpoint, the missing customer-managed KMS key for Secrets, audit-only control-plane logging, and the absent PDBs.",
       "expectations": [
         "The response detects Fargate-only mode by reporting FARGATE_PROFILES as 2 and EC2_NODES as 0.",
         "The response names the mode explicitly as Fargate-only rather than Standard or Auto.",
         "EC2-specific, DaemonSet, and node-hardening questions are marked `na` and excluded from scoring: they are NOT scored `none`, which would wrongly penalise a cluster that has no EC2 nodes to harden.",
-        "The coverage gate is applied: any pillar whose applicable questions fall below 50% of its measured questions is reported as INSUFFICIENT with no number.",
-        "The coverage gate is applied: the technical overall is WITHHELD if fewer than 4 pillars are numeric.",
-        "A coverage figure (the reducer's coverage percentage, or the applicable/total count) is reported per pillar so a reader can see which pillars were gated and why.",
+        "The coverage gate is applied and reported: on these files every pillar's applicable questions are at least 50% of its measured questions, so no pillar is reported as INSUFFICIENT.",
+        "The technical overall is reported as 29, not WITHHELD, because all five pillars are numeric.",
+        "Each pillar's coverage from scores.json is reported, as `applicable` of `total` or as the `coverage` percentage, so a reader can see how far each pillar cleared the gate: Operational Excellence 10 of 18 (55%), Security 29 of 42 (69%), Reliability 14 of 23 (60%), Performance Efficiency 6 of 11 (54%), Cost Optimization 6 of 9 (66%).",
         "Findings still flag this genuinely observable weakness: public API endpoint enabled.",
-        "Findings still flag this genuinely observable weakness: secrets encryption not configured.",
+        "Findings still flag this genuinely observable weakness: Secrets have no customer-managed KMS key.",
         "Findings still flag this genuinely observable weakness: control-plane logging limited to audit only.",
         "Findings still flag this genuinely observable weakness: 5 Deployments with no PodDisruptionBudget."
       ],
-      "files": []
+      "process_assertions": [
+        {"type": "tool-called", "tool": "Skill", "min": 1, "args_match": {"skill": "eks-well-architected-review"}},
+        {"type": "tool-called", "tool": "Bash", "min": 1}
+      ],
+      "artifact_assertions": {
+        "structural": [
+        {"type": "file-exists", "path": "eks-war-serverless-tenant/scores.json"},
+        {"type": "contains", "file": "eks-war-serverless-tenant/scores.json", "pattern": "\"technical_overall\": 29,"},
+        {"type": "file-exists", "path": "eks-war-serverless-tenant/report.html"}
+        ]
+      },
+      "files": ["eval-3"]
     }
   ]
 }

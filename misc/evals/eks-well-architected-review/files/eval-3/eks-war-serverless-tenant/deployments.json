@@ -1,0 +1,500 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "apps-svc01",
+                "uid": "ff7152af05cb319f61cb17a4796fc857",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc01"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "apps-svc01"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "apps-svc01"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc01:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "512Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "1Gi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "apps-svc02",
+                "uid": "d5f87f0b220cdbdb67d6ad285afe49b3",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc02"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 3,
+                "selector": {
+                    "matchLabels": {
+                        "app": "apps-svc02"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "apps-svc02"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc02:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "512Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "1Gi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 3,
+                "readyReplicas": 3,
+                "availableReplicas": 3,
+                "updatedReplicas": 3,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "apps-svc03",
+                "uid": "bee92047f12744bfee0213a6320e37d3",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc03"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "app": "apps-svc03"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "apps-svc03"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc03:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "512Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "1Gi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 2,
+                "readyReplicas": 2,
+                "availableReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "apps-svc04",
+                "uid": "2165d409aff1ffd2faabb345f0a40ec1",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc04"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "app": "apps-svc04"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "apps-svc04"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc04:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "512Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "1Gi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 2,
+                "readyReplicas": 2,
+                "availableReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "apps-svc05",
+                "uid": "be9cab97e72eaa213789fa19f80789d5",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "apps",
+                "labels": {
+                    "app": "apps-svc05"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 2,
+                "selector": {
+                    "matchLabels": {
+                        "app": "apps-svc05"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "apps-svc05"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "app",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/apps/apps-svc05:1.0.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "250m",
+                                        "memory": "512Mi"
+                                    },
+                                    "limits": {
+                                        "cpu": "500m",
+                                        "memory": "1Gi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "default",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 2,
+                "readyReplicas": 2,
+                "availableReplicas": 2,
+                "updatedReplicas": 2,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "name": "coredns",
+                "uid": "8c50b7254912e20dae1f929d11adac82",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-dns"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "replicas": 5,
+                "selector": {
+                    "matchLabels": {
+                        "k8s-app": "kube-dns"
+                    }
+                },
+                "strategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    }
+                },
+                "revisionHistoryLimit": 10,
+                "progressDeadlineSeconds": 600,
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "k8s-app": "kube-dns"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "coredns",
+                                "image": "111122223333.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.11.1-eksbuild.4",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "100m",
+                                        "memory": "70Mi"
+                                    },
+                                    "limits": {
+                                        "memory": "170Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "coredns",
+                        "restartPolicy": "Always",
+                        "dnsPolicy": "ClusterFirst",
+                        "schedulerName": "default-scheduler",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "observedGeneration": 1,
+                "replicas": 5,
+                "readyReplicas": 5,
+                "availableReplicas": 5,
+                "updatedReplicas": 5,
+                "conditions": [
+                    {
+                        "type": "Available",
+                        "status": "True"
+                    },
+                    {
+                        "type": "Progressing",
+                        "status": "True"
+                    }
+                ]
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

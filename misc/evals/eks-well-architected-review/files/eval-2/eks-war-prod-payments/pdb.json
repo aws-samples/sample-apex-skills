@@ -1,0 +1,373 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "payments-svc01-pdb",
+                "uid": "f2d7081f0a12c33d6f8881cdb6e83238",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc01"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 4,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 3,
+                "expectedPods": 4,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "ledger-svc02-pdb",
+                "uid": "d31371c85dc473ef60305e627bb83643",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc02"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 4,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 3,
+                "expectedPods": 4,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "web-svc03-pdb",
+                "uid": "375b06d1ee4eb2cfd8b4c8b379bbf124",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc03"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 4,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 3,
+                "expectedPods": 4,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "payments-svc04-pdb",
+                "uid": "60bfbdc0b80a268df7d14445c6f2c0e4",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc04"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 4,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 3,
+                "expectedPods": 4,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "ledger-svc05-pdb",
+                "uid": "73b0e7a535a08fa4ef81a5219aed7819",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc05"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 4,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 3,
+                "expectedPods": 4,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "web-svc06-pdb",
+                "uid": "1b5db3c37bfaf073a73055d660671954",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc06"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "payments-svc07-pdb",
+                "uid": "06ccf92d8f14fbeca4a4bfa02536d15e",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc07"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "ledger-svc08-pdb",
+                "uid": "2e133eff4b61cc4a7f7452847533a9c0",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc08"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "web-svc09-pdb",
+                "uid": "a2b90eec967be2f1e5aa70091f1e9cac",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc09"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "payments-svc10-pdb",
+                "uid": "6bf934f9f63be1d1315979a2da46d7b7",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc10"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "ledger-svc11-pdb",
+                "uid": "d3585564ca208735aeb3d980f22d16b8",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc11"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "web-svc12-pdb",
+                "uid": "9f8c30d39c9e511b4f012cc4fdd336cb",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "web"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "web-svc12"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "payments-svc13-pdb",
+                "uid": "d2707d5e8fec2b67002c945ac228a9ee",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "payments"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "payments-svc13"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        },
+        {
+            "apiVersion": "policy/v1",
+            "kind": "PodDisruptionBudget",
+            "metadata": {
+                "name": "ledger-svc14-pdb",
+                "uid": "562d976ca39be7a17584a55a43402a5a",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "ledger"
+            },
+            "spec": {
+                "minAvailable": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": "ledger-svc14"
+                    }
+                }
+            },
+            "status": {
+                "currentHealthy": 3,
+                "desiredHealthy": 1,
+                "disruptionsAllowed": 2,
+                "expectedPods": 3,
+                "observedGeneration": 1
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

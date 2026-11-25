@@ -1,0 +1,92 @@
+{
+    "addons": [
+        "aws-ebs-csi-driver",
+        "coredns",
+        "kube-proxy",
+        "vpc-cni"
+    ],
+    "addonDetails": [
+        {
+            "addonName": "aws-ebs-csi-driver",
+            "clusterName": "prod-payments",
+            "status": "ACTIVE",
+            "addonVersion": "v1.35.0-eksbuild.1",
+            "health": {
+                "issues": []
+            },
+            "addonArn": "arn:aws:eks:us-east-1:111122223333:addon/prod-payments/aws-ebs-csi-driver/00000000-0000-0000-0000-000000000000",
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "modifiedAt": "2025-12-01T00:00:00+00:00",
+            "tags": {}
+        },
+        {
+            "addonName": "coredns",
+            "clusterName": "prod-payments",
+            "status": "ACTIVE",
+            "addonVersion": "v1.11.3-eksbuild.1",
+            "health": {
+                "issues": []
+            },
+            "addonArn": "arn:aws:eks:us-east-1:111122223333:addon/prod-payments/coredns/00000000-0000-0000-0000-000000000000",
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "modifiedAt": "2025-12-01T00:00:00+00:00",
+            "tags": {}
+        },
+        {
+            "addonName": "kube-proxy",
+            "clusterName": "prod-payments",
+            "status": "ACTIVE",
+            "addonVersion": "v1.30.6-eksbuild.3",
+            "health": {
+                "issues": []
+            },
+            "addonArn": "arn:aws:eks:us-east-1:111122223333:addon/prod-payments/kube-proxy/00000000-0000-0000-0000-000000000000",
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "modifiedAt": "2025-12-01T00:00:00+00:00",
+            "tags": {}
+        },
+        {
+            "addonName": "vpc-cni",
+            "clusterName": "prod-payments",
+            "status": "ACTIVE",
+            "addonVersion": "v1.19.0-eksbuild.1",
+            "health": {
+                "issues": []
+            },
+            "addonArn": "arn:aws:eks:us-east-1:111122223333:addon/prod-payments/vpc-cni/00000000-0000-0000-0000-000000000000",
+            "createdAt": "2025-06-01T00:00:00+00:00",
+            "modifiedAt": "2025-12-01T00:00:00+00:00",
+            "tags": {}
+        }
+    ],
+    "addonTargets": [
+        {
+            "addonName": "aws-ebs-csi-driver",
+            "versions": [
+                "v1.35.0-eksbuild.1"
+            ],
+            "defaultVersion": "v1.35.0-eksbuild.1"
+        },
+        {
+            "addonName": "coredns",
+            "versions": [
+                "v1.11.3-eksbuild.1"
+            ],
+            "defaultVersion": "v1.11.3-eksbuild.1"
+        },
+        {
+            "addonName": "kube-proxy",
+            "versions": [
+                "v1.30.6-eksbuild.3"
+            ],
+            "defaultVersion": "v1.30.6-eksbuild.3"
+        },
+        {
+            "addonName": "vpc-cni",
+            "versions": [
+                "v1.19.0-eksbuild.1"
+            ],
+            "defaultVersion": "v1.19.0-eksbuild.1"
+        }
+    ]
+}

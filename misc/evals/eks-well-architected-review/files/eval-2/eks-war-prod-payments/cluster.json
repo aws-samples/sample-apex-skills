@@ -1,0 +1,68 @@
+{
+    "cluster": {
+        "name": "prod-payments",
+        "arn": "arn:aws:eks:us-east-1:111122223333:cluster/prod-payments",
+        "createdAt": "2025-06-01T00:00:00+00:00",
+        "version": "1.30",
+        "endpoint": "https://EXAMPLE0000000000000000000000000.gr7.us-east-1.eks.amazonaws.com",
+        "roleArn": "arn:aws:iam::111122223333:role/prod-payments-cluster-role",
+        "resourcesVpcConfig": {
+            "subnetIds": [
+                "subnet-0example0000201",
+                "subnet-0example0000202",
+                "subnet-0example0000203"
+            ],
+            "securityGroupIds": [],
+            "clusterSecurityGroupId": "sg-0example0000201",
+            "vpcId": "vpc-0example0000002",
+            "endpointPublicAccess": false,
+            "endpointPrivateAccess": true,
+            "publicAccessCidrs": []
+        },
+        "kubernetesNetworkConfig": {
+            "serviceIpv4Cidr": "172.20.0.0/16",
+            "ipFamily": "ipv4"
+        },
+        "logging": {
+            "clusterLogging": [
+                {
+                    "types": [
+                        "api",
+                        "audit",
+                        "authenticator",
+                        "controllerManager",
+                        "scheduler"
+                    ],
+                    "enabled": true
+                }
+            ]
+        },
+        "identity": {
+            "oidc": {
+                "issuer": "https://oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE00000000000000000000000000"
+            }
+        },
+        "status": "ACTIVE",
+        "certificateAuthority": {
+            "data": "TElTVC1FWEFNUExFLUNBLURBVEEtTk9ULUEtUkVBTC1DRVJUSUZJQ0FURQ=="
+        },
+        "platformVersion": "eks.1",
+        "tags": {},
+        "accessConfig": {
+            "authenticationMode": "API_AND_CONFIG_MAP"
+        },
+        "upgradePolicy": {
+            "supportType": "EXTENDED"
+        },
+        "encryptionConfig": [
+            {
+                "resources": [
+                    "secrets"
+                ],
+                "provider": {
+                    "keyArn": "arn:aws:kms:us-east-1:111122223333:key/00000000-0000-0000-0000-000000000000"
+                }
+            }
+        ]
+    }
+}

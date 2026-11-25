@@ -1,0 +1,48 @@
+{
+    "SecurityGroups": [
+        {
+            "GroupId": "sg-0example0000301",
+            "GroupName": "eks-cluster-sg-serverless-tenant-0000000000",
+            "OwnerId": "111122223333",
+            "VpcId": "vpc-0example0000003",
+            "Description": "EKS created security group applied to ENI that is attached to EKS Control Plane master nodes, as well as any managed workloads.",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "-1",
+                    "IpRanges": [],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": [],
+                    "UserIdGroupPairs": [
+                        {
+                            "GroupId": "sg-0example0000301",
+                            "UserId": "111122223333"
+                        }
+                    ]
+                }
+            ],
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "-1",
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": [],
+                    "UserIdGroupPairs": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "kubernetes.io/cluster/serverless-tenant",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "aws:eks:cluster-name",
+                    "Value": "serverless-tenant"
+                }
+            ]
+        }
+    ]
+}

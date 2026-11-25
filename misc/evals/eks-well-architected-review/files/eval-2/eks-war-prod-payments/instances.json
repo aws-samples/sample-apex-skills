@@ -1,0 +1,418 @@
+{
+    "Reservations": [
+        {
+            "ReservationId": "r-000000000000000200",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000200",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000000",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1a",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.10",
+                    "SubnetId": "subnet-0example0000201",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000201",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000201",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000001",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1b",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.11",
+                    "SubnetId": "subnet-0example0000202",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000202",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000202",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000002",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1c",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.12",
+                    "SubnetId": "subnet-0example0000203",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000203",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000203",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000003",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1a",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.13",
+                    "SubnetId": "subnet-0example0000201",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000204",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000204",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000004",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1b",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.14",
+                    "SubnetId": "subnet-0example0000202",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000205",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000205",
+                    "InstanceType": "m6i.2xlarge",
+                    "ImageId": "ami-00000000000000005",
+                    "Architecture": "x86_64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1c",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.15",
+                    "SubnetId": "subnet-0example0000203",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000206",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000206",
+                    "InstanceType": "m7g.2xlarge",
+                    "ImageId": "ami-00000000000000006",
+                    "Architecture": "arm64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1a",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.16",
+                    "SubnetId": "subnet-0example0000201",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000207",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000207",
+                    "InstanceType": "m7g.2xlarge",
+                    "ImageId": "ami-00000000000000007",
+                    "Architecture": "arm64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1b",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.17",
+                    "SubnetId": "subnet-0example0000202",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        },
+        {
+            "ReservationId": "r-000000000000000208",
+            "OwnerId": "111122223333",
+            "Groups": [],
+            "Instances": [
+                {
+                    "InstanceId": "i-000000000000000208",
+                    "InstanceType": "m7g.2xlarge",
+                    "ImageId": "ami-00000000000000008",
+                    "Architecture": "arm64",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "us-east-1c",
+                        "Tenancy": "default"
+                    },
+                    "PrivateIpAddress": "10.0.0.18",
+                    "SubnetId": "subnet-0example0000203",
+                    "VpcId": "vpc-0example0000002",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-0example0000201",
+                            "GroupName": "eks-cluster-sg-prod-payments"
+                        }
+                    ],
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "BlockDeviceMappings": [],
+                    "Tags": [
+                        {
+                            "Key": "kubernetes.io/cluster/prod-payments",
+                            "Value": "owned"
+                        }
+                    ],
+                    "LaunchTime": "2025-12-01T00:00:00+00:00"
+                }
+            ]
+        }
+    ]
+}

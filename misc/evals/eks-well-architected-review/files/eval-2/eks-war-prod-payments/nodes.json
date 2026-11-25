@@ -1,0 +1,612 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-10.ec2.internal",
+                "uid": "3e3f0def23d33e66c040a3642d86b194",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-10.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1a",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1a"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1a/i-000000000000000200"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.10"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-10.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-11.ec2.internal",
+                "uid": "f7901b26b99e9bdced9d13f023cdd3f2",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-11.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1b",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1b"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1b/i-000000000000000201"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.11"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-11.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-12.ec2.internal",
+                "uid": "6b9449364c17efafcdf462107d879d1d",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-12.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1c",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1c"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1c/i-000000000000000202"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.12"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-12.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-13.ec2.internal",
+                "uid": "dc475ffa9a0faf1bc3bdfc12ae8aa8af",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-13.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1a",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1a"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1a/i-000000000000000203"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.13"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-13.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-14.ec2.internal",
+                "uid": "018f14e2c63614a96f2e51a98486756a",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-14.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1b",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1b"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1b/i-000000000000000204"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.14"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-14.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-15.ec2.internal",
+                "uid": "e332a1d9450fe068c850c075d3317f1c",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "amd64",
+                    "beta.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "amd64",
+                    "kubernetes.io/hostname": "ip-10-0-0-15.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m6i.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1c",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1c"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1c/i-000000000000000205"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.15"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-15.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "amd64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-16.ec2.internal",
+                "uid": "96ac738270fe453148cce6831758133f",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "arm64",
+                    "beta.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "arm64",
+                    "kubernetes.io/hostname": "ip-10-0-0-16.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1a",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1a"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1a/i-000000000000000206"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.16"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-16.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "arm64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-17.ec2.internal",
+                "uid": "25b66d0be7eded57d98b7ec04fc18ada",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "arm64",
+                    "beta.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "arm64",
+                    "kubernetes.io/hostname": "ip-10-0-0-17.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1b",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1b"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1b/i-000000000000000207"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.17"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-17.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "arm64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Node",
+            "metadata": {
+                "name": "ip-10-0-0-18.ec2.internal",
+                "uid": "e1d1aec6dcfb4ddce2bfde909c1aa5b4",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "labels": {
+                    "beta.kubernetes.io/arch": "arm64",
+                    "beta.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "beta.kubernetes.io/os": "linux",
+                    "kubernetes.io/arch": "arm64",
+                    "kubernetes.io/hostname": "ip-10-0-0-18.ec2.internal",
+                    "kubernetes.io/os": "linux",
+                    "node.kubernetes.io/instance-type": "m7g.2xlarge",
+                    "topology.kubernetes.io/region": "us-east-1",
+                    "topology.kubernetes.io/zone": "us-east-1c",
+                    "failure-domain.beta.kubernetes.io/region": "us-east-1",
+                    "failure-domain.beta.kubernetes.io/zone": "us-east-1c"
+                }
+            },
+            "spec": {
+                "providerID": "aws:///us-east-1c/i-000000000000000208"
+            },
+            "status": {
+                "addresses": [
+                    {
+                        "type": "InternalIP",
+                        "address": "10.0.0.18"
+                    },
+                    {
+                        "type": "Hostname",
+                        "address": "ip-10-0-0-18.ec2.internal"
+                    }
+                ],
+                "allocatable": {
+                    "cpu": "7910m",
+                    "memory": "31482280Ki",
+                    "pods": "58"
+                },
+                "capacity": {
+                    "cpu": "8",
+                    "memory": "32408488Ki",
+                    "pods": "58"
+                },
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "True",
+                        "reason": "KubeletReady",
+                        "lastHeartbeatTime": "2026-01-01T00:00:00Z",
+                        "lastTransitionTime": "2026-01-01T00:00:00Z",
+                        "message": "kubelet is posting ready status"
+                    }
+                ],
+                "nodeInfo": {
+                    "architecture": "arm64",
+                    "containerRuntimeVersion": "containerd://1.7.11",
+                    "kernelVersion": "6.1.0",
+                    "kubeletVersion": "v1.30.0-eks-example",
+                    "kubeProxyVersion": "v1.30.0-eks-example",
+                    "operatingSystem": "linux",
+                    "osImage": "Amazon Linux 2023"
+                }
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

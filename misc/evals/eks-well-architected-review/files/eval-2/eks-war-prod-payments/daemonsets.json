@@ -1,0 +1,205 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "apps/v1",
+            "kind": "DaemonSet",
+            "metadata": {
+                "name": "aws-node",
+                "uid": "8acb9aa089cd7d9b796bdea0d72226de",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "aws-node"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "k8s-app": "aws-node"
+                    }
+                },
+                "updateStrategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxUnavailable": "10%"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "k8s-app": "aws-node"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "aws-node",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/amazon-k8s-cni:v1.19.0-eksbuild.1",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "25m"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "aws-node",
+                        "hostNetwork": true,
+                        "priorityClassName": "system-node-critical",
+                        "restartPolicy": "Always"
+                    }
+                }
+            },
+            "status": {
+                "currentNumberScheduled": 9,
+                "desiredNumberScheduled": 9,
+                "numberAvailable": 9,
+                "numberMisscheduled": 0,
+                "numberReady": 9,
+                "observedGeneration": 1,
+                "updatedNumberScheduled": 9
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "DaemonSet",
+            "metadata": {
+                "name": "ebs-csi-node",
+                "uid": "6a927f0629809e2d3827a785c6ee11e3",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "app": "ebs-csi-node"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "app": "ebs-csi-node"
+                    }
+                },
+                "updateStrategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxUnavailable": "10%"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "ebs-csi-node"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ebs-plugin",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/eks/aws-ebs-csi-driver:v1.35.0",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "10m",
+                                        "memory": "40Mi"
+                                    },
+                                    "limits": {
+                                        "memory": "256Mi"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "ebs-csi-node-sa",
+                        "hostNetwork": false,
+                        "priorityClassName": "system-node-critical",
+                        "restartPolicy": "Always"
+                    }
+                }
+            },
+            "status": {
+                "currentNumberScheduled": 9,
+                "desiredNumberScheduled": 9,
+                "numberAvailable": 9,
+                "numberMisscheduled": 0,
+                "numberReady": 9,
+                "observedGeneration": 1,
+                "updatedNumberScheduled": 9
+            }
+        },
+        {
+            "apiVersion": "apps/v1",
+            "kind": "DaemonSet",
+            "metadata": {
+                "name": "kube-proxy",
+                "uid": "0e1be4386da020244c38ee59289d77a9",
+                "creationTimestamp": "2025-12-01T00:00:00Z",
+                "resourceVersion": "1000",
+                "namespace": "kube-system",
+                "labels": {
+                    "k8s-app": "kube-proxy"
+                },
+                "generation": 1
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "k8s-app": "kube-proxy"
+                    }
+                },
+                "updateStrategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {
+                        "maxUnavailable": "10%"
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "k8s-app": "kube-proxy"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "kube-proxy",
+                                "image": "111122223333.dkr.ecr.us-east-1.amazonaws.com/eks/kube-proxy:v1.30.6-eksbuild.3",
+                                "imagePullPolicy": "IfNotPresent",
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File",
+                                "resources": {
+                                    "requests": {
+                                        "cpu": "100m"
+                                    }
+                                }
+                            }
+                        ],
+                        "serviceAccountName": "kube-proxy",
+                        "hostNetwork": true,
+                        "priorityClassName": "system-node-critical",
+                        "restartPolicy": "Always"
+                    }
+                }
+            },
+            "status": {
+                "currentNumberScheduled": 9,
+                "desiredNumberScheduled": 9,
+                "numberAvailable": 9,
+                "numberMisscheduled": 0,
+                "numberReady": 9,
+                "observedGeneration": 1,
+                "updatedNumberScheduled": 9
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "Subnets": [
+        {
+            "SubnetId": "subnet-0example0000301",
+            "VpcId": "vpc-0example0000003",
+            "AvailabilityZone": "ap-southeast-1a",
+            "CidrBlock": "10.0.0.0/20",
+            "AvailableIpAddressCount": 4000,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "OwnerId": "111122223333",
+            "DefaultForAz": false,
+            "Tags": []
+        },
+        {
+            "SubnetId": "subnet-0example0000302",
+            "VpcId": "vpc-0example0000003",
+            "AvailabilityZone": "ap-southeast-1b",
+            "CidrBlock": "10.0.16.0/20",
+            "AvailableIpAddressCount": 4000,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "OwnerId": "111122223333",
+            "DefaultForAz": false,
+            "Tags": []
+        },
+        {
+            "SubnetId": "subnet-0example0000303",
+            "VpcId": "vpc-0example0000003",
+            "AvailabilityZone": "ap-southeast-1c",
+            "CidrBlock": "10.0.32.0/20",
+            "AvailableIpAddressCount": 4000,
+            "MapPublicIpOnLaunch": false,
+            "State": "available",
+            "OwnerId": "111122223333",
+            "DefaultForAz": false,
+            "Tags": []
+        }
+    ]
+}

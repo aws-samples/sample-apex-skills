@@ -1,0 +1,6 @@
+{
+    "fargateProfileNames": [
+        "default",
+        "apps"
+    ]
+}

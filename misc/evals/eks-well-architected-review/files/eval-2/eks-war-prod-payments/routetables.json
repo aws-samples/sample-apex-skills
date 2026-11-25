@@ -1,0 +1,29 @@
+{
+    "RouteTables": [
+        {
+            "RouteTableId": "rtb-0example0000201",
+            "VpcId": "vpc-0example0000002",
+            "OwnerId": "111122223333",
+            "PropagatingVgws": [],
+            "Tags": [],
+            "Associations": [
+                {
+                    "Main": true,
+                    "RouteTableAssociationId": "rtbassoc-0example0000201",
+                    "RouteTableId": "rtb-0example0000201",
+                    "AssociationState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "Routes": [
+                {
+                    "DestinationCidrBlock": "10.0.0.0/16",
+                    "GatewayId": "local",
+                    "Origin": "CreateRouteTable",
+                    "State": "active"
+                }
+            ]
+        }
+    ]
+}
