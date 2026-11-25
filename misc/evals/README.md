@@ -59,7 +59,7 @@ These scores are the baseline runner's (`make task-<skill>` and `make composite-
 
 ## How to update evals (manual process)
 
-Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The scored and coverage layers are maintainer-run (see "Merge gate" below).
+Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The same hygiene job also runs `make check-evals-coverage`; the scored layers are maintainer-run (see "Merge gate" below).
 
 ### Step 1 — Run evals
 
@@ -84,7 +84,7 @@ make task-all-parallel                      # all skills, all layers
 make composite-all                          # recompute all grades
 ```
 
-The `process-<skill>`, `artifact-<skill>`, `knowledge-<skill>` and `composite-<skill>` targets score the latest `make task-<skill>` run, so until one exists they exit non-zero: the first three print "no run data found", and composite prints "No layer scores available".
+The `process-<skill>`, `artifact-<skill>`, `knowledge-<skill>` and `composite-<skill>` targets score the latest `make task-<skill>` run. Until one exists, process, artifact and knowledge exit 2 with "no run data found" for a skill whose `evals.json` defines that layer's assertions (a skill with none exits 0), and composite exits 1 with "No layer scores available" when there is no task or triggering run.
 
 ### Step 2 — Update the scorecard in this README
 
@@ -320,4 +320,4 @@ pip install pyyaml jsonschema
 
 - **Source mapping**: [`SOURCE-MAPPING.md`](./SOURCE-MAPPING.md) — research sources per layer
 - **Skill-creator schemas**: [`skills/skill-creator/references/schemas.md`](../../skills/skill-creator/references/schemas.md)
-- **Description optimizer**: [`scripts/run_optimize.py`](./scripts/run_optimize.py) proposes a tighter skill description from a saved triggering run's false and missed triggers (through skill-creator's `improve_description.py`) and validates the proposal with `run_triggering.py`. It has no make target. Its improver step runs `claude -p` with the caller's environment, so run it only under the eval account's Bedrock-only role; `--build-only` makes no model call. See `python3 scripts/run_optimize.py --help`.
+- **Description optimizer**: [`scripts/run_optimize.py`](./scripts/run_optimize.py) proposes a tighter skill description from a saved triggering run's false and missed triggers (through skill-creator's `improve_description.py`) and validates the proposal with `run_triggering.py`. It has no make target. Its improver step runs `claude -p` with the caller's environment and does not mint an eval-role session itself, so before running it export the session credentials of the eval account's Bedrock-only role (see [Eval-role setup](#eval-role-setup-apex-eval)), where the runner mints that session for every other eval run. `--build-only` makes no model call. See `python3 scripts/run_optimize.py --help`.
