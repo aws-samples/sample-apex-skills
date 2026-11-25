@@ -7,14 +7,14 @@ These artifacts exercise the `eks-mcp-server` skill, which is **meta**: it is ab
 ## Neighbour-skill disambiguation
 
 <!-- SIBLING_MAP_START -->
-- **eks-recon (most important edge — the recon-boundary):** "inventory my cluster", "what version am I running", "list my node groups", "check IMDSv2" all *use* the MCP tools and route to `eks-recon`. Only "configure the MCP server so Claude can see my cluster" (or "tools aren't appearing", "AccessDenied on eks-mcp:InvokeMcp", "where does mcp.json go") routes here. This boundary is the highest overmapping risk and negative cases 1–4 in `triggering.json` enforce it.
-- **eks-best-practices:** Architecture and design decisions ("should we use Karpenter or Auto Mode", multi-tenant platform design) are best-practices territory. Negative 5 enforces this.
-- **Generic MCP / unrelated:** "How do I build my own MCP server in Python" is about MCP-the-protocol, not the EKS MCP Server — it should not trigger this skill. Negative 6 enforces this.
-- **`eks-upgrade-check`** — "can I upgrade to 1.32?" runs readiness checks, not MCP server setup. Negative 7 enforces this.
-- **`eks-operation-review`** — "run an operational review" executes an assessment, not MCP configuration. Negative 8 enforces this.
-- **`eks-cost-intelligence`** (live cost-efficiency assessment with a scored, dollar-quantified report) — negative 9 ("Analyze my cluster's cost efficiency and produce a scored report…").
-- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 10 ("Wire up a self-service portal so develo…").
-- **`graviton-migration`** (sets up its OWN Arm migration MCP server for arm64 scanning — distinct from the EKS MCP server) — negatives 11, 12 ("Set up the arm migration mcp (arm-mcp)…").
+- **eks-recon (most important edge — the recon-boundary):** "inventory my cluster", "what version am I running", "list my node groups", "check IMDSv2" all *use* the MCP tools and route to `eks-recon`. Only "configure the MCP server so Claude can see my cluster" (or "tools aren't appearing", "AccessDenied on eks-mcp:InvokeMcp", "where does mcp.json go") routes here. This boundary is the highest overmapping risk and negative cases 9–12 in `triggering.json` enforce it.
+- **eks-best-practices:** Architecture and design decisions ("should we use Karpenter or Auto Mode", multi-tenant platform design) are best-practices territory. Negative 13 enforces this.
+- **Generic MCP / unrelated:** "How do I build my own MCP server in Python" is about MCP-the-protocol, not the EKS MCP Server — it should not trigger this skill. Negative 14 enforces this.
+- **`eks-upgrade-check`** — "can I upgrade to 1.32?" runs readiness checks, not MCP server setup. Negative 15 enforces this.
+- **`eks-operation-review`** — "run an operational review" executes an assessment, not MCP configuration. Negative 16 enforces this.
+- **`eks-cost-intelligence`** (live cost-efficiency assessment with a scored, dollar-quantified report) — negative 17 ("Analyze my cluster's cost efficiency and produce a scored report…").
+- **`eks-platform-engineering`** (building an Internal Developer Platform / self-service on EKS) — negative 18 ("Wire up a self-service portal so develo…").
+- **`graviton-migration`** (sets up its OWN Arm migration MCP server for arm64 scanning — distinct from the EKS MCP server) — negatives 19, 20 ("Set up the arm migration mcp (arm-mcp)…").
 <!-- SIBLING_MAP_END -->
 
 ## Live-MCP caveat
