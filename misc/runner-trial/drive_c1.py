@@ -87,8 +87,9 @@ T4_PASS = ("The headline rating field reads NOT READY (score 59 or lower, the "
 # grade: (kind, value). Kinds: suite (run_grader on the suite expectations
 # that contain each string), text (run_grader on this one expectation),
 # artifact (validate_run on the one assertion named by key and value),
-# multiturn (a turn ended on an AskUserQuestion that one of the case's canned
-# answers matches and a later turn followed, and the suite's first knowledge
+# multiturn (a turn
+# ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?' outside code and URLs)
+# that one of the case's canned answers matches and a later turn followed, and the suite's first knowledge
 # assertion holds on the last result), trigger (run_single_query on query index, should_trigger).
 CASES = [
     {"id": "T1", "skill": "eks-security", "eval_id": 4,
@@ -275,11 +276,13 @@ def last_result(events_path: Path) -> tuple[dict, int]:
 
 
 def answered_question(events_path: Path, elicitation: dict | None) -> bool:
-    """True when a turn ended on an AskUserQuestion that one of the case's
-    canned answers matches (misc/evals/scripts/elicitation.py,
-    detect_pending_question and match_answer, as the runner resumes on them)
-    and a later turn followed. The events do not record the injected text, so
-    a background turn can still stand in for the answer turn."""
+    """True when a turn
+    ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?' outside code and URLs)
+    that one of the case's canned answers matches (misc/evals/scripts/elicitation.py, detect_pending_question
+    and match_answer, as the runner resumes on them) and a later turn
+    followed. This check does not read the injected answer the runner records
+    (an "elicitation_answer" field on the resumed turn's first event), so a background turn can still
+    stand in for the answer turn."""
     sys.path.insert(0, str(SCRIPTS))
     from elicitation import ElicitationConfig, detect_pending_question, match_answer
     turns = ElicitationConfig.from_dict(elicitation).turns

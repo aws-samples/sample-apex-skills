@@ -55,12 +55,32 @@ class ElicitationConfig:
         )
 
 
-def detect_pending_question(events: list[dict]) -> str | None:
-    """Scan events for an AskUserQuestion tool call that ended the session.
+# A fenced block, whatever blank lines it holds, and an inline code span or a
+# URL: a "?" in any of them is code or a query string, not a question.
+_FENCED = re.compile(r"^[ \t]*(```|~~~).*?^[ \t]*\1[^\n]*$", re.MULTILINE | re.DOTALL)
+_INLINE_OR_URL = re.compile(r"`[^`\n]*`|https?://\S*[^\s?.,)>]")
 
-    Returns the concatenated question text if found, None otherwise.
-    The question is the last AskUserQuestion tool_use in the final assistant
-    message — this is what triggered the session end in -p mode.
+
+def detect_pending_question(events: list[dict]) -> str | None:
+    """Scan the final assistant message for the question that ended the session.
+
+    Returns the question text if found, None otherwise. The question is the
+    last AskUserQuestion tool_use in the final assistant message: this is what
+    ends the session in -p mode. A skill that asks in plain text (eks-build,
+    eks-design, eks-mcp-server) ends on its question instead, so with no
+    AskUserQuestion the question is the final text's last paragraph, when it
+    holds a "?" outside code and URLs: a closed fenced block counts as one
+    paragraph (so a reply that ends on code is not a question), and a "?" in a
+    closed fenced block, an inline code span or a URL does not count (a URL
+    stops before a trailing "?", ".", ",", ")" or ">"). Paragraphs are split
+    on blank lines with LF line ends, so CRLF text reads as one paragraph.
+    The plain-text form is a heuristic: it misses a question followed by
+    another paragraph, such as an options paragraph or a sign-off ("Let me
+    know and I'll generate the rest."), and counts a closing offer that ends
+    in "?" (such as "Want me to confirm?", the "confirm" false catch). It
+    also misses a question on a fence's closing line ("``` and which
+    region?"), and a fence of 4 or more backticks is closed early by an
+    inner ``` line, so a "?" in the rest of that block counts.
     """
     for evt in reversed(events):
         if evt.get("type") != "assistant":
@@ -75,6 +95,11 @@ def detect_pending_question(events: list[dict]) -> str | None:
                     if isinstance(q, dict):
                         parts.append(q.get("question", ""))
                 return " ".join(parts).strip() or None
+        for content in reversed(msg.get("content") or []):
+            if content.get("type") == "text" and (content.get("text") or "").strip():
+                text = _FENCED.sub("[code]", content["text"])
+                last = text.strip().split("\n\n")[-1].strip()
+                return last if "?" in _INLINE_OR_URL.sub("", last) else None
         break
     return None
 
@@ -166,16 +191,20 @@ def run_multiturn_subject(
     `env_for_turn` is called before each turn, so each turn starts on an
     eval-role session that outlasts it.
 
-    Returns (all_events, timed_out, session_id).
+    Returns (all_events, timed_out, session_id). Each canned answer sent is
+    recorded as "elicitation_answer": "<answer>" on the first event of the
+    turn it resumed (on a real claude run that is the system/init event); a
+    resumed turn that emits no event loses that record.
     """
     session_id = str(uuid.uuid4())
     all_events: list[dict] = []
     timed_out = False
 
-    # First turn
+    # First turn. Only stdout is read (drain_stream_for_events), so stderr goes
+    # to DEVNULL: an unread pipe fills and stalls the subject until the timeout.
     cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
     )
     events, timed_out = drain_stream_for_events(process, timeout_per_turn)
     all_events.extend(events)
@@ -197,9 +226,14 @@ def run_multiturn_subject(
         turns_used += 1
         cmd = cmd_base + ["-p", answer, "--resume", session_id]
         process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env_for_turn()
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
         )
         events, timed_out = drain_stream_for_events(process, timeout_per_turn)
+        if events:
+            # Record the injected answer in events.jsonl, on the resumed turn's
+            # first event. No grader reads it yet: transcript.md does not show
+            # it, and drive_c1's T5 check does not use it.
+            events[0]["elicitation_answer"] = answer
         all_events.extend(events)
 
         if timed_out:

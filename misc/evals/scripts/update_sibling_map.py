@@ -20,12 +20,17 @@ sibling: that is agent+author judgment (CONTRIBUTING.md, Creating a New Skill, s
 It does NOT compose the scope blurb or the negative-prompt phrasings — the
 agent composes both, the script just inserts.
 
-Refuses to run if:
+Refuses to run, before it writes any file, if:
   - SIBLING_MAP markers missing from the sibling's README
-    (checked after triggering.json is written: on that error, revert triggering.json)
   - A bullet for <new> already exists in the SIBLING_MAP block
+  - a negative prompt is already a query in triggering.json (repeats within
+    one call are not checked)
   - triggering.json is malformed
   - the sibling dir does not exist
+
+New entries are appended to triggering.json's existing text in its own layout
+(one entry per line, or json.dumps indent=2 blocks), with non-ASCII kept as is;
+the entries already there are not rewritten.
 
 Usage:
   python update_sibling_map.py \\
@@ -70,12 +75,11 @@ def _indices_phrase(indices: "list[int]") -> str:
     return "negatives " + ", ".join(str(i) for i in indices)
 
 
-def append_negatives_to_triggering(
-    triggering_path: Path, negative_prompts: "list[str]"
-) -> "list[int]":
-    """Append negative entries and return their 1-based indices."""
+def read_triggering(triggering_path: Path) -> "tuple[str, list]":
+    """Return triggering.json's text and its parsed array, or fail."""
     try:
-        data = json.loads(triggering_path.read_text())
+        text = triggering_path.read_text(encoding="utf-8")
+        data = json.loads(text)
     except FileNotFoundError:
         fail(f"triggering.json not found at {triggering_path}")
     except json.JSONDecodeError as e:
@@ -83,14 +87,53 @@ def append_negatives_to_triggering(
 
     if not isinstance(data, list):
         fail("triggering.json root must be a JSON array")
+    return text, data
+
+
+def _append_entries(text: str, entries: "list[dict]") -> str:
+    """Splice entries in before the array's closing bracket, in the layout of
+    the entry before them; the existing text is kept byte for byte."""
+    body = text.rstrip()
+    head = body[:-1].rstrip()
+    last = head.splitlines()[-1] if head else ""
+    indent = re.match(r"\s*", last).group(0) if last.strip() not in ("", "[") else "  "
+    block = last.strip() in ("}", "},")
+
+    def render(entry: dict) -> str:
+        if block:
+            dumped = json.dumps(entry, indent=2, ensure_ascii=False)
+            return "\n".join(indent + line for line in dumped.splitlines())
+        one = json.dumps(entry, ensure_ascii=False)
+        if last.strip().startswith("{ "):
+            one = "{ " + one[1:-1] + " }"
+        return indent + one
+
+    sep = "" if head.endswith("[") else ","
+    rendered = ",\n".join(render(e) for e in entries)
+    return head + sep + "\n" + rendered + "\n]" + (text[len(body):] or "\n")
+
+
+def append_negatives_to_triggering(
+    triggering_path: Path, negative_prompts: "list[str]"
+) -> "list[int]":
+    """Append negative entries and return their 1-based indices."""
+    text, data = read_triggering(triggering_path)
 
     start_index_1based = len(data) + 1
-    new_indices: "list[int]" = []
-    for i, prompt in enumerate(negative_prompts):
-        data.append({"query": prompt, "should_trigger": False})
-        new_indices.append(start_index_1based + i)
+    entries = [{"query": p, "should_trigger": False} for p in negative_prompts]
+    new_indices = [start_index_1based + i for i in range(len(entries))]
 
-    triggering_path.write_text(json.dumps(data, indent=2) + "\n")
+    new_text = _append_entries(text, entries)
+    try:
+        ok = json.loads(new_text) == data + entries
+    except json.JSONDecodeError:
+        ok = False
+    if not ok:
+        fail(
+            f"could not append to {triggering_path} without rewriting it: "
+            "add the entries by hand"
+        )
+    triggering_path.write_text(new_text, encoding="utf-8")
     return new_indices
 
 
@@ -109,6 +152,13 @@ def bullet_already_present(readme_text: str, new_skill: str) -> bool:
     return bool(pat.search(block))
 
 
+def markers_present(readme_text: str) -> bool:
+    """Are both SIBLING_MAP markers there, START before END?"""
+    start = readme_text.find(SIBLING_MAP_START)
+    end = readme_text.find(SIBLING_MAP_END)
+    return start != -1 and end != -1 and end > start
+
+
 def insert_bullet(
     readme_path: Path,
     new_skill: str,
@@ -121,7 +171,7 @@ def insert_bullet(
 
     start = text.find(SIBLING_MAP_START)
     end = text.find(SIBLING_MAP_END)
-    if start == -1 or end == -1 or end < start:
+    if not markers_present(text):
         fail(
             f"SIBLING_MAP markers not found in {readme_path} — "
             "add them before running this helper"
@@ -194,12 +244,23 @@ def main() -> int:
     if not readme_path.exists():
         fail(f"missing {readme_path}")
 
-    # Guard against double-insert before we touch any file.
-    if bullet_already_present(readme_path.read_text(), args.new_skill):
+    # Every refusal comes before we touch any file.
+    readme_text = readme_path.read_text()
+    if not markers_present(readme_text):
+        fail(
+            f"SIBLING_MAP markers not found in {readme_path}: "
+            "add them before running this helper"
+        )
+    if bullet_already_present(readme_text, args.new_skill):
         fail(
             f"SIBLING_MAP in {readme_path} already has a bullet for "
             f"`{args.new_skill}` — remove it first or edit it by hand"
         )
+    _, existing = read_triggering(triggering_path)
+    queries = {e.get("query") for e in existing if isinstance(e, dict)}
+    repeated = [p for p in args.negative_prompt if p in queries]
+    if repeated:
+        fail(f"negative prompt already in {triggering_path}: {repeated[0]!r}")
 
     new_indices = append_negatives_to_triggering(
         triggering_path, args.negative_prompt

@@ -42,7 +42,7 @@ Only T4's pass condition rests on a rule about an EKS limit, the skill's own sub
 ### T5: multi-turn, the skill asks and the runner answers
 - Source: misc/evals/eks-build/evals.json:252 (id 3, with an `elicitation` block).
 - Fixtures: none.
-- Pass: the run is resumed at least once with a canned answer (the elicitation block at :347-359, up to 8 turns), and the last turn's result text names one pattern (:262-264). The runner's multi-turn path gives a second turn only when a run ends on an AskUserQuestion call (misc/evals/scripts/elicitation.py:58, `detect_pending_question`), so a runner that cannot answer a plain-text question fails this case.
+- Pass: the run is resumed at least once with a canned answer (the elicitation block at :347-359, up to 8 turns), and the last turn's result text names one pattern (:262-264). The runner's multi-turn path gives a second turn only when a run ended on an AskUserQuestion call or a plain-text question (a final paragraph holding '?' outside code and URLs) (misc/evals/scripts/elicitation.py:64, `detect_pending_question`), so a run that ends on neither fails this case.
 - Runs: 2 arms x 3.
 
 ### T6: triggering, did the Skill load

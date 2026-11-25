@@ -58,7 +58,7 @@ python3 misc/evals/scripts/update_sibling_map.py \
   --negative-prompt "<a second one>"
 ```
 
-You write the scope and the prompts; the helper only does the insertion. It writes the sibling's whole `triggering.json` back with two-space indents, so a file in another layout shows a diff on most lines, and it writes the negatives before it checks the README's SIBLING_MAP markers: if it exits 1, read both files before you run it again, or the negatives land twice. These sibling updates go in the same pull request as the new skill.
+You write the scope and the prompts; the helper only does the insertion. It refuses, writing nothing, when the markers are missing, a bullet exists or a prompt is already a query, and appends the negatives in the file's own layout. These sibling updates go in the same pull request as the new skill.
 
 A sibling with no eval set (the helper exits 1 with "sibling eval dir not found"; `make check-evals-coverage` lists such skills): scaffold one for it first (`make init-evals SKILL=<sibling>` from `misc/evals/`), fill it to the hygiene floor in sections 2 to 4, then run the helper. That widens the pull request to the sibling's folder: say so in the body.
 
@@ -72,4 +72,4 @@ grep -rn '<REPLACE' <name>/             # leftover placeholders; must print noth
 cd ../..
 ```
 
-Both `make` targets must exit 0. `make hygiene`, the form CI runs, passes a skill that has no eval set at all, which `make init-evals-finalize` fails; neither fails on a `<REPLACE: ...>` placeholder left in a filled file, which the grep finds. Live evals (`make triggering-<name>`, `make task-<name>`) call a model and are not required from a contributor: `misc/evals/README.md` says "Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge." The hygiene floor above still applies in CI.
+Both `make` targets must exit 0. `make hygiene`, the form CI runs, passes a skill that has no eval set at all, which `make init-evals-finalize` fails. Live evals (`make triggering-<name>`, `make task-<name>`) call a model and are not required from a contributor: `misc/evals/README.md` says "Contributors only need to author `triggering.json`. Maintainers run the full eval suite after merge." The hygiene floor above still applies in CI.
