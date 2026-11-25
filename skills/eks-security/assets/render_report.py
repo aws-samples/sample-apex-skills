@@ -7,7 +7,8 @@ Usage:
 At least one of --findings and --posture. Stdlib only, offline.
 
 Every value from the inputs (cluster data, advisory titles, evidence) is data. The report is built
-as a list of blocks; each text value is escaped once when a block is written (html.escape for
+as a list of blocks; control characters (C0, DEL, C1) in a text value become a space (dict values
+are JSON-escaped), then each text value is escaped once when a block is written (html.escape for
 HTML, markdown escaping for markdown) and no markup is added after that. Values placed in proposed
 commands must match a strict token pattern, else a <placeholder> is printed. The HTML has no
 JavaScript and no external assets. Nothing is run: proposed commands are for the team to review.
@@ -61,6 +62,7 @@ UNKNOWN_ACTION = {
                   "from its platform version) and compare by hand"}
 _TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+=-]{0,199}$")
 _MD_SPECIAL = re.compile(r"([\\`*_\[\]#|~])")
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")  # C0, DEL and C1 controls: a space, so tab and newline collapse as before; Unicode format characters are not changed
 
 
 class InputError(Exception):
@@ -78,11 +80,14 @@ def s(v):
         return ", ".join(s(x) for x in v)
     if isinstance(v, dict):
         return json.dumps(v, sort_keys=True)
-    return " ".join(str(v).split())
+    return " ".join(_CONTROL.sub(" ", str(v)).split())
 
 
 def tok(v, placeholder):
     """A value safe to place in a proposed shell command, else the placeholder."""
+    vals = v if isinstance(v, (list, tuple)) else [v]
+    if any(isinstance(x, str) and _CONTROL.search(x.strip()) for x in vals):
+        return placeholder  # a control character other than surrounding whitespace, at any position, as before s() replaced them
     v = s(v)
     return v if _TOKEN.match(v) else placeholder
 
