@@ -184,25 +184,31 @@ class MultiturnSubjectProcess(unittest.TestCase):
     def test_format_transcript_shows_canned_answer(self):
         import run_task_evals
 
+        # The real shape (elicitation.py run_multiturn_subject): the resumed
+        # turn's first event is its system/init, and it carries the answer.
         events = [
+            {"type": "system", "subtype": "init", "skills": ["eks-build"]},
             _assistant({"type": "text", "text": "Which region?"}),
             {"type": "result"},
-            {**_assistant({"type": "text", "text": "Using us-west-2."}),
+            {"type": "system", "subtype": "init", "skills": ["eks-build"],
              "elicitation_answer": "us-west-2"},
+            _assistant({"type": "text", "text": "Using us-west-2."}),
             {"type": "result"},
         ]
         out = run_task_evals.format_transcript(events, "build it", "eks-build")
-        line = "**Canned answer sent:** us-west-2"
+        line = "**Eval harness reply (canned user answer):** us-west-2"
         self.assertEqual(out.count(line), 1)
         self.assertLess(out.index("Which region?"), out.index(line))
-        self.assertLess(out.index(line), out.index("Using us-west-2."))
+        second_init = out.index("_system/init", out.index("Which region?"))
+        self.assertLess(out.index(line), second_init)
+        self.assertLess(second_init, out.index("Using us-west-2."))
 
     def test_format_transcript_no_answer_no_line(self):
         import run_task_evals
 
         events = [_assistant({"type": "text", "text": "Which region?"}), {"type": "result"}]
         out = run_task_evals.format_transcript(events, "build it", "eks-build")
-        self.assertNotIn("Canned answer sent", out)
+        self.assertNotIn("Eval harness reply", out)
 
     def test_detect_pending_question_keeps_its_signature(self):
         # misc/runner-trial/drive_c1.py imports it by name with one argument.

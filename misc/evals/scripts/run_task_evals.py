@@ -247,7 +247,7 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
         # on that turn's first event; show it so the grader can read it.
         answer = evt.get("elicitation_answer")
         if answer:
-            lines.append(f"**Canned answer sent:** {answer}")
+            lines.append(f"**Eval harness reply (canned user answer):** {answer}")
             lines.append("")
         if etype == "system" and evt.get("subtype") == "init":
             skills = evt.get("skills") or []
