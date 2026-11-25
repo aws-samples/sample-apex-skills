@@ -84,7 +84,7 @@ Stated limits (`elicitation.py:77-83 @ 33a5bc2f`):
 
 ### 3.2 `elicitation_answer` record
 
-Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). No grader reads it yet: transcript.md does not show it. Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
+Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). `format_transcript` shows it in transcript.md, the file the grader reads, as a `**Canned answer sent:**` line before that event (`run_task_evals.py`). Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
 
 PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:203-207`, `:229 @ 33a5bc2f`).
 
@@ -93,6 +93,5 @@ PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and
 None of this is built.
 
 - Kiro and codex multi-turn. Planned, after PR 563 merges. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
-- `transcript.md` rendering of `elicitation_answer`. Planned, after PR 563 merges. `format_transcript` (`run_task_evals.py:212 @ 2133c43d`) does not read the field, so the answer is in `events.jsonl` only, not in the transcript the grader reads.
 - The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Left for a follow-up to PR 563, not this harness.
 - Issue 98's other axis 2 items, quoted: "Workflow-level evals (does `/apex:eks-design` produce good end-to-end output?)", "Ambient triggering across turns" and "Skill interop when multiple loaded". They wait on a scoping decision about whether they get work of their own; nothing is built for them here.

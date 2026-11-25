@@ -181,6 +181,29 @@ class MultiturnSubjectProcess(unittest.TestCase):
             )
             self.assertIn("us-west-2", events[2]["message"]["content"][0]["text"])
 
+    def test_format_transcript_shows_canned_answer(self):
+        import run_task_evals
+
+        events = [
+            _assistant({"type": "text", "text": "Which region?"}),
+            {"type": "result"},
+            {**_assistant({"type": "text", "text": "Using us-west-2."}),
+             "elicitation_answer": "us-west-2"},
+            {"type": "result"},
+        ]
+        out = run_task_evals.format_transcript(events, "build it", "eks-build")
+        line = "**Canned answer sent:** us-west-2"
+        self.assertEqual(out.count(line), 1)
+        self.assertLess(out.index("Which region?"), out.index(line))
+        self.assertLess(out.index(line), out.index("Using us-west-2."))
+
+    def test_format_transcript_no_answer_no_line(self):
+        import run_task_evals
+
+        events = [_assistant({"type": "text", "text": "Which region?"}), {"type": "result"}]
+        out = run_task_evals.format_transcript(events, "build it", "eks-build")
+        self.assertNotIn("Canned answer sent", out)
+
     def test_detect_pending_question_keeps_its_signature(self):
         # misc/runner-trial/drive_c1.py imports it by name with one argument.
         self.assertTrue(callable(elicitation.detect_pending_question))
