@@ -150,7 +150,7 @@ def to_html(blocks, title):
 def pct(x):
     try:
         return "%d%%" % round(float(x) * 100)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return "unknown"
 
 
@@ -383,9 +383,10 @@ def load(path, what, schema_prefix):
 
 
 def write(path, text):
+    data = text.encode("utf-8", "replace")  # before the open, so an encode error cannot empty an existing report
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
-    with os.fdopen(os.open(path, flags, 0o600), "w", encoding="utf-8") as f:
-        f.write(text)
+    with os.fdopen(os.open(path, flags, 0o600), "wb") as f:
+        f.write(data)
 
 
 class _Parser(argparse.ArgumentParser):
