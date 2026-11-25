@@ -24,11 +24,12 @@ run that crosses the limit completes. The limit is per invocation.
 Paid runs use a separate eval account through the eval role
 apex-eval-bedrock-invoke (misc/evals/README.md, Eval-role setup); see
 cases.md, Credentials and permissions, for the eval role's status. The
-subject runs as your OS user with bypassPermissions, so it can read, write
-and run anything your user can, the runner's environment included (and on
-an EC2 host, the instance role through the metadata endpoint unless that is
-blocked); run it as another OS user or in a container for a hard fence
-(misc/evals/README.md, Eval-role setup).
+subject runs as your OS user with bypassPermissions inside the runner's
+bubblewrap wall (run_triggering.wall_off_host), which is not a hard fence
+(the network stays open, so on an EC2 host the subject reaches the instance
+role through the metadata endpoint unless that is blocked): cases.md,
+Credentials and permissions, says what it hides, what the subject
+and the grader still reach and how to fence the gate.
 
 Output (--out): runs.jsonl, one line per run (case, arm, run, status, pass,
 tokens, duration_ms, wall_seconds, total_cost_usd, reason), summary.json
@@ -506,9 +507,15 @@ def live_env(kubeconfig: str, credentials: str | None, timeout: int):
     cannot run, with no fallback), and writes, into a private temp dir removed
     when the run ends, a kubeconfig whose exec carries only that session (no
     profile, no config file, no host path) and `bin/aws`, a shim that runs
-    the real aws on the same session. PATH puts the shim first, so an `aws`
-    the subject runs by name uses that session, while the subject's AWS_*
-    env stays the eval-role session for its model calls. The role is the one
+    the real aws on the same session. PATH puts the shim first, and the
+    runner binds the shim's dir back read-only inside its bubblewrap wall
+    (run_task_evals.run_subject, wall_off_host `ro_dirs`), so an `aws` the
+    subject runs by name uses that session, provided the real aws sits
+    outside HOME, the repo, the temp dir, /tmp and your user runtime directory,
+    and so does a kubectl visible
+    inside the wall, through the runner's copy of the kubeconfig in the
+    clean HOME, whose exec carries the session and runs `aws` by name. The
+    subject's AWS_* env stays the eval-role session for its model calls. The role is the one
     the session was minted for and is not checked here: mint the read-only
     role. Any other kubeconfig (token, certificate, or one that does not
     parse) is passed as is, with no shim."""
@@ -662,10 +669,8 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
         description="Drive runner-trial candidate C1 (misc/runner-trial/cases.md). Dry run by default: "
                     "prints the planned runs and makes no model call. --paid needs the eval-role session the "
                     "runner mints (misc/evals/README.md, Eval-role setup); the subject runs as your OS user "
-                    "with bypassPermissions, so it can read, write and run anything your user can, the "
-                    "runner's environment included (and on an EC2 host, the instance role through the "
-                    "metadata endpoint unless that is blocked); run it as another OS user or in a "
-                    "container for a hard fence (misc/evals/README.md, Eval-role setup).")
+                    "with bypassPermissions inside the runner's bubblewrap wall, which is not a hard fence "
+                    "(misc/runner-trial/cases.md, Credentials and permissions).")
     p.add_argument("--out", type=Path, help="output dir, empty or new (required with --paid)")
     p.add_argument("--case", action="append", help="case id, repeatable (default: T1 to T7)")
     p.add_argument("--paid", action="store_true", help="start the runs (model calls, billed)")
@@ -676,9 +681,15 @@ def main(argv: list[str] | None = None, runner: SimpleNamespace | None = None) -
                                                  "the kubeconfig's aws profile: a [<profile>] section with "
                                                  "aws_access_key_id, aws_secret_access_key, aws_session_token and "
                                                  "expiration (the only keys used); the driver reads it before each T7 run and "
-                                                 "never signs in itself, though the subject runs as your user and can "
-                                                 "still read your sign-in and ~/.aws by path (without it, a "
-                                                 "kubeconfig whose exec runs aws with AWS_PROFILE reads 'cannot run')")
+                                                 "never signs in itself; the subject's wall hides your home directory "
+                                                 "(~/.aws included), the repo, the temp dir, /tmp and your user runtime "
+                                                 "directory by path, but not a "
+                                                 "minted file outside those, and the "
+                                                 "grader and validators, outside the wall, still reach ~/.aws and your "
+                                                 "sign-in (misc/runner-trial/cases.md, Credentials and permissions); "
+                                                 "without --cluster-credentials, a kubeconfig whose exec runs aws with "
+                                                 "AWS_PROFILE reads "
+                                                 "'cannot run'")
     args = p.parse_args(argv)
 
     unknown = [c for c in (args.case or []) if c not in CASE_IDS]
