@@ -134,6 +134,10 @@ class CheckHygienePlaceholders(unittest.TestCase):
         self.set_knowledge([self.FLAT, self.group(assertions=["mkdocs"])])
         self.assert_knowledge_fails("every group 'assertions' entry must be an object")
 
+    def test_non_object_entry_fails(self):
+        self.set_knowledge([self.FLAT, "mkdocs"])
+        self.assert_knowledge_fails("must be an object")
+
     def test_flat_entry_unknown_type_still_fails(self):
         self.set_knowledge([self.FLAT, dict(self.FLAT, type="must-match")])
         self.assert_knowledge_fails("Unknown assertion type: 'must-match'")
