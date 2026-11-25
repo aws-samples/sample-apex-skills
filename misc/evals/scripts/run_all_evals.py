@@ -238,10 +238,10 @@ def build_index_to_sibling(
     """Map *absolute 0-indexed* negative positions → sibling name.
 
     The plan's canonical convention is 1-indexed into the full triggering list.
-    One live README (eks-mcp-server) uses relative-to-negatives numbering
-    instead. To keep the parser robust without touching bullet text, try
-    absolute first; if every cited index points to a *positive* entry, retry
-    with a relative-to-negatives offset. Anything still misaligned bucks to
+    A README may instead number negatives relative to the negative list (no
+    live README does). To keep the parser robust without touching bullet
+    text, try absolute first; if any cited index is not a negative entry,
+    retry with a relative-to-negatives offset. Anything still misaligned bucks to
     `other`.
 
     Returns (map, matched_indices, unmatched_indices_in_triggering).
