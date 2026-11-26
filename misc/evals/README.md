@@ -59,7 +59,7 @@ These scores are the baseline runner's (`make task-<skill>` and `make composite-
 
 ## How to update evals (manual process)
 
-Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**` or `skills/**`. The same hygiene job also runs `make check-evals-coverage`; the scored layers are maintainer-run (see "Merge gate" below).
+Scored eval runs are maintainer-run: you run them locally when a skill changes and commit the updated scores. A deterministic hygiene pre-flight (`check_hygiene.py`, wired into CI via `.github/workflows/evals.yml`) runs on every PR that touches `misc/evals/**`, `skills/**` or the job's own files. The same hygiene job also runs `make check-evals-coverage`; the scored layers are maintainer-run (see "Merge gate" below).
 
 ### Step 1 — Run evals
 
