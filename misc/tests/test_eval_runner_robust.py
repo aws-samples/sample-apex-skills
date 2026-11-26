@@ -2005,14 +2005,14 @@ class HarnessAdapters(Tmp):
         self.assertFalse(out["ok"])
         self.assertEqual(out["reason"], "no init event")
 
-    def test_kiro_canned_multiturn_runs_one_turn_and_says_so(self):
+    def test_kiro_canned_multiturn_runs_the_resume_loop(self):
         fake_exe(self.bin, "kiro-cli", KIRO_TYPED, 0)
         multi = elicitation.ElicitationConfig.from_dict({
             "strategy": "canned-multiturn", "max_turns": 2,
             "turns": [{"question_match": "x", "answer": "y"}]})
         out = self.subject(harness="kiro", elicitation=multi)
         self.assertTrue(out["ok"], out)
-        self.assertIn("single turn", out["elicitation"])
+        self.assertIsNone(out["elicitation"])
 
     def test_unknown_harness_is_refused(self):
         with self.assertRaises(ValueError):
