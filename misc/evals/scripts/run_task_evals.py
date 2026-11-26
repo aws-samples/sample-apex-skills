@@ -243,6 +243,12 @@ def format_transcript(events: list[dict], prompt: str, skill_name: str | None) -
 
     for evt in events:
         etype = evt.get("type")
+        # elicitation.py records the canned answer it resumed the session with
+        # on that turn's first event; show it so the grader can read it.
+        answer = evt.get("elicitation_answer")
+        if answer:
+            lines.append(f"**Eval harness reply (canned user answer):** {answer}")
+            lines.append("")
         if etype == "system" and evt.get("subtype") == "init":
             skills = evt.get("skills") or []
             lines.append(f"_system/init: skills available → {', '.join(skills) or '(none)'}_")
@@ -677,11 +683,11 @@ def run_subject(
     multiturn = bool(elicitation.strategy == "canned-multiturn" and elicitation.turns)
     elicitation_note = None
     if multiturn and harness != "claude":
-        # Canned answers resume the session after an AskUserQuestion call
-        # (elicitation.py); kiro and codex run non-interactive with no such
-        # tool, so the case runs as one turn and the run says so.
+        # The canned-answer resume loop (elicitation.py) uses claude's
+        # --session-id and --resume flags only, so on kiro and codex the case
+        # runs as one turn and the run says so.
         multiturn = False
-        elicitation_note = f"single turn: {harness} has no AskUserQuestion tool non-interactively"
+        elicitation_note = f"single turn: the canned-answer resume loop is claude-only; {harness} runs one turn"
     raw_events: list[dict] = []
     exit_codes: list[int | None] = []
     stderr: bytes = b""
