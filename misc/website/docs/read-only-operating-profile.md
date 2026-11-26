@@ -5,11 +5,11 @@ title: Read-only operating profile
 
 # Run APEX read-only
 
-APEX skills such as `eks-recon`, `eks-upgrade-check` and `eks-operation-review` only need to read a cluster and an AWS account. This recipe gives the agent credentials that cannot write, so a wrong command fails at the Kubernetes API server or at AWS instead of changing anything. This limits what the handed credentials can do; your admin kubeconfig and AWS profile stay readable to the agent's shell, so run the agent as another OS user or in a container that has only these.
+APEX skills such as `eks-recon`, `eks-upgrade-check` and `eks-operation-review` only need to read a cluster and an AWS account. This recipe gives the agent credentials that cannot write, so a wrong command fails at the Kubernetes API server or at AWS instead of changing anything. This limits what the handed credentials can do; your admin kubeconfig and AWS profile stay readable to the agent's shell, so run the agent as another OS user or in a container that has only these, and on an EC2 host block the instance metadata endpoint for that user or container (or run on a host whose instance role grants nothing).
 
 **Read-only is the default; write is opt-in.** Run assessments under this profile. When a task really needs to change something (`eks-build` applying Terraform, an upgrade), switch to your normal credentials for that task only, on purpose.
 
-The profile has three layers. The first two are the guardrail only when the agent runs where these are its only credentials (another OS user or a container); the third is a convenience.
+The profile has three layers. The first two are the guardrail only when the agent runs where these are its only credentials (another OS user or a container, with the instance metadata endpoint blocked for it on an EC2 host); the third is a convenience.
 
 | Layer | File | What it does |
 |---|---|---|
