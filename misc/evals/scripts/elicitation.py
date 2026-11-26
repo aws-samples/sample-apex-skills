@@ -206,7 +206,8 @@ def run_multiturn_subject(
     Returns (all_events, timed_out, session_id). Each canned answer sent is
     recorded as "elicitation_answer": "<answer>" on the first event of the
     turn it resumed (on a real claude run that is the system/init event); a
-    resumed turn that emits no event loses that record.
+    resumed turn that emits no event loses that record, and when it exits
+    0 the run is still scored valid on the earlier turns' events (all three harnesses).
     """
     if turn_cmd is None:
         session_id: str | None = str(uuid.uuid4())

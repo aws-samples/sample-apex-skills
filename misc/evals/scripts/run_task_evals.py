@@ -651,7 +651,8 @@ def run_subject(
     A run that is not ok is an invalid run: it timed out, a subject
     process exited non-zero (every turn of a canned multi-turn run is
     read), the stream holds no events or no start event, the harness
-    reported an error (stream_invalid_reason), or its fixtures were refused
+    reported an error (stream_invalid_reason; on kiro and codex each turn
+    of a canned multi-turn run is checked too), or its fixtures were refused
     (FixtureLinkError). events.jsonl holds the stream in Claude Code
     stream-json form (normalize_events); a kiro or codex run also writes
     its raw stream to raw-events.jsonl.
@@ -813,6 +814,12 @@ def run_subject(
         reason = f"subject exited {next(c for c in exit_codes if c != 0)}"
     else:
         reason = stream_invalid_reason(raw_events, harness)
+        # A resumed kiro or codex turn is checked on its own: turn 1's finish
+        # event would otherwise cover a later turn that never finished.
+        turns = split_turns(raw_events) if harness != "claude" and reason is None else []
+        if len(turns) > 1:
+            reason = next((f"turn {n}: {r}" for n, t in enumerate(turns, 1)
+                           if (r := stream_invalid_reason(t, harness))), None)
     out = {
         "transcript_path": str(transcript_path),
         "outputs_dir": str(outputs_dir),
@@ -893,15 +900,18 @@ def harness_turn_cmd(harness: str, *, model: str, sandbox: Path, env: dict[str, 
     """The canned-answer loop's turn command on kiro or codex
     (elicitation.run_multiturn_subject `turn_cmd`), each a turn of its
     adapter, resumed by the form its --help gives (read 2026-11-26):
-    kiro-cli 3.5.0 `chat --help`, "-r, --resume  Resume the most recent
-    conversation from this directory": each run's sandbox is its own
-    mkdtemp folder, so that conversation is this run's. codex-cli 0.163.0
+    kiro-cli 3.5.0 `chat --help`, "-r, --resume", whose first sentence is
+    "Resume the most recent conversation from this directory.": each run's
+    sandbox is its own mkdtemp folder, so that conversation should be this
+    run's; whether kiro's session survives between walled turns is
+    unverified until a live run. codex-cli 0.163.0
     `exec resume --help`, "Usage: codex exec resume [OPTIONS] [SESSION_ID]
     [PROMPT]": the id is the first turn's thread.started thread_id, and
     with no id the loop ends. Codex's first turn drops --ephemeral, which
     keeps no session file to resume (its files go to CODEX_HOME in the
-    run's clean HOME); `exec resume` takes no -C, so a resumed turn runs
-    with the sandbox as its cwd. `wrap` puts a command under the wall."""
+    run's clean HOME); `exec resume --help` lists no -C, so a resumed turn
+    runs with the sandbox as its cwd. `wrap` puts a command under the
+    wall."""
     if harness == "kiro":
         base = adapter_kiro(prompt="", model=model, sandbox=sandbox, env=env)[:-1]
         return lambda text, resume, sid: wrap(base + (["--resume"] if resume else []) + [text])
@@ -919,22 +929,29 @@ def harness_turn_cmd(harness: str, *, model: str, sandbox: Path, env: dict[str, 
     raise ValueError(f"no turn command for harness {harness!r}")
 
 
-def normalize_turns(raw_events: list, harness: str) -> list[dict]:
-    """normalize_events turn by turn, split where elicitation.py put a
-    canned answer on a resumed turn's first raw event, so the answer stays
-    on that turn's first event for format_transcript. The last result
-    event is the whole stream's, so a codex run's tokens sum over its
-    turns and a kiro run's update count covers them all. Claude events
-    pass through as they are."""
-    if harness == "claude":
-        return normalize_events(raw_events, harness)
+def split_turns(raw_events: list) -> list[list]:
+    """A canned multi-turn stream split into its turns, where elicitation.py
+    put a canned answer on a resumed turn's first raw event."""
     turns: list[list] = []
     for evt in raw_events:
         if not turns or (isinstance(evt, dict) and "elicitation_answer" in evt):
             turns.append([])
         turns[-1].append(evt)
+    return turns
+
+
+def normalize_turns(raw_events: list, harness: str) -> list[dict]:
+    """normalize_events turn by turn (split_turns), so a canned answer
+    stays on its turn's first event for format_transcript, unless the
+    turn's only event is its result, which the whole-stream result
+    replaces. The last result event is the whole stream's, so a codex
+    run's tokens sum over its turns, a kiro run's tokens are its last
+    runFinished's usage and a kiro run's update count covers every turn.
+    Claude events pass through as they are."""
+    if harness == "claude":
+        return normalize_events(raw_events, harness)
     out: list[dict] = []
-    for turn in turns:
+    for turn in split_turns(raw_events):
         norm = normalize_events(turn, harness)
         answer = turn[0].get("elicitation_answer") if isinstance(turn[0], dict) else None
         if answer is not None and norm:
@@ -944,8 +961,6 @@ def normalize_turns(raw_events: list, harness: str) -> list[dict]:
     last = [i for i, e in enumerate(out) if e.get("type") == "result"]
     if whole and last:
         out[last[-1]] = whole[-1]
-    elif whole:
-        out.append(whole[-1])
     return out
 
 
