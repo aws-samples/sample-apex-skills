@@ -682,12 +682,6 @@ def run_subject(
     elicitation = elicitation or ElicitationConfig.from_dict(None)
     multiturn = bool(elicitation.strategy == "canned-multiturn" and elicitation.turns)
     elicitation_note = None
-    if multiturn and harness != "claude":
-        # The canned-answer resume loop (elicitation.py) uses claude's
-        # --session-id and --resume flags only, so on kiro and codex the case
-        # runs as one turn and the run says so.
-        multiturn = False
-        elicitation_note = f"single turn: the canned-answer resume loop is claude-only; {harness} runs one turn"
     raw_events: list[dict] = []
     exit_codes: list[int | None] = []
     stderr: bytes = b""
@@ -733,7 +727,17 @@ def run_subject(
         if refused:
             pass
         elif multiturn:
-            cmd_base = wall_off_host(_claude_cmd_base(model), sandbox, home, staged_skill, path_dirs)
+            turn_cmd = normalize = None
+            cmd_base = None
+            if harness == "claude":
+                cmd_base = wall_off_host(_claude_cmd_base(model), sandbox, home, staged_skill, path_dirs)
+            else:
+                env = subject_env()
+                rw = (kiro_data_dir(env),) if harness == "kiro" else ()
+                turn_cmd = harness_turn_cmd(
+                    harness, model=model, sandbox=sandbox, env=env,
+                    wrap=lambda c: wall_off_host(c, sandbox, home, staged_skill, path_dirs, rw_dirs=rw))
+                normalize = lambda evts: normalize_events(evts, harness)  # noqa: E731
             with _recording_popen() as procs:
                 raw_events, timed_out, _ = run_multiturn_subject(
                     initial_prompt=prompt,
@@ -742,6 +746,8 @@ def run_subject(
                     cwd=str(sandbox),
                     env_for_turn=subject_env,
                     timeout_per_turn=timeout,
+                    turn_cmd=turn_cmd,
+                    normalize=normalize,
                 )
             exit_codes = [p.returncode for p in procs]
         else:
@@ -768,7 +774,7 @@ def run_subject(
     end_iso = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     wall = time.time() - t0
 
-    events = normalize_events(raw_events, harness)
+    events = normalize_turns(raw_events, harness)
     transcript_text = format_transcript(
         events, prompt, skill_name=(skill_name if with_skill else None)
     )
@@ -880,6 +886,67 @@ HARNESS_ADAPTERS = {
     "kiro": adapter_kiro,
     "codex": adapter_codex,
 }
+
+
+def harness_turn_cmd(harness: str, *, model: str, sandbox: Path, env: dict[str, str],
+                     wrap: Any) -> Any:
+    """The canned-answer loop's turn command on kiro or codex
+    (elicitation.run_multiturn_subject `turn_cmd`), each a turn of its
+    adapter, resumed by the form its --help gives (read 2026-11-26):
+    kiro-cli 3.5.0 `chat --help`, "-r, --resume  Resume the most recent
+    conversation from this directory": each run's sandbox is its own
+    mkdtemp folder, so that conversation is this run's. codex-cli 0.163.0
+    `exec resume --help`, "Usage: codex exec resume [OPTIONS] [SESSION_ID]
+    [PROMPT]": the id is the first turn's thread.started thread_id, and
+    with no id the loop ends. Codex's first turn drops --ephemeral, which
+    keeps no session file to resume (its files go to CODEX_HOME in the
+    run's clean HOME); `exec resume` takes no -C, so a resumed turn runs
+    with the sandbox as its cwd. `wrap` puts a command under the wall."""
+    if harness == "kiro":
+        base = adapter_kiro(prompt="", model=model, sandbox=sandbox, env=env)[:-1]
+        return lambda text, resume, sid: wrap(base + (["--resume"] if resume else []) + [text])
+    if harness == "codex":
+        first = [a for a in adapter_codex(prompt="", model=model, sandbox=sandbox, env=env)[:-1]
+                 if a != "--ephemeral"]
+        cd = first.index("-C")
+        opts = first[2:cd] + first[cd + 2:]
+
+        def codex_turn(text: str, resume: bool, sid: str | None) -> list[str] | None:
+            if not resume:
+                return wrap(first + [text])
+            return wrap(["codex", "exec", "resume"] + opts + [sid, text]) if sid else None
+        return codex_turn
+    raise ValueError(f"no turn command for harness {harness!r}")
+
+
+def normalize_turns(raw_events: list, harness: str) -> list[dict]:
+    """normalize_events turn by turn, split where elicitation.py put a
+    canned answer on a resumed turn's first raw event, so the answer stays
+    on that turn's first event for format_transcript. The last result
+    event is the whole stream's, so a codex run's tokens sum over its
+    turns and a kiro run's update count covers them all. Claude events
+    pass through as they are."""
+    if harness == "claude":
+        return normalize_events(raw_events, harness)
+    turns: list[list] = []
+    for evt in raw_events:
+        if not turns or (isinstance(evt, dict) and "elicitation_answer" in evt):
+            turns.append([])
+        turns[-1].append(evt)
+    out: list[dict] = []
+    for turn in turns:
+        norm = normalize_events(turn, harness)
+        answer = turn[0].get("elicitation_answer") if isinstance(turn[0], dict) else None
+        if answer is not None and norm:
+            norm[0]["elicitation_answer"] = answer
+        out.extend(norm)
+    whole = [e for e in normalize_events(raw_events, harness) if e.get("type") == "result"]
+    last = [i for i, e in enumerate(out) if e.get("type") == "result"]
+    if whole and last:
+        out[last[-1]] = whole[-1]
+    elif whole:
+        out.append(whole[-1])
+    return out
 
 
 _EVAL_ENV_LOCK = threading.Lock()

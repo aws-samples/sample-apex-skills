@@ -7,7 +7,9 @@ subject is a small Python script standing in for the harness CLI.
 
 from __future__ import annotations
 
+import json
 import os
+import shutil
 import sys
 import tempfile
 import textwrap
@@ -214,6 +216,134 @@ class MultiturnSubjectProcess(unittest.TestCase):
         # misc/runner-trial/drive_c1.py imports it by name with one argument.
         self.assertTrue(callable(elicitation.detect_pending_question))
         self.assertIsNone(elicitation.detect_pending_question([]))
+
+
+# Stand-ins for kiro-cli and codex: each logs its argv, then prints its
+# harness's raw JSON Lines (parse_trajectory.py, harness shapes). Turn 1 asks
+# in plain text; a resumed turn echoes the answer, its last argument.
+KIRO_SUBJECT = textwrap.dedent(
+    """
+    import json, sys
+    args = sys.argv[1:]
+    with open(sys.argv[0] + ".argv", "a") as f:
+        f.write(json.dumps(args) + "\\n")
+    text = args[-1]
+    if "--resume" in args:
+        reply = "Building in " + text + "."
+    else:
+        reply = "I can build this.\\n\\nWhich AWS region should it run in?"
+    upd = {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": reply}}
+    for evt in ({"type": "runStarted"}, {"update": upd}, {"type": "runFinished"}):
+        print(json.dumps(evt), flush=True)
+    """
+)
+
+CODEX_SUBJECT = textwrap.dedent(
+    """
+    import json, sys
+    args = sys.argv[1:]
+    with open(sys.argv[0] + ".argv", "a") as f:
+        f.write(json.dumps(args) + "\\n")
+    text = args[-1]
+    resume = args[:2] == ["exec", "resume"]
+    if resume:
+        reply, usage = "Building in " + text + ".", {"input_tokens": 20, "output_tokens": 3}
+    else:
+        reply, usage = "I can build this.\\n\\nWhich AWS region should it run in?", {"input_tokens": 10, "output_tokens": 2}
+    item = {"type": "agent_message", "text": reply}
+    for evt in ({"type": "thread.started", "thread_id": THREAD},
+                {"type": "item.completed", "item": item},
+                {"type": "turn.completed", "usage": usage}):
+        print(json.dumps(evt), flush=True)
+    """
+)
+
+CANNED_REGION = {
+    "strategy": "canned-multiturn",
+    "turns": [{"question_match": "region", "answer": "us-west-2"}],
+    "max_turns": 3,
+}
+
+
+class HarnessResume(unittest.TestCase):
+    """The kiro and codex resume forms (run_task_evals.harness_turn_cmd),
+    run against stand-in CLIs: the CLI name is swapped for the script and
+    every other argument is the runner's own."""
+
+    def _run(self, harness: str, source: str):
+        import run_task_evals
+
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        script = Path(tmp) / "subject.py"
+        script.write_text(source)
+        turn_cmd = run_task_evals.harness_turn_cmd(
+            harness, model="m", sandbox=Path(tmp), env={},
+            wrap=lambda c: [sys.executable, str(script)] + c[1:])
+        events, timed_out, sid = run_multiturn_subject(
+            initial_prompt="build me a cluster",
+            elicitation=ElicitationConfig.from_dict(CANNED_REGION),
+            cwd=tmp,
+            env_for_turn=lambda: dict(os.environ),
+            timeout_per_turn=5,
+            turn_cmd=turn_cmd,
+            normalize=lambda evts: run_task_evals.normalize_events(evts, harness),
+        )
+        argv = [json.loads(line) for line in Path(str(script) + ".argv").read_text().splitlines()]
+        return run_task_evals, events, timed_out, sid, argv
+
+    def test_kiro_resumes_with_resume_flag(self):
+        rte, events, timed_out, sid, argv = self._run("kiro", KIRO_SUBJECT)
+        self.assertFalse(timed_out)
+        self.assertEqual(len(argv), 2)
+        self.assertEqual(argv[0][:1], ["chat"])
+        self.assertNotIn("--resume", argv[0])
+        self.assertEqual(argv[1][-2:], ["--resume", "us-west-2"])
+        self.assertEqual(argv[0][:-1], argv[1][:-2])
+        norm = rte.normalize_turns(events, "kiro")
+        self.assertEqual([e.get("elicitation_answer") for e in norm if "elicitation_answer" in e],
+                         ["us-west-2"])
+        texts = [c["text"] for e in norm if e.get("type") == "assistant"
+                 for c in e["message"]["content"] if c.get("type") == "text"]
+        self.assertTrue(texts[-1].startswith("Building in us-west-2"))
+        self.assertIsNone(rte.stream_invalid_reason(events, "kiro"))
+        out = rte.format_transcript(norm, "build me a cluster", "eks-build")
+        self.assertEqual(out.count("**Eval harness reply (canned user answer):** us-west-2"), 1)
+
+    def test_codex_resumes_by_thread_id(self):
+        rte, events, timed_out, sid, argv = self._run(
+            "codex", CODEX_SUBJECT.replace("THREAD", repr("t-1")))
+        self.assertFalse(timed_out)
+        self.assertEqual(sid, "t-1")
+        self.assertEqual(len(argv), 2)
+        self.assertEqual(argv[0][0], "exec")
+        self.assertNotIn("--ephemeral", argv[0])
+        self.assertIn("-C", argv[0])
+        self.assertEqual(argv[1][:2], ["exec", "resume"])
+        self.assertNotIn("-C", argv[1])
+        self.assertEqual(argv[1][-2:], ["t-1", "us-west-2"])
+        norm = rte.normalize_turns(events, "codex")
+        self.assertEqual([e.get("elicitation_answer") for e in norm if "elicitation_answer" in e],
+                         ["us-west-2"])
+        result = [e for e in norm if e.get("type") == "result"][-1]
+        self.assertEqual(result["usage"]["input_tokens"], 30)
+        self.assertEqual(result["usage"]["output_tokens"], 5)
+        self.assertEqual(result["num_turns"], 2)
+
+    def test_codex_with_no_thread_id_runs_one_turn(self):
+        rte, events, timed_out, sid, argv = self._run(
+            "codex", CODEX_SUBJECT.replace("THREAD", "None"))
+        self.assertFalse(timed_out)
+        self.assertIsNone(sid)
+        self.assertEqual(len(argv), 1)
+
+    def test_single_turn_normalize_matches_normalize_events(self):
+        import run_task_evals as rte
+
+        raw = [{"type": "thread.started", "thread_id": "t"},
+               {"type": "item.completed", "item": {"type": "agent_message", "text": "hi"}},
+               {"type": "turn.completed", "usage": {"input_tokens": 1, "output_tokens": 1}}]
+        self.assertEqual(rte.normalize_turns(raw, "codex"), rte.normalize_events(raw, "codex"))
 
 
 if __name__ == "__main__":
