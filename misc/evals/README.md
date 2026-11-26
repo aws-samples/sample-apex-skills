@@ -282,8 +282,8 @@ Your home directory, the repo, the runner's temp directory (`tempfile.gettempdir
 
 - the run's own sandbox and clean home (read-write),
 - for a Kiro subject only the kiro-cli data folder (`$XDG_DATA_HOME/kiro-cli`, else `~/.local/share/kiro-cli`, read-write: the subject reads and writes your kiro-cli data, its sign-in and chat history; that kiro-cli keeps its sign-in there is assumed, since no kiro run has signed in under the wall yet; never the rest of `~/.local/share`, and not when that folder resolves to your home directory, `~/.local`, `~/.local/share`, an outermost walled folder (HOME, /tmp, the runtime dir; the repo or temp dir only when outside those) or a folder above one),
-- the staged skill folder and the run's own harness CLI (read-only: the CLI's files and its interpreter's, plus an npm CLI's package folder or the folder another script shares with its interpreter, but never your home directory, `~/.local` or a folder above either)
-- and any PATH dir the caller adds, such as the runner-trial T7 `aws` shim (read-only; not your home directory, `~/.local`, a walled folder or one above it, and otherwise not checked: a caller adds only a private dir it created).
+- the staged skill folder and the run's own harness CLI (read-only: the CLI's files and its interpreter's, plus an npm CLI's package folder or the folder another script shares with its interpreter, but never your home directory, `~/.local` or a folder above either), and
+- any PATH dir the caller adds, such as the runner-trial T7 `aws` shim (read-only; not your home directory, `~/.local`, a walled folder or one above it, and otherwise not checked: a caller adds only a private dir it created).
 
 The container engine sockets (only `/run/docker.sock`, containerd's and a rootless docker's) read as `/dev/null`, and the subject gets a new session, so it cannot push input into your terminal itself.
 
