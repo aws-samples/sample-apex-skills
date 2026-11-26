@@ -193,6 +193,8 @@ make snapshot-<skill>       # freeze current scores (reads the run's base arm: b
 make regression-<skill>     # compare against baseline, exit 2 on regression
 ```
 
+In CI, the `eval set hygiene` job runs `regression.py --from-history` for every skill with a baseline, with no model call: it compares the newest committed history rows (triggering accuracy and task `with_skill_mean` only, no composite) with each baseline and fails on a drop of more than 5 points (an exact 5-point drop can go either way on float rounding), a missing history file or a script error. When this step was added (November 2026), each baseline held the same two scores as its newest history rows, so the step went red only when a committed eval file changed; a history file of only non-JSON lines, newest rows that leave no score (key absent or null), or a tree with no baseline passes (a null `overall` on the newest triggering row fails the step).
+
 ## Merge gate (old against new)
 
 The gate compares each skill as it is now (arm `with_skill`) with the same skill at a git ref (arm `base_skill`, default `v1.3.0`; pass `BASE_REF=<ref>` for another ref). A skill absent at the ref, such as a new skill, runs its task cases against `without_skill`; its trigger queries are scored on `with_skill` alone, since the triggering runner has no `without_skill` arm.
