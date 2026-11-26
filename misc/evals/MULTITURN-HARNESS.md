@@ -93,5 +93,5 @@ PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and
 None of this is built.
 
 - Kiro and codex multi-turn. Not built yet; its proof needs live eval runs. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
-- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Not scheduled; outside this harness.
+- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Outside this harness.
 - Issue 98's other axis 2 items, quoted: "Workflow-level evals (does `/apex:eks-design` produce good end-to-end output?)", "Ambient triggering across turns" and "Skill interop when multiple loaded". They wait on a scoping decision about whether they get work of their own; nothing is built for them here.
