@@ -651,8 +651,8 @@ def run_subject(
     A run that is not ok is an invalid run: it timed out, a subject
     process exited non-zero (every turn of a canned multi-turn run is
     read), the stream holds no events or no start event, the harness
-    reported an error (stream_invalid_reason; on kiro and codex each turn
-    of a canned multi-turn run is checked too), or its fixtures were refused
+    reported an error (stream_invalid_reason; on kiro and codex each
+    resumed turn that printed events is checked too), or its fixtures were refused
     (FixtureLinkError). events.jsonl holds the stream in Claude Code
     stream-json form (normalize_events); a kiro or codex run also writes
     its raw stream to raw-events.jsonl.
@@ -816,9 +816,8 @@ def run_subject(
         reason = stream_invalid_reason(raw_events, harness)
         # A resumed kiro or codex turn is checked on its own: turn 1's finish
         # event would otherwise cover a later turn that never finished.
-        turns = split_turns(raw_events) if harness != "claude" and reason is None else []
-        if len(turns) > 1:
-            reason = next((f"turn {n}: {r}" for n, t in enumerate(turns, 1)
+        if reason is None and harness != "claude":
+            reason = next((f"turn {n}: {r}" for n, t in enumerate(split_turns(raw_events), 1)
                            if (r := stream_invalid_reason(t, harness))), None)
     out = {
         "transcript_path": str(transcript_path),
@@ -945,8 +944,10 @@ def normalize_turns(raw_events: list, harness: str) -> list[dict]:
     stays on its turn's first event for format_transcript, unless the
     turn's only event is its result, which the whole-stream result
     replaces. The last result event is the whole stream's, so a codex
-    run's tokens sum over its turns, a kiro run's tokens are its last
-    runFinished's usage and a kiro run's update count covers every turn.
+    run's tokens sum over its turns (if each resumed turn.completed
+    reports that turn's usage; unverified until a live run), a kiro
+    run's tokens are its last runFinished's usage and a kiro run's update
+    count covers every turn.
     Claude events pass through as they are."""
     if harness == "claude":
         return normalize_events(raw_events, harness)

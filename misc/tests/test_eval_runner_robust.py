@@ -2062,13 +2062,14 @@ class HarnessAdapters(Tmp):
         self.assertEqual(len(argv), 2)
         self.assertEqual(argv[1][-2:], ["0199a213-81c0-7800-8aa1-bbab2a035a53", "y"])
 
-    def test_codex_resumed_turn_with_no_turn_completed_is_invalid(self):
+    def test_codex_turn_1_with_no_turn_completed_is_invalid(self):
+        # turn 2's turn.completed passes the whole-stream check
         out, argv = self._canned_run("codex", "codex", "args[:2] == ['exec', 'resume']",
-                                     [CODEX_START, self.CODEX_ASK, CODEX_DONE],
-                                     [CODEX_START, CODEX_MSG])
+                                     [CODEX_START, self.CODEX_ASK],
+                                     [CODEX_START, CODEX_MSG, CODEX_DONE])
         self.assertEqual(len(argv), 2)
         self.assertFalse(out["ok"])
-        self.assertEqual(out["reason"], "turn 2: codex stream ended with no turn.completed")
+        self.assertEqual(out["reason"], "turn 1: codex stream ended with no turn.completed")
 
     def test_unknown_harness_is_refused(self):
         with self.assertRaises(ValueError):
