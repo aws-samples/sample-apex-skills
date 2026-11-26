@@ -231,8 +231,9 @@ def run_multiturn_subject(
         events, timed_out = drain_stream_for_events(process, timeout_per_turn)
         if events:
             # Record the injected answer in events.jsonl, on the resumed turn's
-            # first event. No grader reads it yet: transcript.md does not show
-            # it, and drive_c1's T5 check does not use it.
+            # first event. transcript.md shows it
+            # (run_task_evals.format_transcript); drive_c1's T5 check does
+            # not use it.
             events[0]["elicitation_answer"] = answer
         all_events.extend(events)
 
