@@ -1,6 +1,6 @@
 # `misc/evals/MULTITURN-HARNESS.md`: multi-turn eval harness
 
-Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ 33a5bc2f` is `origin/main` after PR 570 merged (33a5bc2f9f3457c6aba43c2283f9fc207834b4c1). `@ e81a5ee4` is this change's code, rebased onto `origin/main` after PR 572 merged (e81a5ee497935fed471bbcb1b77e2fb50db7b96e).
+Code cites name a sha: `@ 2133c43d` was `origin/main` when this doc was written (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ 33a5bc2f` is `origin/main` after PR 570 merged (33a5bc2f9f3457c6aba43c2283f9fc207834b4c1). `@ e81a5ee4` is this PR's code commit on the PR 578 branch, rebased after PR 572 merged (e81a5ee497935fed471bbcb1b77e2fb50db7b96e).
 
 ## 1. Purpose and scope
 
@@ -92,6 +92,6 @@ PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and
 
 None of this is built.
 
-- Kiro and codex multi-turn. Planned, after PR 563 merges. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
-- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Left for a follow-up to PR 563, not this harness.
+- Kiro and codex multi-turn. Not built yet; its proof needs live eval runs. The resume form differs from the claude `--resume` form at `elicitation.py:198 @ 2133c43d`, and the runner forces both to one turn today (`run_task_evals.py:643-648 @ 2133c43d`).
+- The runner's stderr pipes at `run_task_evals.py:701` and `:923 @ 2133c43d` (single-turn subject and grader, read only after the stream is drained). Left for a separate follow-up, not this harness.
 - Issue 98's other axis 2 items, quoted: "Workflow-level evals (does `/apex:eks-design` produce good end-to-end output?)", "Ambient triggering across turns" and "Skill interop when multiple loaded". They wait on a scoping decision about whether they get work of their own; nothing is built for them here.
