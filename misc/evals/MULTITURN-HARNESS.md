@@ -1,6 +1,6 @@
 # `misc/evals/MULTITURN-HARNESS.md`: multi-turn eval harness
 
-Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ 33a5bc2f` is `origin/main` after PR 570 merged (33a5bc2f9f3457c6aba43c2283f9fc207834b4c1).
+Code cites name a sha: `@ 2133c43d` is `origin/main` (2133c43dd693e0337987443270a60efdd3ac4ecd). `@ 33a5bc2f` is `origin/main` after PR 570 merged (33a5bc2f9f3457c6aba43c2283f9fc207834b4c1). `@ e81a5ee4` is this change's code, rebased onto `origin/main` after PR 572 merged (e81a5ee497935fed471bbcb1b77e2fb50db7b96e).
 
 ## 1. Purpose and scope
 
@@ -63,7 +63,7 @@ If the last turn has no question, or no canned turn matches it, the loop stops (
 - `run_task_evals.py` imports the module and `ElicitationConfig`, `_append_event`, `run_multiturn_subject` (`run_task_evals.py:102-103 @ 2133c43d`).
 - Each case's block is read with `ElicitationConfig.from_dict(p.get("elicitation"))` and passed to `run_subject` (`run_task_evals.py:1524`, `:1534 @ 2133c43d`).
 - A run is multi-turn only when `strategy == "canned-multiturn"` and `turns` is non-empty (`run_task_evals.py:641 @ 2133c43d`).
-- On a harness other than `claude` the runner turns multi-turn off and sets the note `single turn: <harness> has no AskUserQuestion tool non-interactively` (`run_task_evals.py:643-648 @ 2133c43d`); this change rewords it to `single turn: the canned-answer resume loop is claude-only; {harness} runs one turn` (`run_task_evals.py:690 @ b6d5bafb`). The note is returned as the subject's `elicitation` field (`run_task_evals.py:763 @ 2133c43d`).
+- On a harness other than `claude` the runner turns multi-turn off and sets the note `single turn: <harness> has no AskUserQuestion tool non-interactively` (`run_task_evals.py:643-648 @ 2133c43d`); this change rewords it to `single turn: the canned-answer resume loop is claude-only; {harness} runs one turn` (`run_task_evals.py:690 @ e81a5ee4`). The note is returned as the subject's `elicitation` field (`run_task_evals.py:763 @ 2133c43d`).
 - `_PopenRecorder` stands in for `elicitation.subprocess` during the run so every turn's exit code is kept (`run_task_evals.py:831-856 @ 2133c43d`; codes read at `:694`). A non-zero code on any turn makes the run invalid (`run_task_evals.py:752-753 @ 2133c43d`).
 - On claude the events pass through `normalize_events` unchanged (`misc/evals/scripts/parse_trajectory.py:544-545 @ 2133c43d`) and are written to `events.jsonl` (`run_task_evals.py:724 @ 2133c43d`); `format_transcript` writes `transcript.md` (`run_task_evals.py:719`, `:212 @ 2133c43d`).
 - stderr: on the multi-turn path the runner's `stderr` stays empty (`run_task_evals.py:651 @ 2133c43d`); `elicitation.py` pipes each turn's stderr and never reads it (`elicitation.py:178`, `:200 @ 2133c43d`).
@@ -84,7 +84,7 @@ Stated limits (`elicitation.py:77-83 @ 33a5bc2f`):
 
 ### 3.2 `elicitation_answer` record
 
-Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). This change, not PR 570, adds its rendering: `format_transcript` shows it in transcript.md, the file the grader reads, as a `**Eval harness reply (canned user answer):**` line before that event (`run_task_evals.py:246-251 @ bd72ffaa`). Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
+Each resumed turn's first event gets `"elicitation_answer": "<answer>"`, the canned answer sent (`elicitation.py:232-236 @ 33a5bc2f`; docstring `:194-197`). This change, not PR 570, adds its rendering: `format_transcript` shows it in transcript.md, the file the grader reads, as a `**Eval harness reply (canned user answer):**` line before that event (`run_task_evals.py:246-251 @ e81a5ee4`). Stated limit: a resumed turn that emits no event loses the record (`elicitation.py:196-197 @ 33a5bc2f`).
 
 PR 570 also sends each turn's stderr to `DEVNULL`, since only stdout is read and an unread pipe can stall the subject until the timeout (`elicitation.py:203-207`, `:229 @ 33a5bc2f`).
 
