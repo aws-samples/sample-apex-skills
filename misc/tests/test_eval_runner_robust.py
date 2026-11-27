@@ -2005,14 +2005,71 @@ class HarnessAdapters(Tmp):
         self.assertFalse(out["ok"])
         self.assertEqual(out["reason"], "no init event")
 
-    def test_kiro_canned_multiturn_runs_one_turn_and_says_so(self):
+    def test_kiro_canned_multiturn_has_no_single_turn_note(self):
         fake_exe(self.bin, "kiro-cli", KIRO_TYPED, 0)
         multi = elicitation.ElicitationConfig.from_dict({
             "strategy": "canned-multiturn", "max_turns": 2,
             "turns": [{"question_match": "x", "answer": "y"}]})
         out = self.subject(harness="kiro", elicitation=multi)
         self.assertTrue(out["ok"], out)
-        self.assertIn("single turn", out["elicitation"])
+        self.assertIsNone(out["elicitation"])
+
+    def _resume_exe(self, name, resumed_when, first, resumed):
+        """A fake harness binary that logs its argv and prints `first`, or
+        `resumed` when the Python test `resumed_when` holds for `args`."""
+        log = self.tmp / (name + ".argv")
+        fake_exe(self.bin, name, [], 0, extra=(
+            "args = sys.argv[1:]\n"
+            "open(%r, 'a').write(json.dumps(args) + '\\n')\n"
+            "for l in (%r if %s else %r):\n    print(l)\n"
+            "sys.exit(0)\n") % (str(log), resumed, resumed_when, first))
+        return log
+
+    def _canned_run(self, harness, name, resumed_when, first, resumed):
+        log = self._resume_exe(name, resumed_when, first, resumed)
+        multi = elicitation.ElicitationConfig.from_dict({
+            "strategy": "canned-multiturn", "max_turns": 2,
+            "turns": [{"question_match": "region", "answer": "y"}]})
+        out = self.subject(harness=harness, elicitation=multi)
+        return out, [json.loads(l) for l in log.read_text().splitlines()]
+
+    KIRO_ASK = j({"type": "sessionUpdate", "data": {"sessionId": "s1", "update": {
+        "sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Which region?"}}}})
+    CODEX_ASK = j({"type": "item.completed", "item": {
+        "id": "item_3", "type": "agent_message", "text": "Which region?"}})
+
+    def test_kiro_canned_multiturn_resumes_with_the_answer(self):
+        out, argv = self._canned_run("kiro", "kiro-cli", "'--resume' in args",
+                                     [KIRO_START, self.KIRO_ASK, KIRO_DONE],
+                                     [KIRO_START, KIRO_TEXT, KIRO_DONE])
+        self.assertTrue(out["ok"], out)
+        self.assertEqual(len(argv), 2)
+        self.assertEqual(argv[1][-2:], ["--resume", "y"])
+
+    def test_kiro_resumed_turn_with_no_run_finished_is_invalid(self):
+        out, argv = self._canned_run("kiro", "kiro-cli", "'--resume' in args",
+                                     [KIRO_START, self.KIRO_ASK, KIRO_DONE],
+                                     [KIRO_START, KIRO_TEXT])
+        self.assertEqual(len(argv), 2)
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "turn 2: kiro stream ended with no runFinished")
+
+    def test_codex_canned_multiturn_resumes_by_thread_id(self):
+        out, argv = self._canned_run("codex", "codex", "args[:2] == ['exec', 'resume']",
+                                     [CODEX_START, self.CODEX_ASK, CODEX_DONE],
+                                     [CODEX_START, CODEX_MSG, CODEX_DONE])
+        self.assertTrue(out["ok"], out)
+        self.assertEqual(len(argv), 2)
+        self.assertEqual(argv[1][-2:], ["0199a213-81c0-7800-8aa1-bbab2a035a53", "y"])
+
+    def test_codex_turn_1_with_no_turn_completed_is_invalid(self):
+        # turn 2's turn.completed passes the whole-stream check
+        out, argv = self._canned_run("codex", "codex", "args[:2] == ['exec', 'resume']",
+                                     [CODEX_START, self.CODEX_ASK],
+                                     [CODEX_START, CODEX_MSG, CODEX_DONE])
+        self.assertEqual(len(argv), 2)
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "turn 1: codex stream ended with no turn.completed")
 
     def test_unknown_harness_is_refused(self):
         with self.assertRaises(ValueError):

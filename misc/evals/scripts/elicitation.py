@@ -113,12 +113,13 @@ def match_answer(question_text: str, turns: list[CannedTurn]) -> str | None:
 
 
 def extract_session_id(events: list[dict]) -> str | None:
-    """Extract session ID from the result event."""
+    """The session ID of the last result or system/init event that has one
+    (a normalized codex result has none; its init carries the thread_id)."""
     for evt in reversed(events):
-        if evt.get("type") == "result":
-            return evt.get("session_id")
-        if evt.get("type") == "system" and evt.get("subtype") == "init":
-            return evt.get("session_id")
+        if evt.get("type") == "result" or (
+                evt.get("type") == "system" and evt.get("subtype") == "init"):
+            if evt.get("session_id"):
+                return evt["session_id"]
     return None
 
 
@@ -179,10 +180,12 @@ def run_multiturn_subject(
     *,
     initial_prompt: str,
     elicitation: ElicitationConfig,
-    cmd_base: list[str],
+    cmd_base: list[str] | None = None,
     cwd: str,
     env_for_turn: Callable[[], dict[str, str]],
     timeout_per_turn: int,
+    turn_cmd: Callable[[str, bool, str | None], list[str] | None] | None = None,
+    normalize: Callable[[list[dict]], list[dict]] | None = None,
 ) -> tuple[list[dict], bool, str | None]:
     """Run a canned-multiturn session.
 
@@ -191,18 +194,35 @@ def run_multiturn_subject(
     `env_for_turn` is called before each turn, so each turn starts on an
     eval-role session that outlasts it.
 
+    `turn_cmd(text, resume, session_id)` builds each turn's command. With
+    none it is claude's form, `cmd_base + ["-p", text]` plus `--session-id`
+    on the first turn and `--resume` after, the id made here. A harness
+    that names its own session (codex) gets None on the first turn, then
+    the id extract_session_id reads from that turn's events; a turn_cmd
+    that returns None ends the loop. `normalize` puts a turn's raw events
+    in Claude Code stream-json form before its question is read (as
+    given when None).
+
     Returns (all_events, timed_out, session_id). Each canned answer sent is
     recorded as "elicitation_answer": "<answer>" on the first event of the
     turn it resumed (on a real claude run that is the system/init event); a
-    resumed turn that emits no event loses that record.
+    resumed turn that emits no event loses that record, and when it exits
+    0 the run is still scored valid on the earlier turns' events (all three harnesses).
     """
-    session_id = str(uuid.uuid4())
+    if turn_cmd is None:
+        session_id: str | None = str(uuid.uuid4())
+
+        def turn_cmd(text: str, resume: bool, sid: str | None) -> list[str]:
+            return (cmd_base or []) + ["-p", text, "--resume" if resume else "--session-id", sid]
+    else:
+        session_id = None
+    norm = normalize or (lambda evts: evts)
     all_events: list[dict] = []
     timed_out = False
 
     # First turn. Only stdout is read (drain_stream_for_events), so stderr goes
     # to DEVNULL: an unread pipe fills and stalls the subject until the timeout.
-    cmd = cmd_base + ["-p", initial_prompt, "--session-id", session_id]
+    cmd = turn_cmd(initial_prompt, False, session_id)
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
     )
@@ -211,11 +231,13 @@ def run_multiturn_subject(
 
     if timed_out:
         return all_events, True, session_id
+    if session_id is None:
+        session_id = extract_session_id(norm(events))
 
     # Follow-up turns
     turns_used = 1
     while turns_used < elicitation.max_turns:
-        question = detect_pending_question(events)
+        question = detect_pending_question(norm(events))
         if not question:
             break
 
@@ -223,8 +245,10 @@ def run_multiturn_subject(
         if not answer:
             break
 
+        cmd = turn_cmd(answer, True, session_id)
+        if cmd is None:
+            break
         turns_used += 1
-        cmd = cmd_base + ["-p", answer, "--resume", session_id]
         process = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=cwd, env=env_for_turn()
         )
