@@ -142,5 +142,13 @@
   {
     "query": "Document the networking and security posture of our dev cluster for the new platform engineer starting Monday.",
     "should_trigger": false
+  },
+  {
+    "query": "We already chose isolated-sandbox for our agent pods. Which instance type fits 200 of them at 1 vCPU and 2 GiB each?",
+    "should_trigger": false
+  },
+  {
+    "query": "How many confidential-sandbox pods fit on one r7g.2xlarge node, and what limit is hit first?",
+    "should_trigger": false
   }
 ]

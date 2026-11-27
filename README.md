@@ -17,7 +17,7 @@
 
 ## What APEX is
 
-- **Skills**: what your agent knows. 28 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
+- **Skills**: what your agent knows. 29 skills, written to the [Agent Skills standard](https://agentskills.io/), that design, build, review, upgrade and secure Amazon EKS and Amazon ECS estates.
 - **The `/apex` router** (installed from `main`, below): one entry point. Type `/apex` with your request and it picks the right skill, or follows a runbook you name: your own procedure that chains skills.
 - **DevOps Agent ports**: 6 Day 2 skills repackaged for [AWS DevOps Agent](https://docs.aws.amazon.com/devopsagent/latest/userguide/).
 
@@ -106,6 +106,7 @@ Choose an architecture before you build.
 | [ecs-architect](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-architect/) | Choose the ECS compute model for a new workload: Fargate, EC2, Managed Instances, Express Mode or ECS Anywhere, plus capacity providers and task sizing |
 | [ecs-observability](https://aws-samples.github.io/sample-apex-skills/docs/skills/ecs/ecs-observability/) | ECS observability architecture: logs, metrics and traces with CloudWatch, Container Insights, X-Ray, ADOT, Managed Prometheus and Grafana, or FireLens |
 | [eks-design](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-design/) | Generate EKS architecture design documents with Mermaid diagrams, ADRs, security architecture and validation reports, guided by Well-Architected practices |
+| [eks-sandbox-instance-selector](https://aws-samples.github.io/sample-apex-skills/docs/skills/eks/eks-sandbox-instance-selector/) | Pick EC2 instance types for EKS Nitro Sandbox pods: sandboxes per node, first limit reached, node count, on-demand cost and a NodePool snippet |
 
 ### Day 1 Build
 

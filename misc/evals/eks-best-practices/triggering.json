@@ -170,5 +170,13 @@
   {
     "query": "We think a pod in our production EKS cluster was compromised an hour ago. Walk through our live cluster: what is affected, and what should we contain right now?",
     "should_trigger": false
+  },
+  {
+    "query": "Graviton or x86 for EKS nodes that run Nitro Sandbox pods with 250m CPU and 256Mi each?",
+    "should_trigger": false
+  },
+  {
+    "query": "Which instance families should my Auto Mode NodePool allow for isolated-sandbox pods?",
+    "should_trigger": false
   }
 ]

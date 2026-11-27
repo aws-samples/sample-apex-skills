@@ -11,6 +11,7 @@ Each record captures one decision: the context, what we decided, and what follow
 | [0005](0005-skill-classes.md) | Skills share through build-time classes | Accepted |
 | [0006](0006-five-stage-engagement.md) | The five stages are the router's journey, not a rule in each skill | Accepted |
 | [0007](0007-runbooks-absorbed-into-classes.md) | Runbooks are absorbed into the classes and the skills | Accepted |
+| [0008](0008-eks-sandbox-instance-selector.md) | A standalone solution skill sizes nodes for Nitro Sandbox pods | Proposed |
 
 ## Format
 

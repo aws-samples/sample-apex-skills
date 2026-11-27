@@ -50,7 +50,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 
 | family | EKS | ECS | cross-cutting |
 |---|---|---|---|
-| Day 0 (Design) | `eks-design` | `ecs-architect`, `ecs-modernize`, `ecs-observability` | |
+| Day 0 (Design) | `eks-design`, `eks-sandbox-instance-selector` | `ecs-architect`, `ecs-modernize`, `ecs-observability` | |
 | Day 1 (Build) | `eks-build`, `eks-platform-engineering`, `eks-genai` | `ecs-build`, `dotnet-aws-ecs`, `ecs-devops`, `ecs-modernize` | `terraform-skill` |
 | Day 2 (Operate) | `eks-upgrade-check`, `eks-operation-review`, `eks-cost-intelligence`, `eks-ingress-migration`, `eks-well-architected-review` | `ecs-operation-review`, `ecs-devops`, `ecs-observability` | `graviton-migration` |
 | any stage | `eks-best-practices` (catch-all), `eks-recon` (discovery before a change), `eks-security` | `ecs-recon` (discovery before a change), `ecs-security`, `ecs-genai` | |
@@ -67,6 +67,7 @@ Use the stage only as a hint: to break a tie between two equally specific rows (
 | Internal Developer Platform, golden paths, Backstage, GitOps and progressive delivery for a developer platform | `eks-platform-engineering` (ArgoCD inside a cluster build: `eks-build`) |
 | GenAI or LLM on EKS: GPU vs Neuron, vLLM, Ray, distributed training, RAG, AI gateway | `eks-genai` |
 | Harden, compliance (HIPAA, PCI, FedRAMP, GDPR), CIS, Pod Identity vs IRSA, GuardDuty, image signing, PSA; CVE or advisory review ("am I exposed to CVE-...", check a security bulletin against my cluster); security event response (compromised image or package, leaked credential); security posture check (would my cluster contain a compromised pod) | `eks-security` |
+| Which instance type for Nitro Sandbox pods (`isolated-sandbox`, `confidential-sandbox`), how many sandboxes fit on a node, how many nodes N sandboxes need, what sandbox capacity costs | `eks-sandbox-instance-selector` (whether to use sandboxes, or how to secure them: `eks-security`) |
 | Ready to upgrade to a target version, what blocks my upgrade | `eks-upgrade-check` |
 | Operational review, audit, health check, score my posture, one section (networking, RBAC, observability), version currency with no target version | `eks-operation-review` |
 | Cost audit, waste, biggest cost driver, Spot or Graviton savings | `eks-cost-intelligence` |

@@ -1,0 +1,22 @@
+[
+  { "query": "Which EC2 instance type should I use for Nitro Sandbox pods on EKS Auto Mode? Each pod requests 1 vCPU and 2 GiB, and we run about 100 of them in us-west-2.", "should_trigger": true },
+  { "query": "How many isolated-sandbox pods fit on one m6g.4xlarge node?", "should_trigger": true },
+  { "query": "We want to run 500 confidential-sandbox pods with 0.5 vCPU and 1024Mi each. How many nodes do we need and what will it cost per month?", "should_trigger": true },
+  { "query": "Graviton or x86 for EKS sandbox nodes? Our sandboxes are small, 250m CPU and 256Mi.", "should_trigger": true },
+  { "query": "Pick the cheapest instance family for my runtimeClassName: isolated-sandbox workload on Karpenter.", "should_trigger": true },
+  { "query": "What should I put in my Auto Mode NodePool instance-family requirement for Nitro Sandbox pods?", "should_trigger": true },
+  { "query": "Our AI agents each run in a Nitro Sandbox with 2 vCPU and 4 GiB. Size the EKS nodes for 1000 of them in ap-east-1.", "should_trigger": true },
+  { "query": "Is c, m or r cheaper per sandbox for isolated pods with 1 vCPU and 3 GiB of memory?", "should_trigger": true },
+  { "query": "Why does each node only fit 15 of my sandbox pods? What limit is hit first, slots, memory or CPU?", "should_trigger": true },
+  { "query": "Estimate the on-demand cost of 200 Nitro Sandbox pods on standard EKS with Karpenter, 1 vCPU and 2048Mi each.", "should_trigger": true },
+  { "query": "Should we run untrusted LLM-generated code in Nitro Sandboxes or gVisor on EKS? We need hard multi-tenancy.", "should_trigger": false },
+  { "query": "How do I enforce that every pod in our agent namespaces uses the isolated-sandbox runtime class?", "should_trigger": false },
+  { "query": "What is the difference in the trust model between isolated-sandbox and confidential-sandbox pods, and how does attestation work?", "should_trigger": false },
+  { "query": "Should I use Karpenter or Managed Node Groups for my regular web pods? What instance families do you recommend?", "should_trigger": false },
+  { "query": "What are the best practices for right-sizing CPU and memory requests for normal EKS pods?", "should_trigger": false },
+  { "query": "How do I configure Karpenter consolidation and Spot for my general-purpose workloads?", "should_trigger": false },
+  { "query": "Run a cost audit on my production EKS cluster and show me where we waste money.", "should_trigger": false },
+  { "query": "Score my live cluster's cost efficiency, including Spot and Graviton adoption, for our FinOps review.", "should_trigger": false },
+  { "query": "Write an EKS architecture design document with diagrams and ADRs for a multi-tenant platform.", "should_trigger": false },
+  { "query": "Produce a formal design for a new EKS cluster for our agent platform, covering networking, security and add-ons.", "should_trigger": false }
+]
