@@ -89,7 +89,7 @@ jobs:
           - for `skills/*/SKILL.md` only: `description` matches the generated `skills.json` manifest (`devops-agent/` is exempt; a missing manifest entry is only a warning) — if you changed a description, regenerate:
 
           ```bash
-          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
+          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add README.md skills/README.md devops-agent/README.md misc/website/docs/skills misc/website/docs/examples misc/website/docs/devops-agent misc/website/static/manifests misc/website/static/llms.txt misc/website/static/examples
           git commit -m "docs: regenerate reference tables and pages"
           ```
           EOF
@@ -105,7 +105,7 @@ jobs:
 
           **Fix:**
           ```bash
-          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add -A
+          ./misc/update-all-references.sh && ./misc/update-pages.sh && git add README.md skills/README.md devops-agent/README.md misc/website/docs/skills misc/website/docs/examples misc/website/docs/devops-agent misc/website/static/manifests misc/website/static/llms.txt misc/website/static/examples
           git commit -m "docs: regenerate reference tables and pages"
           ```
 
